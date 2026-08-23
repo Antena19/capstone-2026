@@ -83,3 +83,4 @@ Luego ejecutar desde Android Studio.
 - Las versiones de Angular Web y Angular Mobile son diferentes y deben mantenerse según sus respectivos package.json.
 - No actualizar Angular, Ionic, Capacitor o Barcode Scanner sin revisar compatibilidad.
 - No ejecutar npm audit fix --force.
+
