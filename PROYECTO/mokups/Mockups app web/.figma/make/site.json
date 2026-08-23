@@ -1,0 +1,10 @@
+{
+  "description": "Streamline personnel transportation management with an intuitive platform for administrators and planners, featuring real-time tracking, route planning, and comprehensive reporting.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

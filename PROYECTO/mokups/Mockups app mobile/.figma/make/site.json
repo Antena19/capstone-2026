@@ -1,0 +1,10 @@
+{
+  "description": "Facilita la gestión rápida y sencilla de servicios de transporte personal para pasajeros y conductores con información clave y confirmación de asistencia.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
