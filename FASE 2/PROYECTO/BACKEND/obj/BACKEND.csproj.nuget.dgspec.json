@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\capstone-2026\\PROYECTO\\BACKEND\\BACKEND.csproj": {}
+    "C:\\capstone-2026\\FASE 2\\PROYECTO\\BACKEND\\BACKEND.csproj": {}
   },
   "projects": {
-    "C:\\capstone-2026\\PROYECTO\\BACKEND\\BACKEND.csproj": {
+    "C:\\capstone-2026\\FASE 2\\PROYECTO\\BACKEND\\BACKEND.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\capstone-2026\\PROYECTO\\BACKEND\\BACKEND.csproj",
+        "projectUniqueName": "C:\\capstone-2026\\FASE 2\\PROYECTO\\BACKEND\\BACKEND.csproj",
         "projectName": "BACKEND",
-        "projectPath": "C:\\capstone-2026\\PROYECTO\\BACKEND\\BACKEND.csproj",
+        "projectPath": "C:\\capstone-2026\\FASE 2\\PROYECTO\\BACKEND\\BACKEND.csproj",
         "packagesPath": "C:\\Users\\angel\\.nuget\\packages\\",
-        "outputPath": "C:\\capstone-2026\\PROYECTO\\BACKEND\\obj\\",
+        "outputPath": "C:\\capstone-2026\\FASE 2\\PROYECTO\\BACKEND\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -53,11 +53,19 @@
           "framework": "net9.0",
           "targetAlias": "net9.0",
           "dependencies": {
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[9.0.3, )"
+            },
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",
               "version": "[9.0.3, )"
             },
             "Microsoft.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[9.0.3, )"
+            },
+            "Microsoft.Extensions.Identity.Core": {
               "target": "Package",
               "version": "[9.0.3, )"
             },
