@@ -72,6 +72,12 @@ builder.Services.AddSingleton(sp =>
     return client.GetDatabase(mongoDatabaseName);
 });
 
+builder.Services.AddSingleton(sp =>
+{
+    var database = sp.GetRequiredService<IMongoDatabase>();
+    return database.GetCollection<Ruta>(ColeccionesMongo.Rutas);
+});
+
 // Autenticación JWT Bearer. La clave de firma (Jwt:Key) vive en User Secrets,
 // con el mismo criterio que las cadenas de MySQL y MongoDB: no se versiona en GitHub.
 builder.Services.Configure<JwtOpciones>(builder.Configuration.GetSection(JwtOpciones.Seccion));
@@ -173,6 +179,17 @@ builder.Services.AddSingleton<IServicioHashPassword, ServicioHashPassword>();
 builder.Services.AddSingleton<IServicioJwt, ServicioJwt>();
 builder.Services.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
 builder.Services.AddScoped<IServicioUsuarios, ServicioUsuarios>();
+builder.Services.AddScoped<IServicioEmpresas, ServicioEmpresas>();
+builder.Services.AddScoped<IServicioPasajeros, ServicioPasajeros>();
+builder.Services.AddScoped<IServicioConductores, ServicioConductores>();
+builder.Services.AddScoped<IServicioVehiculos, ServicioVehiculos>();
+builder.Services.AddScoped<IServicioRutas, ServicioRutas>();
+builder.Services.AddScoped<IServicioPlanificaciones, ServicioPlanificaciones>();
+builder.Services.AddScoped<IServicioServicios, ServicioServicios>();
+builder.Services.AddScoped<IServicioAsignaciones, ServicioAsignaciones>();
+builder.Services.AddScoped<IServicioPasajerosServicio, ServicioPasajerosServicio>();
+builder.Services.AddScoped<IServicioQr, ServicioQr>();
+builder.Services.AddScoped<IServicioAsistencias, ServicioAsistencias>();
 
 builder.Services.AddOpenApi();
 
