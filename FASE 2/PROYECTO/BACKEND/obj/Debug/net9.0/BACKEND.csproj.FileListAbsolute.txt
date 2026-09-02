@@ -115,3 +115,11 @@ C:\capstone-2026\FASE 2\PROYECTO\BACKEND\obj\Debug\net9.0\rjsmrazor.dswa.cache.j
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\obj\Debug\net9.0\rjsmcshtml.dswa.cache.json
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\obj\Debug\net9.0\staticwebassets.build.json.cache
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\obj\Debug\net9.0\swae.build.ex.cache
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\ClosedXML.dll
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\ClosedXML.Parser.dll
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\DocumentFormat.OpenXml.dll
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\DocumentFormat.OpenXml.Framework.dll
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\ExcelNumberFormat.dll
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\RBush.dll
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\SixLabors.Fonts.dll
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\System.IO.Packaging.dll

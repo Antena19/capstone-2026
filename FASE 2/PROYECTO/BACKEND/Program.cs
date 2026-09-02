@@ -192,6 +192,10 @@ builder.Services.AddScoped<IServicioQr, ServicioQr>();
 builder.Services.AddScoped<IServicioAsistencias, ServicioAsistencias>();
 builder.Services.AddScoped<IServicioOperacionConductor, ServicioOperacionConductor>();
 builder.Services.AddScoped<IServicioOperacionPasajero, ServicioOperacionPasajero>();
+builder.Services.AddScoped<IServicioMetricasOperacionales, ServicioMetricasOperacionales>();
+builder.Services.AddScoped<IServicioDashboard, ServicioDashboard>();
+builder.Services.AddScoped<IServicioReportes, ServicioReportes>();
+builder.Services.AddScoped<IServicioExportacionExcel, ServicioExportacionExcel>();
 
 builder.Services.AddOpenApi();
 
