@@ -1,18 +1,16 @@
+using BACKEND.DTOs.Rutas;
 using BACKEND.Modelos;
 
-namespace BACKEND.DTOs.Rutas
+namespace BACKEND.DTOs.Mobile.Conductor
 {
     /// <summary>
-    /// Datos de ruta que pueden devolverse al cliente administrativo.
-    /// <c>IdRuta</c> es el ObjectId en hexadecimal de 24 caracteres, compatible con servicio.id_ruta.
+    /// Ruta GeoJSON para dibujar el mapa en Mobile. Las coordenadas se mantienen [longitud, latitud].
     /// </summary>
-    public class RutaRespuestaDto
+    public class RutaServicioConductorDto
     {
         public string IdRuta { get; set; } = string.Empty;
 
         public string Nombre { get; set; } = string.Empty;
-
-        public int EmpresaId { get; set; }
 
         public string Sector { get; set; } = string.Empty;
 

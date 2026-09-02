@@ -23,7 +23,7 @@ namespace BACKEND.DTOs.Rutas
         [Required(ErrorMessage = "El destino es obligatorio.")]
         public PuntoGeoJsonDto Destino { get; set; } = new();
 
-        public List<PuntoGeoJsonDto> PuntosRecogida { get; set; } = new();
+        public List<PuntoRecogidaRutaDto> PuntosRecogida { get; set; } = new();
 
         [Required(ErrorMessage = "El trazado es obligatorio.")]
         public LineaGeoJsonDto Trazado { get; set; } = new();

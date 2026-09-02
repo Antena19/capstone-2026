@@ -20,6 +20,10 @@ namespace BACKEND.Modelos
         [Column("id_pasajero")]
         public int IdPasajero { get; set; }
 
+        [MaxLength(50)]
+        [Column("id_punto_recogida")]
+        public string? IdPuntoRecogida { get; set; }
+
         [Required]
         [Column("estado_confirmacion")]
         public EstadoConfirmacionViaje EstadoConfirmacion { get; set; } = EstadoConfirmacionViaje.PENDIENTE;

@@ -13,5 +13,8 @@ namespace BACKEND.DTOs.PasajerosServicio
 
         [Range(1, int.MaxValue, ErrorMessage = "Debe indicar un pasajero válido.")]
         public int IdPasajero { get; set; }
+
+        [MaxLength(50, ErrorMessage = "El identificador del punto no puede superar 50 caracteres.")]
+        public string? IdPuntoRecogida { get; set; }
     }
 }

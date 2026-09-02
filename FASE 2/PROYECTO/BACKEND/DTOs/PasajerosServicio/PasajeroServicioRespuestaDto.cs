@@ -13,6 +13,8 @@ namespace BACKEND.DTOs.PasajerosServicio
 
         public int IdPasajero { get; set; }
 
+        public string? IdPuntoRecogida { get; set; }
+
         public EstadoConfirmacionViaje EstadoConfirmacion { get; set; }
 
         public DateTime? FechaConfirmacion { get; set; }

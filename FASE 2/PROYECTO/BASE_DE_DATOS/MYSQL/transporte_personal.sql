@@ -208,6 +208,7 @@ CREATE TABLE `pasajero_servicio` (
   `id_pasajero_servicio` INT NOT NULL AUTO_INCREMENT,
   `id_servicio` INT NOT NULL,
   `id_pasajero` INT NOT NULL,
+  `id_punto_recogida` VARCHAR(50) NULL,
   `estado_confirmacion` ENUM('PENDIENTE', 'CONFIRMADO', 'RECHAZADO') NOT NULL DEFAULT 'PENDIENTE',
   `fecha_confirmacion` DATETIME NULL,
   `estado` ENUM('ACTIVO', 'CANCELADO') NOT NULL DEFAULT 'ACTIVO',

@@ -96,5 +96,23 @@ namespace BACKEND.Controladores
             var registro = await _servicioPasajerosServicio.CambiarEstadoAsync(id, solicitud, idAdministrador);
             return Ok(registro);
         }
+
+        /// <summary>
+        /// Asigna o quita el punto de recogida del pasajero en el servicio. El punto debe pertenecer a la ruta.
+        /// </summary>
+        [HttpPut("{id:int}/punto-recogida")]
+        [ProducesResponseType(typeof(PasajeroServicioRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<PasajeroServicioRespuestaDto>> AsignarPuntoRecogida(
+            int id,
+            [FromBody] AsignarPuntoRecogidaSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var registro = await _servicioPasajerosServicio.AsignarPuntoRecogidaAsync(id, solicitud, idAdministrador);
+            return Ok(registro);
+        }
     }
 }

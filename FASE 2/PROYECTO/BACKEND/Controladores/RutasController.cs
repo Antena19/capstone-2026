@@ -104,5 +104,59 @@ namespace BACKEND.Controladores
             var ruta = await _servicioRutas.CambiarEstadoAsync(id, solicitud, idAdministrador);
             return Ok(ruta);
         }
+
+        /// <summary>
+        /// Agrega un punto de recogida a la ruta. Si no se envía idPunto, el backend genera PR-NNN.
+        /// </summary>
+        [HttpPost("{id}/puntos-recogida")]
+        [ProducesResponseType(typeof(RutaRespuestaDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<RutaRespuestaDto>> AgregarPuntoRecogida(
+            string id,
+            [FromBody] PuntoRecogidaRutaDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var ruta = await _servicioRutas.AgregarPuntoRecogidaAsync(id, solicitud, idAdministrador);
+            return CreatedAtAction(nameof(ObtenerPorId), new { id = ruta.IdRuta }, ruta);
+        }
+
+        /// <summary>
+        /// Actualiza un punto de recogida existente. El identificador no cambia.
+        /// </summary>
+        [HttpPut("{id}/puntos-recogida/{idPunto}")]
+        [ProducesResponseType(typeof(RutaRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<RutaRespuestaDto>> EditarPuntoRecogida(
+            string id,
+            string idPunto,
+            [FromBody] PuntoRecogidaRutaDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var ruta = await _servicioRutas.EditarPuntoRecogidaAsync(id, idPunto, solicitud, idAdministrador);
+            return Ok(ruta);
+        }
+
+        /// <summary>
+        /// Elimina un punto de recogida si ningún pasajero_servicio de esta ruta lo tiene asignado.
+        /// </summary>
+        [HttpDelete("{id}/puntos-recogida/{idPunto}")]
+        [ProducesResponseType(typeof(RutaRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<RutaRespuestaDto>> EliminarPuntoRecogida(string id, string idPunto)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var ruta = await _servicioRutas.EliminarPuntoRecogidaAsync(id, idPunto, idAdministrador);
+            return Ok(ruta);
+        }
     }
 }

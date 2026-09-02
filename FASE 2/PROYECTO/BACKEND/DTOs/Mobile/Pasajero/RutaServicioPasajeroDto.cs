@@ -1,18 +1,16 @@
+using BACKEND.DTOs.Rutas;
 using BACKEND.Modelos;
 
-namespace BACKEND.DTOs.Rutas
+namespace BACKEND.DTOs.Mobile.Pasajero
 {
     /// <summary>
-    /// Datos de ruta que pueden devolverse al cliente administrativo.
-    /// <c>IdRuta</c> es el ObjectId en hexadecimal de 24 caracteres, compatible con servicio.id_ruta.
+    /// Ruta GeoJSON para el mapa del pasajero. Incluye el identificador de su punto asignado.
     /// </summary>
-    public class RutaRespuestaDto
+    public class RutaServicioPasajeroDto
     {
         public string IdRuta { get; set; } = string.Empty;
 
         public string Nombre { get; set; } = string.Empty;
-
-        public int EmpresaId { get; set; }
 
         public string Sector { get; set; } = string.Empty;
 
@@ -29,5 +27,7 @@ namespace BACKEND.DTOs.Rutas
         public int DuracionEstimadaMin { get; set; }
 
         public EstadoRegistro Estado { get; set; }
+
+        public string? IdPuntoRecogidaAsignado { get; set; }
     }
 }

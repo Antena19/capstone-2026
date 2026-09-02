@@ -3,6 +3,8 @@ using BACKEND.DTOs.PasajerosServicio;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Excepciones;
 using Microsoft.EntityFrameworkCore;
+using MongoDB.Bson;
+using MongoDB.Driver;
 
 namespace BACKEND.Negocio.Servicios
 {
@@ -23,6 +25,11 @@ namespace BACKEND.Negocio.Servicios
             CambiarEstadoPasajeroServicioSolicitudDto solicitud,
             int idAdministrador);
 
+        Task<PasajeroServicioRespuestaDto> AsignarPuntoRecogidaAsync(
+            int idPasajeroServicio,
+            AsignarPuntoRecogidaSolicitudDto solicitud,
+            int idAdministrador);
+
         Task<PasajeroServicioRespuestaDto> ConfirmarViajeAsync(
             int idPasajeroServicio,
             int idUsuario,
@@ -40,11 +47,16 @@ namespace BACKEND.Negocio.Servicios
         private const string MensajeCapacidad = "El vehículo asignado no tiene capacidad disponible.";
 
         private readonly TransporteContext _contexto;
+        private readonly IMongoCollection<Ruta> _rutas;
         private readonly ILogger<ServicioPasajerosServicio> _logger;
 
-        public ServicioPasajerosServicio(TransporteContext contexto, ILogger<ServicioPasajerosServicio> logger)
+        public ServicioPasajerosServicio(
+            TransporteContext contexto,
+            IMongoCollection<Ruta> rutas,
+            ILogger<ServicioPasajerosServicio> logger)
         {
             _contexto = contexto;
+            _rutas = rutas;
             _logger = logger;
         }
 
@@ -105,11 +117,13 @@ namespace BACKEND.Negocio.Servicios
             await AsegurarPasajeroAsignableAsync(solicitud.IdPasajero, servicio.IdEmpresa);
             await AsegurarNoDuplicadoAsync(solicitud.IdServicio, solicitud.IdPasajero);
             await AsegurarCapacidadDisponibleAsync(solicitud.IdServicio);
+            var idPuntoRecogida = await ResolverPuntoRecogidaAsync(servicio.IdRuta, solicitud.IdPuntoRecogida);
 
             var registro = new PasajeroServicio
             {
                 IdServicio = solicitud.IdServicio,
                 IdPasajero = solicitud.IdPasajero,
+                IdPuntoRecogida = idPuntoRecogida,
                 EstadoConfirmacion = EstadoConfirmacionViaje.PENDIENTE,
                 FechaConfirmacion = null,
                 Estado = EstadoPasajeroServicio.ACTIVO
@@ -175,6 +189,27 @@ namespace BACKEND.Negocio.Servicios
                 idAdministrador,
                 idPasajeroServicio,
                 solicitud.Estado);
+
+            return Mapear(registro);
+        }
+
+        public async Task<PasajeroServicioRespuestaDto> AsignarPuntoRecogidaAsync(
+            int idPasajeroServicio,
+            AsignarPuntoRecogidaSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            var registro = await ObtenerRegistroAsync(idPasajeroServicio);
+            var servicio = await _contexto.Servicios
+                .AsNoTracking()
+                .FirstAsync(s => s.IdServicio == registro.IdServicio);
+
+            registro.IdPuntoRecogida = await ResolverPuntoRecogidaAsync(servicio.IdRuta, solicitud.IdPuntoRecogida);
+            await _contexto.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} actualizó el punto de recogida del pasajero-servicio {IdPasajeroServicio}.",
+                idAdministrador,
+                idPasajeroServicio);
 
             return Mapear(registro);
         }
@@ -323,6 +358,36 @@ namespace BACKEND.Negocio.Servicios
             }
         }
 
+        private async Task<string?> ResolverPuntoRecogidaAsync(string idRuta, string? idPuntoRecogida)
+        {
+            var identificador = idPuntoRecogida?.Trim();
+            if (string.IsNullOrEmpty(identificador))
+            {
+                return null;
+            }
+
+            if (!ObjectId.TryParse(idRuta, out var objectId))
+            {
+                throw new ExcepcionNegocio("El servicio no tiene una ruta válida para asignar un punto de recogida.");
+            }
+
+            var ruta = await _rutas.Find(r => r.Id == objectId).FirstOrDefaultAsync();
+            if (ruta is null)
+            {
+                throw new ExcepcionNegocio("La ruta del servicio no está disponible.");
+            }
+
+            var punto = (ruta.PuntosRecogida ?? new List<PuntoRecogidaRuta>())
+                .FirstOrDefault(p => string.Equals(p.IdPunto?.Trim(), identificador, StringComparison.OrdinalIgnoreCase));
+
+            if (punto is null)
+            {
+                throw new ExcepcionNegocio("El punto de recogida no pertenece a la ruta de este servicio.");
+            }
+
+            return punto.IdPunto;
+        }
+
         private static PasajeroServicioRespuestaDto Mapear(PasajeroServicio registro)
         {
             return new PasajeroServicioRespuestaDto
@@ -330,6 +395,7 @@ namespace BACKEND.Negocio.Servicios
                 IdPasajeroServicio = registro.IdPasajeroServicio,
                 IdServicio = registro.IdServicio,
                 IdPasajero = registro.IdPasajero,
+                IdPuntoRecogida = registro.IdPuntoRecogida,
                 EstadoConfirmacion = registro.EstadoConfirmacion,
                 FechaConfirmacion = registro.FechaConfirmacion,
                 Estado = registro.Estado

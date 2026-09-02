@@ -645,6 +645,10 @@ namespace BACKEND.Datos.MySQL
                     .HasColumnName("id_pasajero")
                     .IsRequired();
 
+                entity.Property(e => e.IdPuntoRecogida)
+                    .HasColumnName("id_punto_recogida")
+                    .HasMaxLength(50);
+
                 entity.Property(e => e.EstadoConfirmacion)
                     .HasColumnName("estado_confirmacion")
                     .HasConversion<string>()

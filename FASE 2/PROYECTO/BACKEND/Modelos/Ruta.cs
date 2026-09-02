@@ -30,11 +30,11 @@ namespace BACKEND.Modelos
         public PuntoGeoJson Destino { get; set; } = new();
 
         /// <summary>
-        /// El documento de referencia solo define un arreglo, posiblemente vacío.
-        /// Cada elemento se persiste como GeoJSON Point, sin campos adicionales.
+        /// Puntos de recogida embebidos. Puede ser un arreglo vacío.
+        /// Cada elemento tiene identificador estable, nombre, orden y ubicación GeoJSON.
         /// </summary>
         [BsonElement("puntosRecogida")]
-        public List<PuntoGeoJson> PuntosRecogida { get; set; } = new();
+        public List<PuntoRecogidaRuta> PuntosRecogida { get; set; } = new();
 
         [BsonElement("trazado")]
         public LineaGeoJson Trazado { get; set; } = new();
