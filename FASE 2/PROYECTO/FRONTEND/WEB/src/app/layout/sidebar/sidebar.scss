@@ -8,10 +8,18 @@
 
 .sidebar {
   width: 100%;
-  min-height: 100vh;
+  min-height: 100%;
   background: var(--color-sidebar);
+}
+
+.sidebar-inner {
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
+  max-height: 100vh;
+  position: sticky;
+  top: 0;
+  background: var(--color-sidebar);
 }
 
 .brand {
@@ -20,6 +28,7 @@
   gap: 12px;
   padding: 20px;
   border-bottom: 1px solid rgb(255 255 255 / 10%);
+  flex-shrink: 0;
 }
 
 .logo {
@@ -41,8 +50,9 @@
   line-height: 1.2;
 }
 
-.nav {
+.sidebar-menu {
   flex: 1;
+  min-height: 0;
   padding: 16px 0;
   overflow-y: auto;
 }
@@ -89,12 +99,18 @@
   color: #60a5fa;
 }
 
-.user {
+.sidebar-user {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-top: auto;
   padding: 16px;
   border-top: 1px solid rgb(255 255 255 / 10%);
+  background: var(--color-sidebar);
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  flex-shrink: 0;
 }
 
 .avatar {
