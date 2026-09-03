@@ -1,9 +1,13 @@
 :host {
   display: block;
+  align-self: stretch;
+  flex-shrink: 0;
+  width: var(--sidebar-width);
+  background: var(--color-sidebar);
 }
 
 .sidebar {
-  width: var(--sidebar-width);
+  width: 100%;
   min-height: 100vh;
   background: var(--color-sidebar);
   display: flex;

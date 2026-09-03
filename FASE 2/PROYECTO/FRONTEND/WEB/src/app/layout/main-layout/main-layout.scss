@@ -1,5 +1,11 @@
+:host {
+  display: block;
+  min-height: 100%;
+}
+
 .shell {
   display: flex;
+  align-items: stretch;
   min-height: 100vh;
 }
 
@@ -13,6 +19,5 @@
 .content {
   flex: 1;
   padding: 24px;
-  overflow: auto;
   background: var(--color-surface);
 }

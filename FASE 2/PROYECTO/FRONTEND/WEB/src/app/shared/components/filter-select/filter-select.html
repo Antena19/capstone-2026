@@ -1,6 +1,8 @@
 <select [value]="value()" (change)="onChange($event)">
-  <option value="">{{ label() }}</option>
-  @for (opcion of options(); track opcion) {
-    <option [value]="opcion">{{ opcion }}</option>
+  @if (includeBlank()) {
+    <option value="">{{ blankLabel() || label() }}</option>
+  }
+  @for (opcion of opciones(); track opcion.value) {
+    <option [value]="opcion.value">{{ opcion.label }}</option>
   }
 </select>

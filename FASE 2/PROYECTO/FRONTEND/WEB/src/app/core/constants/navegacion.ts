@@ -13,7 +13,8 @@ export type IconName =
   | 'chevron'
   | 'search'
   | 'plus'
-  | 'download';
+  | 'download'
+  | 'alert';
 
 export interface NavItem {
   path: string;

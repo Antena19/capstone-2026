@@ -1,13 +1,250 @@
-<app-page-header
-  title="Dashboard Operacional"
-  subtitle="Monitoreo de servicios planificados frente a lo ejecutado."
-/>
+<app-page-header title="Dashboard Operacional" [subtitle]="subtitulo()">
+  <app-action-button
+    label="Exportar"
+    variant="secondary"
+    icon="download"
+    (clicked)="irAReportes()"
+  />
+</app-page-header>
 
-<app-card>
-  <div class="placeholder">
-    <p>
-      Los indicadores operacionales se conectarán en el siguiente bloque a partir de los datos reales
-      del sistema.
-    </p>
+<div class="filters">
+  <label class="filter-field">
+    <span>Empresa</span>
+    <app-filter-select
+      label="Empresa"
+      blankLabel="Todas"
+      [items]="opcionesEmpresa()"
+      [value]="idEmpresa()"
+      (valueChange)="idEmpresa.set($event)"
+    />
+  </label>
+
+  <label class="filter-field">
+    <span>Período</span>
+    <app-filter-select
+      label="Período"
+      [includeBlank]="false"
+      [items]="opcionesPeriodo"
+      [value]="periodo()"
+      (valueChange)="actualizarPeriodo($event)"
+    />
+  </label>
+
+  @if (periodo() === 'personalizado') {
+    <label class="filter-field">
+      <span>Desde</span>
+      <input type="date" [value]="desdePersonalizado()" (change)="actualizarDesde($event)" />
+    </label>
+    <label class="filter-field">
+      <span>Hasta</span>
+      <input type="date" [value]="hastaPersonalizado()" (change)="actualizarHasta($event)" />
+    </label>
+  }
+</div>
+
+@if (errorValidacion(); as validacion) {
+  <p class="banner banner-warn">{{ validacion }}</p>
+}
+
+@if (errorCarga()) {
+  <app-card>
+    <p class="banner banner-error">No fue posible cargar la información del dashboard.</p>
+  </app-card>
+} @else if (cargando()) {
+  <div class="kpi-grid">
+    @for (item of esqueletos; track item) {
+      <div class="skeleton-card"></div>
+    }
   </div>
-</app-card>
+  <div class="charts-grid">
+    <div class="skeleton-card skeleton-chart"></div>
+    <div class="skeleton-card skeleton-chart"></div>
+  </div>
+} @else if (resumen(); as resumen) {
+  <div class="kpi-grid">
+    <app-kpi-card
+      label="Servicios planificados"
+      [value]="formatoEntero(resumen.serviciosPlanificados)"
+      [sub]="formatoEntero(resumen.serviciosProgramados) + ' programados'"
+      icon="servicios"
+      tone="blue"
+    />
+    <app-kpi-card
+      label="Servicios realizados"
+      [value]="formatoEntero(resumen.serviciosRealizados)"
+      icon="bus"
+      tone="green"
+    />
+    <app-kpi-card
+      label="Cumplimiento de servicios"
+      [value]="formatoPorcentaje(resumen.porcentajeServiciosRealizados)"
+      icon="reportes"
+      tone="sky"
+    />
+    <app-kpi-card
+      label="Servicios en curso"
+      [value]="formatoEntero(resumen.serviciosEnCurso)"
+      icon="vehiculos"
+      tone="teal"
+    />
+  </div>
+
+  <div class="kpi-grid">
+    <app-kpi-card
+      label="Personas planificadas"
+      [value]="formatoEntero(resumen.personasPlanificadas)"
+      icon="pasajeros"
+      tone="blue"
+    />
+    <app-kpi-card
+      label="Planificados transportados"
+      [value]="formatoEntero(resumen.planificadosTransportados)"
+      icon="pasajeros"
+      tone="green"
+    />
+    <app-kpi-card
+      label="Total transportados"
+      [value]="formatoEntero(resumen.totalTransportados)"
+      icon="pasajeros"
+      tone="teal"
+    />
+    <app-kpi-card
+      label="Cumplimiento de pasajeros"
+      [value]="formatoPorcentaje(resumen.porcentajePlanificadosTransportados)"
+      icon="reportes"
+      tone="sky"
+    />
+  </div>
+
+  <div class="secondary-grid">
+    <div class="stat">
+      <p class="stat-label">Servicios programados</p>
+      <p class="stat-value">{{ formatoEntero(resumen.serviciosProgramados) }}</p>
+    </div>
+    <div class="stat">
+      <p class="stat-label">Servicios cancelados</p>
+      <p class="stat-value">{{ formatoEntero(resumen.serviciosCancelados) }}</p>
+    </div>
+    <div class="stat">
+      <p class="stat-label">Planificados no transportados</p>
+      <p class="stat-value">{{ formatoEntero(resumen.planificadosNoTransportados) }}</p>
+    </div>
+    <div class="stat">
+      <p class="stat-label">No planificados transportados</p>
+      <p class="stat-value">{{ formatoEntero(resumen.noPlanificadosTransportados) }}</p>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <app-card>
+      <div class="card-head">
+        <h2>Planificado vs realizado · Servicios</h2>
+      </div>
+      @if (sinActividad()) {
+        <p class="empty">No hay datos para el período seleccionado.</p>
+      } @else {
+        <div class="chart-wrap">
+          <canvas
+            baseChart
+            type="bar"
+            [data]="graficoServicios()"
+            [options]="opcionesGrafico"
+            [legend]="true"
+          ></canvas>
+        </div>
+      }
+    </app-card>
+
+    <app-card>
+      <div class="card-head">
+        <h2>Planificado vs realizado · Personas</h2>
+      </div>
+      @if (sinActividad()) {
+        <p class="empty">No hay datos para el período seleccionado.</p>
+      } @else {
+        <div class="chart-wrap">
+          <canvas
+            baseChart
+            type="bar"
+            [data]="graficoPersonas()"
+            [options]="opcionesGrafico"
+            [legend]="true"
+          ></canvas>
+        </div>
+      }
+    </app-card>
+  </div>
+
+  <div class="lower-stack">
+    <app-card class="full-width">
+      <div class="card-head">
+        <h2>Resumen por empresa</h2>
+      </div>
+      @if (empresas().length === 0) {
+        <p class="empty">No hay empresas para mostrar.</p>
+      } @else {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa</th>
+                <th>Serv. planificados</th>
+                <th>Serv. realizados</th>
+                <th>% servicios</th>
+                <th>Personas planificadas</th>
+                <th>Planif. transportados</th>
+                <th>No planificados</th>
+                <th>Total transportados</th>
+                <th>% pasajeros</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (empresa of empresas(); track empresa.idEmpresa) {
+                <tr [class.is-focus]="empresaSeleccionada(empresa.idEmpresa)">
+                  <td class="name">{{ empresa.razonSocial }}</td>
+                  <td>{{ formatoEntero(empresa.serviciosPlanificados) }}</td>
+                  <td>{{ formatoEntero(empresa.serviciosRealizados) }}</td>
+                  <td>{{ formatoPorcentaje(empresa.porcentajeServiciosRealizados) }}</td>
+                  <td>{{ formatoEntero(empresa.personasPlanificadas) }}</td>
+                  <td>{{ formatoEntero(empresa.planificadosTransportados) }}</td>
+                  <td>{{ formatoEntero(empresa.noPlanificadosTransportados) }}</td>
+                  <td>{{ formatoEntero(empresa.totalTransportados) }}</td>
+                  <td>{{ formatoPorcentaje(empresa.porcentajePlanificadosTransportados) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </app-card>
+
+    <app-card class="full-width">
+      <div class="card-head">
+        <h2>Desviaciones operacionales</h2>
+      </div>
+      <div class="deviations">
+        <div class="deviation is-amber">
+          <app-icon name="alert" [size]="16" />
+          <div>
+            <p class="deviation-label">Planificados no transportados</p>
+            <p class="deviation-value">{{ formatoEntero(resumen.planificadosNoTransportados) }}</p>
+          </div>
+        </div>
+        <div class="deviation is-sky">
+          <app-icon name="pasajeros" [size]="16" />
+          <div>
+            <p class="deviation-label">No planificados transportados</p>
+            <p class="deviation-value">{{ formatoEntero(resumen.noPlanificadosTransportados) }}</p>
+          </div>
+        </div>
+        <div class="deviation is-slate">
+          <app-icon name="servicios" [size]="16" />
+          <div>
+            <p class="deviation-label">Servicios cancelados</p>
+            <p class="deviation-value">{{ formatoEntero(resumen.serviciosCancelados) }}</p>
+          </div>
+        </div>
+      </div>
+    </app-card>
+  </div>
+}
