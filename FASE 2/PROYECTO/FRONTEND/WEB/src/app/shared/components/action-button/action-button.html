@@ -1,0 +1,12 @@
+<button
+  [type]="type()"
+  class="btn"
+  [attr.data-variant]="variant()"
+  [disabled]="disabled()"
+  (click)="clicked.emit()"
+>
+  @if (icon(); as iconName) {
+    <app-icon [name]="iconName" [size]="16" />
+  }
+  {{ label() }}
+</button>

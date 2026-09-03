@@ -1,0 +1,65 @@
+<div class="login">
+  <section class="panel-brand" aria-label="Identidad Trayek">
+    <div class="brand">
+      <div class="logo">
+        <app-icon name="bus" [size]="20" />
+      </div>
+      <span>Trayek</span>
+    </div>
+
+    <div class="brand-footer">
+      <div class="bloques">
+        @for (bloque of bloques; track bloque.titulo) {
+          <article class="bloque">
+            <h2>{{ bloque.titulo }}</h2>
+            <p>{{ bloque.detalle }}</p>
+          </article>
+        }
+      </div>
+      <blockquote>{{ concepto }}</blockquote>
+    </div>
+  </section>
+
+  <section class="panel-form">
+    <div class="form-wrap">
+      <div class="heading">
+        <div class="brand brand-mobile">
+          <div class="logo">
+            <app-icon name="bus" [size]="18" />
+          </div>
+          <span>Trayek</span>
+        </div>
+        <h1>Iniciar sesión</h1>
+        <p>Sistema de gestión de transporte de personal</p>
+        <p class="concepto-mobile">{{ conceptoBreve }}</p>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="enviar()">
+        <label>
+          Correo electrónico
+          <input type="email" formControlName="email" autocomplete="username" />
+        </label>
+
+        <label>
+          Contraseña
+          <input type="password" formControlName="password" autocomplete="current-password" />
+        </label>
+
+        <label class="remember">
+          <input type="checkbox" formControlName="recordar" />
+          Recordar sesión
+        </label>
+
+        @if (error()) {
+          <p class="error" role="alert">{{ error() }}</p>
+        }
+
+        <button type="submit" [disabled]="enviando()">
+          {{ enviando() ? 'Ingresando…' : 'Ingresar al sistema' }}
+        </button>
+      </form>
+
+      <p class="copy">© {{ anio }} Trayek</p>
+    </div>
+  </section>
+</div>

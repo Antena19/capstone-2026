@@ -1,0 +1,51 @@
+.topbar {
+  height: var(--topbar-height);
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+}
+
+.crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.crumb app-icon {
+  color: var(--color-slate-400);
+}
+
+.current {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+time {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+}
+
+.bell {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  padding: 6px;
+  border-radius: var(--radius-lg);
+}
+
+.bell:hover {
+  color: var(--color-slate-700);
+  background: var(--color-slate-100);
+}

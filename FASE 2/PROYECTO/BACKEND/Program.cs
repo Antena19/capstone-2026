@@ -175,6 +175,16 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendWeb", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 builder.Services.AddSingleton<IServicioHashPassword, ServicioHashPassword>();
 builder.Services.AddSingleton<IServicioJwt, ServicioJwt>();
 builder.Services.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
@@ -210,6 +220,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("FrontendWeb");
 
 // UseAuthentication debe ir antes de UseAuthorization para que el JWT se evalúe en cada petición.
 app.UseAuthentication();

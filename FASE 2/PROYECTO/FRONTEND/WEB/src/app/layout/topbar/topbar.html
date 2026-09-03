@@ -1,0 +1,13 @@
+<header class="topbar">
+  <div class="crumb">
+    <span>Trayek</span>
+    <app-icon name="chevron" [size]="14" />
+    <span class="current">{{ titulo() }}</span>
+  </div>
+  <div class="meta">
+    <time>{{ ahora() | date: 'EEE d MMM y — HH:mm' }}</time>
+    <button type="button" class="bell" aria-label="Avisos">
+      <app-icon name="bell" [size]="18" />
+    </button>
+  </div>
+</header>

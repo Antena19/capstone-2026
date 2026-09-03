@@ -1,0 +1,14 @@
+<app-card>
+  <div class="kpi">
+    <div>
+      <p class="label">{{ label() }}</p>
+      <p class="value">{{ value() }}</p>
+      @if (sub()) {
+        <p class="sub">{{ sub() }}</p>
+      }
+    </div>
+    <div class="icon" [attr.data-tone]="tone()">
+      <app-icon [name]="icon()" [size]="18" />
+    </div>
+  </div>
+</app-card>
