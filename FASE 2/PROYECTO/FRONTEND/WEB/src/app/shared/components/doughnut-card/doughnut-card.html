@@ -1,0 +1,35 @@
+<app-card class="fill">
+  <div class="card-head">
+    <h2>{{ title() }}</h2>
+  </div>
+
+  @if (vacio()) {
+    <p class="empty">{{ emptyMessage() }}</p>
+  } @else {
+    <div class="body">
+      <div class="doughnut-wrap">
+        <canvas
+          baseChart
+          type="doughnut"
+          [data]="datos()"
+          [options]="opciones()"
+          [legend]="false"
+        ></canvas>
+        <div class="center" aria-hidden="true">
+          <p class="center-value">{{ centerValue() }}</p>
+          <p class="center-label">{{ centerLabel() }}</p>
+        </div>
+      </div>
+
+      <ul class="legend">
+        @for (segmento of segments(); track segmento.label) {
+          <li>
+            <span class="dot" [style.background-color]="segmento.color"></span>
+            <span class="legend-label">{{ segmento.label }}</span>
+            <span class="legend-value">{{ formatoEntero(segmento.value) }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</app-card>

@@ -20,8 +20,11 @@ import {
   hoyLocal,
   rangoPeriodo,
 } from '../../core/utils/fechas';
+import { PALETA_OPERACIONAL } from '../../core/constants/paleta-operacional';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
+import { DoughnutCard } from '../../shared/components/doughnut-card/doughnut-card';
+import { DoughnutSegment } from '../../shared/components/doughnut-card/doughnut-segment';
 import { FilterOption, FilterSelect } from '../../shared/components/filter-select/filter-select';
 import { Icon } from '../../shared/components/icon/icon';
 import { KpiCard } from '../../shared/components/kpi-card/kpi-card';
@@ -32,12 +35,12 @@ type VistaDashboard =
   | { fase: 'error' }
   | { fase: 'ok'; resumen: DashboardResumen; evolucion: DashboardEvolucion; empresas: DashboardEmpresa[] };
 
-const COLOR_PLANIFICADO = '#2563eb';
-const COLOR_REALIZADO = '#10b981';
+const COLOR_PLANIFICADO = PALETA_OPERACIONAL.planificado;
+const COLOR_REALIZADO = PALETA_OPERACIONAL.realizado;
 
 @Component({
   selector: 'app-dashboard',
-  imports: [PageHeader, ActionButton, FilterSelect, KpiCard, AppCard, Icon, BaseChartDirective],
+  imports: [PageHeader, ActionButton, FilterSelect, KpiCard, AppCard, Icon, BaseChartDirective, DoughnutCard],
   providers: [provideCharts(withDefaultRegisterables())],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
@@ -54,7 +57,9 @@ export class DashboardPage {
     { value: 'personalizado', label: 'Personalizado' },
   ];
 
+  readonly paleta = PALETA_OPERACIONAL;
   readonly esqueletos = [1, 2, 3, 4, 5, 6, 7, 8];
+  readonly esqueletosDistribucion = [1, 2, 3];
 
   readonly idEmpresa = signal('');
   readonly periodo = signal<PeriodoRapido>('hoy');
@@ -215,6 +220,40 @@ export class DashboardPage {
       'Transportadas',
     ),
   );
+
+  readonly segmentosServicios = computed<DoughnutSegment[]>(() => {
+    const resumen = this.resumen();
+    if (!resumen) {
+      return [];
+    }
+
+    return [
+      { label: 'Programados', value: resumen.serviciosProgramados, color: PALETA_OPERACIONAL.programado },
+      { label: 'En curso', value: resumen.serviciosEnCurso, color: PALETA_OPERACIONAL.enCurso },
+      { label: 'Realizados', value: resumen.serviciosRealizados, color: PALETA_OPERACIONAL.realizado },
+      { label: 'Cancelados', value: resumen.serviciosCancelados, color: PALETA_OPERACIONAL.cancelado },
+    ];
+  });
+
+  readonly segmentosTransportados = computed<DoughnutSegment[]>(() => {
+    const resumen = this.resumen();
+    if (!resumen) {
+      return [];
+    }
+
+    return [
+      {
+        label: 'Planificados',
+        value: resumen.planificadosTransportados,
+        color: PALETA_OPERACIONAL.transportado,
+      },
+      {
+        label: 'No planificados',
+        value: resumen.noPlanificadosTransportados,
+        color: PALETA_OPERACIONAL.noPlanificado,
+      },
+    ];
+  });
 
   actualizarPeriodo(valor: string): void {
     const siguiente = valor as PeriodoRapido;

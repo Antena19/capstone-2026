@@ -56,6 +56,11 @@
       <div class="skeleton-card"></div>
     }
   </div>
+  <div class="distribution-grid">
+    @for (item of esqueletosDistribucion; track item) {
+      <div class="skeleton-card skeleton-distribution"></div>
+    }
+  </div>
   <div class="charts-grid">
     <div class="skeleton-card skeleton-chart"></div>
     <div class="skeleton-card skeleton-chart"></div>
@@ -78,7 +83,8 @@
     <app-kpi-card
       label="Cumplimiento de servicios"
       [value]="formatoPorcentaje(resumen.porcentajeServiciosRealizados)"
-      icon="reportes"
+      [progress]="resumen.porcentajeServiciosRealizados"
+      [progressColor]="paleta.realizado"
       tone="sky"
     />
     <app-kpi-card
@@ -111,28 +117,59 @@
     <app-kpi-card
       label="Cumplimiento de pasajeros"
       [value]="formatoPorcentaje(resumen.porcentajePlanificadosTransportados)"
-      icon="reportes"
+      [progress]="resumen.porcentajePlanificadosTransportados"
+      [progressColor]="paleta.transportado"
       tone="sky"
     />
   </div>
 
-  <div class="secondary-grid">
-    <div class="stat">
-      <p class="stat-label">Servicios programados</p>
-      <p class="stat-value">{{ formatoEntero(resumen.serviciosProgramados) }}</p>
-    </div>
-    <div class="stat">
-      <p class="stat-label">Servicios cancelados</p>
-      <p class="stat-value">{{ formatoEntero(resumen.serviciosCancelados) }}</p>
-    </div>
-    <div class="stat">
-      <p class="stat-label">Planificados no transportados</p>
-      <p class="stat-value">{{ formatoEntero(resumen.planificadosNoTransportados) }}</p>
-    </div>
-    <div class="stat">
-      <p class="stat-label">No planificados transportados</p>
-      <p class="stat-value">{{ formatoEntero(resumen.noPlanificadosTransportados) }}</p>
-    </div>
+  <div class="distribution-grid">
+    <app-doughnut-card
+      title="Estado de servicios"
+      [segments]="segmentosServicios()"
+      [centerValue]="formatoEntero(resumen.serviciosPlanificados)"
+      centerLabel="Servicios"
+      unidad="servicios"
+      emptyMessage="Sin servicios en el período"
+    />
+
+    <app-doughnut-card
+      title="Composición de transportados"
+      [segments]="segmentosTransportados()"
+      [centerValue]="formatoEntero(resumen.totalTransportados)"
+      centerLabel="Transportados"
+      unidad="personas"
+      emptyMessage="Sin personas transportadas en el período"
+    />
+
+    <app-card class="fill deviations-card">
+      <div class="card-head">
+        <h2>Desviaciones operacionales</h2>
+      </div>
+      <div class="deviations-compact">
+        <div class="deviation is-amber">
+          <app-icon name="alert" [size]="16" />
+          <div>
+            <p class="deviation-label">Planificados no transportados</p>
+            <p class="deviation-value">{{ formatoEntero(resumen.planificadosNoTransportados) }}</p>
+          </div>
+        </div>
+        <div class="deviation is-violet">
+          <app-icon name="pasajeros" [size]="16" />
+          <div>
+            <p class="deviation-label">No planificados transportados</p>
+            <p class="deviation-value">{{ formatoEntero(resumen.noPlanificadosTransportados) }}</p>
+          </div>
+        </div>
+        <div class="deviation is-red">
+          <app-icon name="servicios" [size]="16" />
+          <div>
+            <p class="deviation-label">Servicios cancelados</p>
+            <p class="deviation-value">{{ formatoEntero(resumen.serviciosCancelados) }}</p>
+          </div>
+        </div>
+      </div>
+    </app-card>
   </div>
 
   <div class="charts-grid">
@@ -216,35 +253,6 @@
           </table>
         </div>
       }
-    </app-card>
-
-    <app-card class="full-width">
-      <div class="card-head">
-        <h2>Desviaciones operacionales</h2>
-      </div>
-      <div class="deviations">
-        <div class="deviation is-amber">
-          <app-icon name="alert" [size]="16" />
-          <div>
-            <p class="deviation-label">Planificados no transportados</p>
-            <p class="deviation-value">{{ formatoEntero(resumen.planificadosNoTransportados) }}</p>
-          </div>
-        </div>
-        <div class="deviation is-sky">
-          <app-icon name="pasajeros" [size]="16" />
-          <div>
-            <p class="deviation-label">No planificados transportados</p>
-            <p class="deviation-value">{{ formatoEntero(resumen.noPlanificadosTransportados) }}</p>
-          </div>
-        </div>
-        <div class="deviation is-slate">
-          <app-icon name="servicios" [size]="16" />
-          <div>
-            <p class="deviation-label">Servicios cancelados</p>
-            <p class="deviation-value">{{ formatoEntero(resumen.serviciosCancelados) }}</p>
-          </div>
-        </div>
-      </div>
     </app-card>
   </div>
 }

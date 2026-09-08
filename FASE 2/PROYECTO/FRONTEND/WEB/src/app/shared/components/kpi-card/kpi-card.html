@@ -7,8 +7,16 @@
         <p class="sub">{{ sub() }}</p>
       }
     </div>
-    <div class="icon" [attr.data-tone]="tone()">
-      <app-icon [name]="icon()" [size]="18" />
-    </div>
+    @if (mostrarAnillo()) {
+      <app-progress-ring
+        [value]="progress() ?? 0"
+        [color]="progressColor()"
+        [label]="label() + ' ' + value()"
+      />
+    } @else if (icon(); as iconName) {
+      <div class="icon" [attr.data-tone]="tone()">
+        <app-icon [name]="iconName" [size]="18" />
+      </div>
+    }
   </div>
 </app-card>
