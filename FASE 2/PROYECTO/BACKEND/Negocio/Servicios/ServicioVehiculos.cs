@@ -215,7 +215,7 @@ namespace BACKEND.Negocio.Servicios
             }
 
             return new DatosVehiculoNormalizados(
-                RequerirTexto(patente, "La patente es obligatoria."),
+                RequerirTexto(patente, "La patente es obligatoria.").ToUpperInvariant(),
                 RequerirTexto(tipo, "El tipo es obligatorio."),
                 RequerirTexto(marca, "La marca es obligatoria."),
                 RequerirTexto(modelo, "El modelo es obligatorio."),

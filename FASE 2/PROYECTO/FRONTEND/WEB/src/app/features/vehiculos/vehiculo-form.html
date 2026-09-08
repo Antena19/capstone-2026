@@ -1,0 +1,70 @@
+<form class="form" [formGroup]="form" (ngSubmit)="enviar()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  }
+
+  <div class="grid">
+    <label class="field">
+      <span>Patente <abbr title="Obligatorio">*</abbr></span>
+      <input
+        type="text"
+        formControlName="patente"
+        maxlength="10"
+        autocomplete="off"
+        (blur)="normalizarPatenteCampo()"
+      />
+      @if (mensajeCampo('patente'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+
+    <label class="field">
+      <span>Tipo <abbr title="Obligatorio">*</abbr></span>
+      <input type="text" formControlName="tipo" maxlength="50" />
+      @if (mensajeCampo('tipo'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+  </div>
+
+  <div class="grid">
+    <label class="field">
+      <span>Marca <abbr title="Obligatorio">*</abbr></span>
+      <input type="text" formControlName="marca" maxlength="50" />
+      @if (mensajeCampo('marca'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+
+    <label class="field">
+      <span>Modelo <abbr title="Obligatorio">*</abbr></span>
+      <input type="text" formControlName="modelo" maxlength="50" />
+      @if (mensajeCampo('modelo'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+  </div>
+
+  <label class="field">
+    <span>Capacidad <abbr title="Obligatorio">*</abbr></span>
+    <input type="number" formControlName="capacidad" min="1" step="1" />
+    @if (mensajeCampo('capacidad'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+  </label>
+
+  <div class="actions">
+    <app-action-button
+      label="Cancelar"
+      variant="secondary"
+      type="button"
+      [disabled]="guardando()"
+      (clicked)="cancelado.emit()"
+    />
+    <app-action-button
+      [label]="esEdicion() ? 'Guardar cambios' : 'Guardar vehículo'"
+      type="submit"
+      [disabled]="guardando()"
+    />
+  </div>
+</form>

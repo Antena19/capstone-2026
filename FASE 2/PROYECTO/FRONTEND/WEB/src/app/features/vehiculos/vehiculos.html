@@ -1,0 +1,138 @@
+<app-page-header title="Vehículos" [subtitle]="subtitulo()">
+  <app-search-input
+    placeholder="Buscar vehículo..."
+    [value]="busqueda()"
+    (valueChange)="busqueda.set($event)"
+  />
+  <app-filter-select
+    label="Estado"
+    blankLabel="Todos los estados"
+    [items]="opcionesEstado"
+    [value]="estadoFiltro()"
+    (valueChange)="actualizarEstadoFiltro($event)"
+  />
+  <app-action-button label="Nuevo vehículo" icon="plus" (clicked)="abrirCrear()" />
+</app-page-header>
+
+@if (error(); as texto) {
+  <p class="banner">{{ texto }}</p>
+}
+
+<app-card>
+  @if (cargando()) {
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  } @else if (error() && vehiculos().length === 0) {
+    <div class="empty">
+      <p>No fue posible mostrar el listado. Intente nuevamente.</p>
+      <app-action-button label="Reintentar" variant="secondary" (clicked)="cargar()" />
+    </div>
+  } @else if (vehiculos().length === 0) {
+    <div class="empty">
+      @if (estadoFiltro()) {
+        <p>No hay vehículos con el estado seleccionado.</p>
+      } @else {
+        <p>No hay vehículos registrados.</p>
+        <app-action-button label="Registrar primer vehículo" icon="plus" (clicked)="abrirCrear()" />
+      }
+    </div>
+  } @else if (visibles().length === 0) {
+    <p class="empty">No se encontraron vehículos que coincidan con la búsqueda.</p>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Patente</th>
+            <th>Tipo</th>
+            <th>Marca / Modelo</th>
+            <th>Capacidad</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (vehiculo of visibles(); track vehiculo.idVehiculo) {
+            <tr>
+              <td class="mono name">{{ vehiculo.patente }}</td>
+              <td>{{ vehiculo.tipo }}</td>
+              <td>{{ vehiculo.marca }} {{ vehiculo.modelo }}</td>
+              <td class="mono">{{ vehiculo.capacidad }}</td>
+              <td>
+                <app-status-badge
+                  [label]="vehiculo.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'"
+                  [tone]="vehiculo.estado === 'ACTIVO' ? 'green' : 'slate'"
+                />
+              </td>
+              <td>
+                <div class="actions">
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    title="Editar vehículo"
+                    aria-label="Editar vehículo"
+                    (click)="abrirEditar(vehiculo)"
+                  >
+                    <app-icon name="edit" [size]="15" />
+                  </button>
+                  @if (vehiculo.estado === 'ACTIVO') {
+                    <button
+                      type="button"
+                      class="icon-btn is-danger"
+                      title="Desactivar vehículo"
+                      aria-label="Desactivar vehículo"
+                      [disabled]="estaCambiandoEstado(vehiculo.idVehiculo)"
+                      (click)="pedirDesactivar(vehiculo)"
+                    >
+                      <app-icon name="ban" [size]="15" />
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="icon-btn is-success"
+                      title="Activar vehículo"
+                      aria-label="Activar vehículo"
+                      [disabled]="estaCambiandoEstado(vehiculo.idVehiculo)"
+                      (click)="activar(vehiculo)"
+                    >
+                      <app-icon name="check" [size]="15" />
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</app-card>
+
+<app-modal
+  [open]="formularioAbierto()"
+  [titulo]="tituloFormulario()"
+  (closed)="cerrarFormulario()"
+>
+  <app-vehiculo-form
+    [vehiculo]="vehiculoEdicion()"
+    [abierto]="formularioAbierto()"
+    [guardando]="guardando()"
+    [error]="errorFormulario()"
+    (guardado)="guardar($event)"
+    (cancelado)="cerrarFormulario()"
+  />
+</app-modal>
+
+<app-confirm-dialog
+  [open]="confirmacionAbierta()"
+  titulo="Desactivar vehículo"
+  [mensaje]="mensajeConfirmacion()"
+  confirmLabel="Desactivar"
+  [danger]="true"
+  [confirmDisabled]="idVehiculoCambiandoEstado() !== null"
+  (confirmed)="confirmarDesactivar()"
+  (cancelled)="cancelarDesactivar()"
+/>

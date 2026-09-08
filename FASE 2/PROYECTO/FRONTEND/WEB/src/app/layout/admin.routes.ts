@@ -34,7 +34,7 @@ export const adminRoutes: Routes = [
       {
         path: 'vehiculos',
         loadComponent: () =>
-          import('../features/placeholder/placeholder-page').then((m) => m.PlaceholderPage),
+          import('../features/vehiculos/vehiculos').then((m) => m.VehiculosPage),
         data: { title: 'Vehículos' },
       },
       {

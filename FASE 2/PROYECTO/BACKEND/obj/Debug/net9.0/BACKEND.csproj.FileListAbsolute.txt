@@ -123,3 +123,11 @@ C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\ExcelNumberFormat.dll
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\RBush.dll
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\SixLabors.Fonts.dll
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\System.IO.Packaging.dll
+C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\appsettings.Development.json
+C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\appsettings.json
+C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\BACKEND.staticwebassets.endpoints.json
+C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\BACKEND.exe
+C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\BACKEND.deps.json
+C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\BACKEND.runtimeconfig.json
+C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\BACKEND.dll
+C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\BACKEND.pdb
