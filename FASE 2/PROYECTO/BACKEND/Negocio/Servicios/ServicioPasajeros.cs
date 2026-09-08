@@ -3,6 +3,7 @@ using BACKEND.DTOs.Pasajeros;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Constantes;
 using BACKEND.Negocio.Excepciones;
+using BACKEND.Negocio.Validacion;
 using Microsoft.EntityFrameworkCore;
 
 namespace BACKEND.Negocio.Servicios
@@ -275,9 +276,25 @@ namespace BACKEND.Negocio.Servicios
                 idEmpresa,
                 idUsuario,
                 RequerirTexto(nombre, "El nombre es obligatorio."),
-                RequerirTexto(rut, "El RUT es obligatorio."),
+                NormalizarRut(rut),
                 RequerirTexto(telefono, "El teléfono es obligatorio."),
                 RequerirTexto(direccion, "La dirección es obligatoria."));
+        }
+
+        private static string NormalizarRut(string? valor)
+        {
+            var texto = valor?.Trim() ?? string.Empty;
+            if (texto.Length == 0)
+            {
+                throw new ExcepcionNegocio("El RUT es obligatorio.");
+            }
+
+            if (!RutChileno.TryNormalizar(texto, out var rutNormalizado))
+            {
+                throw new ExcepcionNegocio(RutChileno.MensajeInvalido);
+            }
+
+            return rutNormalizado;
         }
 
         private static string RequerirTexto(string? valor, string mensaje)

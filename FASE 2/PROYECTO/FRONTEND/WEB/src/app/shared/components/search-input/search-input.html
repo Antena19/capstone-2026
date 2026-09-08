@@ -5,6 +5,7 @@
   <input
     type="search"
     [placeholder]="placeholder()"
+    [attr.aria-label]="placeholder()"
     [value]="value()"
     (input)="onInput($event)"
   />

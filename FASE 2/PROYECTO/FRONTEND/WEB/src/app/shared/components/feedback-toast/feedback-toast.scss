@@ -1,0 +1,18 @@
+:host {
+  pointer-events: none;
+}
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 50;
+  max-width: 360px;
+  padding: 12px 16px;
+  background: var(--color-sidebar);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
+}

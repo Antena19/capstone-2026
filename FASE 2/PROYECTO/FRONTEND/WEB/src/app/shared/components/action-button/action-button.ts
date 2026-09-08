@@ -11,7 +11,7 @@ import { Icon } from '../icon/icon';
 })
 export class ActionButton {
   readonly label = input.required<string>();
-  readonly variant = input<'primary' | 'secondary' | 'ghost'>('primary');
+  readonly variant = input<'primary' | 'secondary' | 'ghost' | 'danger'>('primary');
   readonly icon = input<IconName>();
   readonly type = input<'button' | 'submit'>('button');
   readonly disabled = input(false);

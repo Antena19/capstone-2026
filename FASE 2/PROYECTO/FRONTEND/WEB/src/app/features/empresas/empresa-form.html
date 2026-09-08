@@ -1,0 +1,78 @@
+<form class="form" [formGroup]="form" (ngSubmit)="enviar()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  }
+
+  <div class="grid">
+    <label class="field">
+      <span>RUT <abbr title="Obligatorio">*</abbr></span>
+      <input
+        type="text"
+        formControlName="rut"
+        maxlength="12"
+        autocomplete="off"
+        (blur)="normalizarRutCampo()"
+      />
+      @if (mensajeCampo('rut'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+
+    <label class="field">
+      <span>Razón social <abbr title="Obligatorio">*</abbr></span>
+      <input type="text" formControlName="razonSocial" maxlength="200" />
+      @if (mensajeCampo('razonSocial'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+  </div>
+
+  <label class="field">
+    <span>Dirección <abbr title="Obligatorio">*</abbr></span>
+    <input type="text" formControlName="direccion" maxlength="255" />
+    @if (mensajeCampo('direccion'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+  </label>
+
+  <div class="grid">
+    <label class="field">
+      <span>Teléfono <abbr title="Obligatorio">*</abbr></span>
+      <input type="text" formControlName="telefono" maxlength="20" />
+      @if (mensajeCampo('telefono'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+
+    <label class="field">
+      <span>Nombre de contacto <abbr title="Obligatorio">*</abbr></span>
+      <input type="text" formControlName="nombreContacto" maxlength="100" />
+      @if (mensajeCampo('nombreContacto'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+  </div>
+
+  <label class="field">
+    <span>Correo de contacto <abbr title="Obligatorio">*</abbr></span>
+    <input type="email" formControlName="emailContacto" maxlength="150" />
+    @if (mensajeCampo('emailContacto'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+  </label>
+
+  <div class="actions">
+    <app-action-button
+      label="Cancelar"
+      variant="secondary"
+      type="button"
+      [disabled]="guardando()"
+      (clicked)="cancelado.emit()"
+    />
+    <app-action-button
+      [label]="esEdicion() ? 'Guardar cambios' : 'Guardar empresa'"
+      type="submit"
+      [disabled]="guardando()"
+    />
+  </div>
+</form>

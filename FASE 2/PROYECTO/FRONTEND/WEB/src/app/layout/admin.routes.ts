@@ -16,13 +16,13 @@ export const adminRoutes: Routes = [
       {
         path: 'empresas',
         loadComponent: () =>
-          import('../features/placeholder/placeholder-page').then((m) => m.PlaceholderPage),
+          import('../features/empresas/empresas').then((m) => m.EmpresasPage),
         data: { title: 'Empresas Clientes' },
       },
       {
         path: 'pasajeros',
         loadComponent: () =>
-          import('../features/placeholder/placeholder-page').then((m) => m.PlaceholderPage),
+          import('../features/pasajeros/pasajeros').then((m) => m.PasajerosPage),
         data: { title: 'Pasajeros' },
       },
       {

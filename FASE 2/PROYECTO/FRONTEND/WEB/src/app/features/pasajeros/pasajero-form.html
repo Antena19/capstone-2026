@@ -1,0 +1,83 @@
+<form class="form" [formGroup]="form" (ngSubmit)="enviar()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  }
+
+  <label class="field">
+    <span>Empresa <abbr title="Obligatorio">*</abbr></span>
+    <select formControlName="idEmpresa">
+      <option value="">Seleccione una empresa</option>
+      @for (empresa of empresasDisponibles(); track empresa.idEmpresa) {
+        <option [value]="empresa.idEmpresa">{{ etiquetaEmpresa(empresa) }}</option>
+      }
+    </select>
+    @if (mensajeCampo('idEmpresa'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+    @if (sinEmpresas()) {
+      <p class="hint">No hay empresas activas para asociar un pasajero.</p>
+    }
+  </label>
+
+  <div class="grid">
+    <label class="field">
+      <span>Nombre <abbr title="Obligatorio">*</abbr></span>
+      <input type="text" formControlName="nombre" maxlength="100" />
+      @if (mensajeCampo('nombre'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+
+    <label class="field">
+      <span>RUT <abbr title="Obligatorio">*</abbr></span>
+      <input
+        type="text"
+        formControlName="rut"
+        maxlength="12"
+        autocomplete="off"
+        (blur)="normalizarRutCampo()"
+      />
+      @if (mensajeCampo('rut'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+  </div>
+
+  <label class="field">
+    <span>Teléfono <abbr title="Obligatorio">*</abbr></span>
+    <input type="text" formControlName="telefono" maxlength="20" />
+    @if (mensajeCampo('telefono'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+  </label>
+
+  <label class="field">
+    <span>Dirección <abbr title="Obligatorio">*</abbr></span>
+    <input type="text" formControlName="direccion" maxlength="255" />
+    @if (mensajeCampo('direccion'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+    <p class="help">Dato maestro del pasajero. No reemplaza el punto de recogida de una ruta.</p>
+  </label>
+
+  @if (pasajero()?.idUsuario) {
+    <p class="note">
+      Este pasajero tiene una cuenta de acceso asociada. El estado del pasajero no modifica esa cuenta.
+    </p>
+  }
+
+  <div class="actions">
+    <app-action-button
+      label="Cancelar"
+      variant="secondary"
+      type="button"
+      [disabled]="guardando()"
+      (clicked)="cancelado.emit()"
+    />
+    <app-action-button
+      [label]="esEdicion() ? 'Guardar cambios' : 'Guardar pasajero'"
+      type="submit"
+      [disabled]="guardando() || !catalogoListo() || sinEmpresas()"
+    />
+  </div>
+</form>

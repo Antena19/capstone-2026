@@ -1,4 +1,4 @@
-<select [value]="value()" (change)="onChange($event)">
+<select [value]="value()" [attr.aria-label]="label()" (change)="onChange($event)">
   @if (includeBlank()) {
     <option value="">{{ blankLabel() || label() }}</option>
   }

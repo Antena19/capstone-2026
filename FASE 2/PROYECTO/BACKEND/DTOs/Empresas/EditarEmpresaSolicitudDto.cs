@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using BACKEND.Negocio.Validacion;
 
 namespace BACKEND.DTOs.Empresas
 {
@@ -10,6 +11,7 @@ namespace BACKEND.DTOs.Empresas
     {
         [Required(ErrorMessage = "El RUT es obligatorio.")]
         [MaxLength(12, ErrorMessage = "El RUT no puede superar los 12 caracteres.")]
+        [RutChileno]
         public string Rut { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "La razón social es obligatoria.")]

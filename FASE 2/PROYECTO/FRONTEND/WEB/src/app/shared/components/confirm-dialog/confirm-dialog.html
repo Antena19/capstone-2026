@@ -1,0 +1,16 @@
+<app-modal [open]="open()" [titulo]="titulo()" (closed)="cancelled.emit()">
+  <p class="mensaje">{{ mensaje() }}</p>
+  <div class="actions">
+    <app-action-button
+      [label]="cancelLabel()"
+      variant="secondary"
+      (clicked)="cancelled.emit()"
+    />
+    <app-action-button
+      [label]="confirmLabel()"
+      [variant]="danger() ? 'danger' : 'primary'"
+      [disabled]="confirmDisabled()"
+      (clicked)="confirmar()"
+    />
+  </div>
+</app-modal>

@@ -10,6 +10,11 @@
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -43,4 +48,14 @@
 
 .btn[data-variant='ghost']:hover:not(:disabled) {
   background: var(--color-slate-100);
+}
+
+.btn[data-variant='danger'] {
+  background: #dc2626;
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn[data-variant='danger']:hover:not(:disabled) {
+  background: #b91c1c;
 }

@@ -14,7 +14,11 @@ export type IconName =
   | 'search'
   | 'plus'
   | 'download'
-  | 'alert';
+  | 'alert'
+  | 'edit'
+  | 'check'
+  | 'close'
+  | 'ban';
 
 export interface NavItem {
   path: string;

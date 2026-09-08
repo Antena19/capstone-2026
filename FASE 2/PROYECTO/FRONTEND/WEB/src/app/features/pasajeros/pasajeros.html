@@ -1,0 +1,147 @@
+<app-page-header title="Pasajeros" [subtitle]="subtitulo()">
+  <app-search-input
+    placeholder="Buscar pasajero..."
+    [value]="busqueda()"
+    (valueChange)="busqueda.set($event)"
+  />
+  <app-filter-select
+    label="Empresa"
+    blankLabel="Todas las empresas"
+    [items]="opcionesEmpresa()"
+    [value]="empresaFiltro()"
+    (valueChange)="actualizarEmpresaFiltro($event)"
+  />
+  <app-filter-select
+    label="Estado"
+    blankLabel="Todos los estados"
+    [items]="opcionesEstado"
+    [value]="estadoFiltro()"
+    (valueChange)="actualizarEstadoFiltro($event)"
+  />
+  <app-action-button label="Nuevo pasajero" icon="plus" (clicked)="abrirCrear()" />
+</app-page-header>
+
+@if (error(); as texto) {
+  <p class="banner">{{ texto }}</p>
+}
+
+<app-card>
+  @if (cargando()) {
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  } @else if (error() && pasajeros().length === 0) {
+    <div class="empty">
+      <p>No fue posible mostrar el listado. Intente nuevamente.</p>
+      <app-action-button label="Reintentar" variant="secondary" (clicked)="cargar()" />
+    </div>
+  } @else if (pasajeros().length === 0) {
+    <div class="empty">
+      @if (estadoFiltro() || empresaFiltro()) {
+        <p>No hay pasajeros con los filtros seleccionados.</p>
+      } @else {
+        <p>No hay pasajeros registrados.</p>
+        <app-action-button label="Registrar primer pasajero" icon="plus" (clicked)="abrirCrear()" />
+      }
+    </div>
+  } @else if (visibles().length === 0) {
+    <p class="empty">No se encontraron pasajeros que coincidan con la búsqueda.</p>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Pasajero</th>
+            <th>RUT</th>
+            <th>Empresa</th>
+            <th>Teléfono</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (pasajero of visibles(); track pasajero.idPasajero) {
+            <tr>
+              <td class="name">{{ pasajero.nombre }}</td>
+              <td class="mono">{{ pasajero.rut }}</td>
+              <td>{{ nombreEmpresa(pasajero.idEmpresa) }}</td>
+              <td class="mono">{{ pasajero.telefono }}</td>
+              <td>
+                <app-status-badge
+                  [label]="pasajero.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'"
+                  [tone]="pasajero.estado === 'ACTIVO' ? 'green' : 'slate'"
+                />
+              </td>
+              <td>
+                <div class="actions">
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    title="Editar pasajero"
+                    aria-label="Editar pasajero"
+                    (click)="abrirEditar(pasajero)"
+                  >
+                    <app-icon name="edit" [size]="15" />
+                  </button>
+                  @if (pasajero.estado === 'ACTIVO') {
+                    <button
+                      type="button"
+                      class="icon-btn is-danger"
+                      title="Desactivar pasajero"
+                      aria-label="Desactivar pasajero"
+                      [disabled]="estaCambiandoEstado(pasajero.idPasajero)"
+                      (click)="pedirDesactivar(pasajero)"
+                    >
+                      <app-icon name="ban" [size]="15" />
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="icon-btn is-success"
+                      title="Activar pasajero"
+                      aria-label="Activar pasajero"
+                      [disabled]="estaCambiandoEstado(pasajero.idPasajero)"
+                      (click)="activar(pasajero)"
+                    >
+                      <app-icon name="check" [size]="15" />
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</app-card>
+
+<app-modal
+  [open]="formularioAbierto()"
+  [titulo]="tituloFormulario()"
+  (closed)="cerrarFormulario()"
+>
+  <app-pasajero-form
+    [pasajero]="pasajeroEdicion()"
+    [empresas]="empresas()"
+    [abierto]="formularioAbierto()"
+    [guardando]="guardando()"
+    [catalogoListo]="catalogoCargado()"
+    [error]="errorFormulario()"
+    (guardado)="guardar($event)"
+    (cancelado)="cerrarFormulario()"
+  />
+</app-modal>
+
+<app-confirm-dialog
+  [open]="confirmacionAbierta()"
+  titulo="Desactivar pasajero"
+  [mensaje]="mensajeConfirmacion()"
+  confirmLabel="Desactivar"
+  [danger]="true"
+  [confirmDisabled]="idPasajeroCambiandoEstado() !== null"
+  (confirmed)="confirmarDesactivar()"
+  (cancelled)="cancelarDesactivar()"
+/>

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using BACKEND.Negocio.Validacion;
 
 namespace BACKEND.DTOs.Pasajeros
 {
@@ -20,6 +21,7 @@ namespace BACKEND.DTOs.Pasajeros
 
         [Required(ErrorMessage = "El RUT es obligatorio.")]
         [MaxLength(12, ErrorMessage = "El RUT no puede superar los 12 caracteres.")]
+        [RutChileno]
         public string Rut { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "El teléfono es obligatorio.")]

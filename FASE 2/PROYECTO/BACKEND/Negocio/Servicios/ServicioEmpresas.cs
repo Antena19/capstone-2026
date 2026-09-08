@@ -2,6 +2,7 @@ using BACKEND.Datos.MySQL;
 using BACKEND.DTOs.Empresas;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Excepciones;
+using BACKEND.Negocio.Validacion;
 using Microsoft.EntityFrameworkCore;
 
 namespace BACKEND.Negocio.Servicios
@@ -206,12 +207,28 @@ namespace BACKEND.Negocio.Servicios
             string nombreContacto)
         {
             return new DatosEmpresaNormalizados(
-                RequerirTexto(rut, "El RUT es obligatorio."),
+                NormalizarRut(rut),
                 RequerirTexto(razonSocial, "La razón social es obligatoria."),
                 RequerirTexto(direccion, "La dirección es obligatoria."),
                 RequerirTexto(telefono, "El teléfono es obligatorio."),
                 RequerirTexto(emailContacto, "El correo de contacto es obligatorio.").ToLowerInvariant(),
                 RequerirTexto(nombreContacto, "El nombre de contacto es obligatorio."));
+        }
+
+        private static string NormalizarRut(string? valor)
+        {
+            var texto = valor?.Trim() ?? string.Empty;
+            if (texto.Length == 0)
+            {
+                throw new ExcepcionNegocio("El RUT es obligatorio.");
+            }
+
+            if (!RutChileno.TryNormalizar(texto, out var rutNormalizado))
+            {
+                throw new ExcepcionNegocio(RutChileno.MensajeInvalido);
+            }
+
+            return rutNormalizado;
         }
 
         private static string RequerirTexto(string? valor, string mensaje)

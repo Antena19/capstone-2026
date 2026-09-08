@@ -1,0 +1,140 @@
+<app-page-header title="Empresas Clientes" [subtitle]="subtitulo()">
+  <app-search-input
+    placeholder="Buscar empresa..."
+    [value]="busqueda()"
+    (valueChange)="busqueda.set($event)"
+  />
+  <app-filter-select
+    label="Estado"
+    blankLabel="Todos los estados"
+    [items]="opcionesEstado"
+    [value]="estadoFiltro()"
+    (valueChange)="actualizarEstadoFiltro($event)"
+  />
+  <app-action-button label="Nueva empresa" icon="plus" (clicked)="abrirCrear()" />
+</app-page-header>
+
+@if (error(); as texto) {
+  <p class="banner">{{ texto }}</p>
+}
+
+<app-card>
+  @if (cargando()) {
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  } @else if (error() && empresas().length === 0) {
+    <div class="empty">
+      <p>No fue posible mostrar el listado. Intente nuevamente.</p>
+      <app-action-button label="Reintentar" variant="secondary" (clicked)="cargar()" />
+    </div>
+  } @else if (empresas().length === 0) {
+    <div class="empty">
+      @if (estadoFiltro()) {
+        <p>No hay empresas con el estado seleccionado.</p>
+      } @else {
+        <p>No hay empresas registradas.</p>
+        <app-action-button label="Registrar primera empresa" icon="plus" (clicked)="abrirCrear()" />
+      }
+    </div>
+  } @else if (visibles().length === 0) {
+    <p class="empty">No se encontraron empresas que coincidan con la búsqueda.</p>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Empresa</th>
+            <th>RUT</th>
+            <th>Contacto</th>
+            <th>Correo</th>
+            <th>Teléfono</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (empresa of visibles(); track empresa.idEmpresa) {
+            <tr>
+              <td class="name">{{ empresa.razonSocial }}</td>
+              <td class="mono">{{ empresa.rut }}</td>
+              <td>{{ empresa.nombreContacto }}</td>
+              <td>{{ empresa.emailContacto }}</td>
+              <td class="mono">{{ empresa.telefono }}</td>
+              <td>
+                <app-status-badge
+                  [label]="empresa.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'"
+                  [tone]="empresa.estado === 'ACTIVO' ? 'green' : 'slate'"
+                />
+              </td>
+              <td>
+                <div class="actions">
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    title="Editar empresa"
+                    aria-label="Editar empresa"
+                    (click)="abrirEditar(empresa)"
+                  >
+                    <app-icon name="edit" [size]="15" />
+                  </button>
+                  @if (empresa.estado === 'ACTIVO') {
+                    <button
+                      type="button"
+                      class="icon-btn is-danger"
+                      title="Desactivar empresa"
+                      aria-label="Desactivar empresa"
+                      [disabled]="estaCambiandoEstado(empresa.idEmpresa)"
+                      (click)="pedirDesactivar(empresa)"
+                    >
+                      <app-icon name="ban" [size]="15" />
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="icon-btn is-success"
+                      title="Activar empresa"
+                      aria-label="Activar empresa"
+                      [disabled]="estaCambiandoEstado(empresa.idEmpresa)"
+                      (click)="activar(empresa)"
+                    >
+                      <app-icon name="check" [size]="15" />
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</app-card>
+
+<app-modal
+  [open]="formularioAbierto()"
+  [titulo]="tituloFormulario()"
+  (closed)="cerrarFormulario()"
+>
+  <app-empresa-form
+    [empresa]="empresaEdicion()"
+    [abierto]="formularioAbierto()"
+    [guardando]="guardando()"
+    [error]="errorFormulario()"
+    (guardado)="guardar($event)"
+    (cancelado)="cerrarFormulario()"
+  />
+</app-modal>
+
+<app-confirm-dialog
+  [open]="confirmacionAbierta()"
+  titulo="Desactivar empresa"
+  [mensaje]="mensajeConfirmacion()"
+  confirmLabel="Desactivar"
+  [danger]="true"
+  [confirmDisabled]="idEmpresaCambiandoEstado() !== null"
+  (confirmed)="confirmarDesactivar()"
+  (cancelled)="cancelarDesactivar()"
+/>
