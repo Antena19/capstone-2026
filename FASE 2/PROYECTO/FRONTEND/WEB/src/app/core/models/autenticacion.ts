@@ -13,6 +13,7 @@ export interface LoginRespuesta {
   email: string;
   rol: string;
   expiracion: string;
+  debeCambiarPassword: boolean;
 }
 
 export interface SesionUsuario {

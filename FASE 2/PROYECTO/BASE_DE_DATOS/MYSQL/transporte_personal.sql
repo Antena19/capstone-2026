@@ -36,6 +36,7 @@ CREATE TABLE `usuario` (
   `id_usuario` INT NOT NULL AUTO_INCREMENT,
   `email` VARCHAR(150) NOT NULL,
   `password_hash` VARCHAR(255) NOT NULL,
+  `debe_cambiar_password` TINYINT(1) NOT NULL DEFAULT 0,
   `id_rol` INT NOT NULL,
   `estado` ENUM('ACTIVO', 'INACTIVO') NOT NULL DEFAULT 'ACTIVO',
   `fecha_creacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

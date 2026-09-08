@@ -69,6 +69,24 @@ namespace BACKEND.Controladores
         }
 
         /// <summary>
+        /// Crea un conductor y su cuenta CONDUCTOR en una sola transacción.
+        /// La contraseña temporal se genera en el servidor y se devuelve una sola vez.
+        /// </summary>
+        [HttpPost("con-cuenta")]
+        [ProducesResponseType(typeof(ConductorConCuentaRespuestaDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<ConductorConCuentaRespuestaDto>> CrearConCuenta(
+            [FromBody] CrearConductorConCuentaSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var conductor = await _servicioConductores.CrearConCuentaAsync(solicitud, idAdministrador);
+            return CreatedAtAction(nameof(ObtenerPorId), new { id = conductor.IdConductor }, conductor);
+        }
+
+        /// <summary>
         /// Actualiza los datos de un conductor. El identificador no se modifica.
         /// </summary>
         [HttpPut("{id:int}")]

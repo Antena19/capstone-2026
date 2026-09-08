@@ -78,7 +78,8 @@ namespace BACKEND.Negocio.Servicios
                 IdUsuario = usuario.IdUsuario,
                 Email = usuario.Email,
                 Rol = usuario.Rol.Nombre,
-                Expiracion = expiracion
+                Expiracion = expiracion,
+                DebeCambiarPassword = usuario.DebeCambiarPassword
             };
         }
 
@@ -109,6 +110,7 @@ namespace BACKEND.Negocio.Servicios
             }
 
             usuario.PasswordHash = _hashPassword.GenerarHash(solicitud.PasswordNueva);
+            usuario.DebeCambiarPassword = false;
             await _contexto.SaveChangesAsync();
 
             _logger.LogInformation("El usuario {IdUsuario} actualizó su contraseña.", idUsuario);

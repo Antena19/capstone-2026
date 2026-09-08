@@ -28,7 +28,7 @@ export const adminRoutes: Routes = [
       {
         path: 'conductores',
         loadComponent: () =>
-          import('../features/placeholder/placeholder-page').then((m) => m.PlaceholderPage),
+          import('../features/conductores/conductores').then((m) => m.ConductoresPage),
         data: { title: 'Conductores' },
       },
       {

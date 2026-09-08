@@ -85,6 +85,11 @@ namespace BACKEND.Datos.MySQL
                     .HasMaxLength(255)
                     .IsRequired();
 
+                entity.Property(e => e.DebeCambiarPassword)
+                    .HasColumnName("debe_cambiar_password")
+                    .IsRequired()
+                    .HasDefaultValue(false);
+
                 entity.Property(e => e.IdRol)
                     .HasColumnName("id_rol")
                     .IsRequired();

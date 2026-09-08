@@ -3,6 +3,8 @@ using BACKEND.DTOs.Conductores;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Constantes;
 using BACKEND.Negocio.Excepciones;
+using BACKEND.Negocio.Seguridad;
+using BACKEND.Negocio.Validacion;
 using Microsoft.EntityFrameworkCore;
 
 namespace BACKEND.Negocio.Servicios
@@ -15,6 +17,10 @@ namespace BACKEND.Negocio.Servicios
 
         Task<ConductorRespuestaDto> CrearAsync(CrearConductorSolicitudDto solicitud, int idAdministrador);
 
+        Task<ConductorConCuentaRespuestaDto> CrearConCuentaAsync(
+            CrearConductorConCuentaSolicitudDto solicitud,
+            int idAdministrador);
+
         Task<ConductorRespuestaDto> EditarAsync(int idConductor, EditarConductorSolicitudDto solicitud, int idAdministrador);
 
         Task<ConductorRespuestaDto> CambiarEstadoAsync(int idConductor, CambiarEstadoConductorSolicitudDto solicitud, int idAdministrador);
@@ -23,7 +29,8 @@ namespace BACKEND.Negocio.Servicios
     /// <summary>
     /// Gestión de conductores reservada al rol ADMINISTRADOR.
     /// No elimina físicamente registros: solo activa o inactiva.
-    /// No crea ni modifica cuentas de usuario; id_usuario es obligatorio y debe tener rol CONDUCTOR.
+    /// El alta administrativa con cuenta usa una transacción Usuario + Conductor.
+    /// POST /api/conductores sigue asociando un id_usuario CONDUCTOR ya existente.
     /// La persistencia en la tabla auditoria se incorporará cuando el módulo transversal esté disponible.
     /// </summary>
     public class ServicioConductores : IServicioConductores
@@ -31,13 +38,19 @@ namespace BACKEND.Negocio.Servicios
         private const string MensajeRutDuplicado = "Ya existe un conductor con el RUT indicado.";
         private const string MensajeUsuarioAsociado = "El usuario indicado ya está asociado a otro conductor.";
         private const string MensajeConflicto = "No fue posible guardar el conductor con los datos indicados.";
+        private const string MensajeConflictoCuenta = "No fue posible crear la cuenta con los datos indicados.";
 
         private readonly TransporteContext _contexto;
+        private readonly IServicioHashPassword _hashPassword;
         private readonly ILogger<ServicioConductores> _logger;
 
-        public ServicioConductores(TransporteContext contexto, ILogger<ServicioConductores> logger)
+        public ServicioConductores(
+            TransporteContext contexto,
+            IServicioHashPassword hashPassword,
+            ILogger<ServicioConductores> logger)
         {
             _contexto = contexto;
+            _hashPassword = hashPassword;
             _logger = logger;
         }
 
@@ -108,6 +121,94 @@ namespace BACKEND.Negocio.Servicios
                 conductor.IdConductor);
 
             return Mapear(conductor);
+        }
+
+        public async Task<ConductorConCuentaRespuestaDto> CrearConCuentaAsync(
+            CrearConductorConCuentaSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            var nombre = RequerirTexto(solicitud.Nombre, "El nombre es obligatorio.");
+            var rut = NormalizarRut(solicitud.Rut);
+            var telefono = RequerirTexto(solicitud.Telefono, "El teléfono es obligatorio.");
+            var email = NormalizarEmail(solicitud.Email);
+
+            var rolConductor = await _contexto.Roles
+                .FirstOrDefaultAsync(r =>
+                    r.Nombre == NombresRol.Conductor
+                    && r.Estado == EstadoRegistro.ACTIVO);
+
+            if (rolConductor is null)
+            {
+                throw new ExcepcionNegocio("El rol CONDUCTOR no existe o no se encuentra activo.");
+            }
+
+            var passwordTemporal = GeneradorPasswordTemporal.Generar();
+            var passwordHash = _hashPassword.GenerarHash(passwordTemporal);
+
+            await using var transaccion = await _contexto.Database.BeginTransactionAsync();
+            try
+            {
+                await AsegurarRutDisponibleAsync(rut);
+
+                if (await _contexto.Usuarios.AnyAsync(u => u.Email == email))
+                {
+                    throw new ExcepcionNegocio(MensajeConflictoCuenta, StatusCodes.Status409Conflict);
+                }
+
+                var usuario = new Usuario
+                {
+                    Email = email,
+                    PasswordHash = passwordHash,
+                    DebeCambiarPassword = true,
+                    IdRol = rolConductor.IdRol,
+                    Estado = EstadoRegistro.ACTIVO,
+                    FechaCreacion = DateTime.UtcNow
+                };
+
+                _contexto.Usuarios.Add(usuario);
+                await _contexto.SaveChangesAsync();
+
+                var conductor = new Conductor
+                {
+                    IdUsuario = usuario.IdUsuario,
+                    Nombre = nombre,
+                    Rut = rut,
+                    Telefono = telefono,
+                    Estado = EstadoRegistro.ACTIVO
+                };
+
+                _contexto.Conductores.Add(conductor);
+                await _contexto.SaveChangesAsync();
+                await transaccion.CommitAsync();
+
+                _logger.LogInformation(
+                    "El administrador {IdAdministrador} creó el conductor {IdConductor} con la cuenta {IdUsuario}.",
+                    idAdministrador,
+                    conductor.IdConductor,
+                    usuario.IdUsuario);
+
+                return new ConductorConCuentaRespuestaDto
+                {
+                    IdConductor = conductor.IdConductor,
+                    IdUsuario = usuario.IdUsuario,
+                    Nombre = conductor.Nombre,
+                    Rut = conductor.Rut,
+                    Telefono = conductor.Telefono,
+                    Email = usuario.Email,
+                    Estado = conductor.Estado,
+                    PasswordTemporal = passwordTemporal
+                };
+            }
+            catch (DbUpdateException ex)
+            {
+                await transaccion.RollbackAsync();
+                throw MapearConflictoAlta(ex);
+            }
+            catch
+            {
+                await transaccion.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<ConductorRespuestaDto> EditarAsync(
@@ -238,8 +339,24 @@ namespace BACKEND.Negocio.Servicios
             return new DatosConductorNormalizados(
                 idUsuario,
                 RequerirTexto(nombre, "El nombre es obligatorio."),
-                RequerirTexto(rut, "El RUT es obligatorio."),
+                NormalizarRut(rut),
                 RequerirTexto(telefono, "El teléfono es obligatorio."));
+        }
+
+        private static string NormalizarRut(string? valor)
+        {
+            var texto = valor?.Trim() ?? string.Empty;
+            if (texto.Length == 0)
+            {
+                throw new ExcepcionNegocio("El RUT es obligatorio.");
+            }
+
+            if (!RutChileno.TryNormalizar(texto, out var rutNormalizado))
+            {
+                throw new ExcepcionNegocio(RutChileno.MensajeInvalido);
+            }
+
+            return rutNormalizado;
         }
 
         private static string RequerirTexto(string? valor, string mensaje)
@@ -252,6 +369,28 @@ namespace BACKEND.Negocio.Servicios
             }
 
             return texto;
+        }
+
+        private static string NormalizarEmail(string? valor)
+        {
+            var email = valor?.Trim().ToLowerInvariant() ?? string.Empty;
+            if (email.Length == 0)
+            {
+                throw new ExcepcionNegocio("El correo electrónico es obligatorio.");
+            }
+
+            return email;
+        }
+
+        private static ExcepcionNegocio MapearConflictoAlta(DbUpdateException ex)
+        {
+            var detalle = ex.InnerException?.Message ?? ex.Message;
+            if (detalle.Contains("uk_conductor_rut", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ExcepcionNegocio(MensajeRutDuplicado, StatusCodes.Status409Conflict);
+            }
+
+            return new ExcepcionNegocio(MensajeConflictoCuenta, StatusCodes.Status409Conflict);
         }
 
         private static ConductorRespuestaDto Mapear(Conductor conductor)

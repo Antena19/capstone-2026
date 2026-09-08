@@ -20,6 +20,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<FiltroExcepciones>();
+    options.Filters.Add<FiltroCambioPasswordObligatorio>();
 })
 .AddJsonOptions(options =>
 {
@@ -40,6 +41,7 @@ builder.Services.AddControllers(options =>
 });
 
 builder.Services.AddScoped<FiltroExcepciones>();
+builder.Services.AddScoped<FiltroCambioPasswordObligatorio>();
 
 // Configuración de MySQL con Entity Framework Core
 var connectionString = builder.Configuration.GetConnectionString("MySQL")

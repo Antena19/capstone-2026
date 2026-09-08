@@ -58,24 +58,19 @@ namespace BACKEND.Controladores
         }
 
         /// <summary>
-        /// Restablece la contraseña de una cuenta. El valor recibido se convierte a hash antes de guardarse.
+        /// Restablece la contraseña con un valor temporal generado en el servidor.
+        /// La clave en texto plano se devuelve una sola vez.
         /// </summary>
         [HttpPost("{id:int}/restablecer-password")]
-        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(RestablecerPasswordRespuestaDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<ActionResult<MensajeRespuestaDto>> RestablecerPassword(
-            int id,
-            [FromBody] RestablecerPasswordSolicitudDto solicitud)
+        public async Task<ActionResult<RestablecerPasswordRespuestaDto>> RestablecerPassword(int id)
         {
-            await _servicioUsuarios.RestablecerPasswordAsync(id, solicitud);
-
-            return Ok(new MensajeRespuestaDto
-            {
-                Mensaje = "La contraseña se restableció correctamente."
-            });
+            var respuesta = await _servicioUsuarios.RestablecerPasswordAsync(id);
+            return Ok(respuesta);
         }
     }
 }

@@ -1,0 +1,75 @@
+<form class="form" [formGroup]="form" (ngSubmit)="enviar()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  }
+
+  <p class="section">Datos del conductor</p>
+
+  <div class="grid">
+    <label class="field">
+      <span>Nombre <abbr title="Obligatorio">*</abbr></span>
+      <input type="text" formControlName="nombre" maxlength="100" />
+      @if (mensajeCampo('nombre'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+
+    <label class="field">
+      <span>RUT <abbr title="Obligatorio">*</abbr></span>
+      <input
+        type="text"
+        formControlName="rut"
+        maxlength="12"
+        autocomplete="off"
+        (blur)="normalizarRutCampo()"
+      />
+      @if (mensajeCampo('rut'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+  </div>
+
+  <label class="field">
+    <span>Teléfono <abbr title="Obligatorio">*</abbr></span>
+    <input type="text" formControlName="telefono" maxlength="20" />
+    @if (mensajeCampo('telefono'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+  </label>
+
+  @if (!esEdicion()) {
+    <p class="section">Cuenta de acceso</p>
+
+    <label class="field">
+      <span>Email <abbr title="Obligatorio">*</abbr></span>
+      <input type="email" formControlName="email" maxlength="150" autocomplete="off" />
+      @if (mensajeCampo('email'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+
+    <p class="note">
+      Se generará una contraseña temporal para el conductor, que deberá cambiar al iniciar sesión.
+    </p>
+  } @else {
+    <p class="note">
+      Este conductor tiene una cuenta de acceso asociada. El estado del conductor no modifica esa
+      cuenta.
+    </p>
+  }
+
+  <div class="actions">
+    <app-action-button
+      label="Cancelar"
+      variant="secondary"
+      type="button"
+      [disabled]="guardando()"
+      (clicked)="cancelado.emit()"
+    />
+    <app-action-button
+      [label]="esEdicion() ? 'Guardar cambios' : 'Guardar conductor'"
+      type="submit"
+      [disabled]="guardando() || !puedeGuardar()"
+    />
+  </div>
+</form>

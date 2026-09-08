@@ -3,6 +3,7 @@ using BACKEND.DTOs.Usuarios;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Constantes;
 using BACKEND.Negocio.Excepciones;
+using BACKEND.Negocio.Seguridad;
 using BACKEND.Negocio.Validacion;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,7 +15,7 @@ namespace BACKEND.Negocio.Servicios
 
         Task<UsuarioRespuestaDto> CambiarEstadoAsync(int idUsuario, int idAdministrador, CambiarEstadoUsuarioSolicitudDto solicitud);
 
-        Task RestablecerPasswordAsync(int idUsuario, RestablecerPasswordSolicitudDto solicitud);
+        Task<RestablecerPasswordRespuestaDto> RestablecerPasswordAsync(int idUsuario);
     }
 
     /// <summary>
@@ -59,6 +60,7 @@ namespace BACKEND.Negocio.Servicios
             {
                 Email = email,
                 PasswordHash = _hashPassword.GenerarHash(solicitud.Password),
+                DebeCambiarPassword = false,
                 IdRol = rol.IdRol,
                 Estado = EstadoRegistro.ACTIVO,
                 FechaCreacion = DateTime.UtcNow
@@ -105,19 +107,23 @@ namespace BACKEND.Negocio.Servicios
             return Mapear(usuario);
         }
 
-        public async Task RestablecerPasswordAsync(int idUsuario, RestablecerPasswordSolicitudDto solicitud)
+        public async Task<RestablecerPasswordRespuestaDto> RestablecerPasswordAsync(int idUsuario)
         {
-            if (!ValidadorPassword.CumpleRequisitos(solicitud.PasswordNueva))
-            {
-                throw new ExcepcionNegocio(ValidadorPassword.MensajeRequisitos);
-            }
-
             var usuario = await ObtenerUsuarioConRolAsync(idUsuario);
+            var passwordTemporal = GeneradorPasswordTemporal.Generar();
 
-            usuario.PasswordHash = _hashPassword.GenerarHash(solicitud.PasswordNueva);
+            usuario.PasswordHash = _hashPassword.GenerarHash(passwordTemporal);
+            usuario.DebeCambiarPassword = true;
             await _contexto.SaveChangesAsync();
 
             _logger.LogInformation("Se restableció la contraseña del usuario {IdUsuario}.", idUsuario);
+
+            return new RestablecerPasswordRespuestaDto
+            {
+                IdUsuario = usuario.IdUsuario,
+                Email = usuario.Email,
+                PasswordTemporal = passwordTemporal
+            };
         }
 
         private async Task<Usuario> ObtenerUsuarioConRolAsync(int idUsuario)

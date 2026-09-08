@@ -15,5 +15,7 @@ namespace BACKEND.DTOs.Autenticacion
         public string Rol { get; set; } = string.Empty;
 
         public DateTime Expiracion { get; set; }
+
+        public bool DebeCambiarPassword { get; set; }
     }
 }

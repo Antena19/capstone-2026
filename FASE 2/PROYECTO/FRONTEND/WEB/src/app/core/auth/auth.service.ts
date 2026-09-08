@@ -82,6 +82,9 @@ export class AuthService {
       email: String(datos['email'] ?? datos['Email'] ?? ''),
       rol: String(datos['rol'] ?? datos['Rol'] ?? '').trim(),
       expiracion: String(datos['expiracion'] ?? datos['Expiracion'] ?? ''),
+      debeCambiarPassword: Boolean(
+        datos['debeCambiarPassword'] ?? datos['DebeCambiarPassword'] ?? false,
+      ),
     };
   }
 

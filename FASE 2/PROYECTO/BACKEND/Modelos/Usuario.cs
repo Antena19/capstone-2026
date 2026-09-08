@@ -29,6 +29,9 @@ namespace BACKEND.Modelos
         [JsonIgnore]
         public string PasswordHash { get; set; } = string.Empty;
 
+        [Column("debe_cambiar_password")]
+        public bool DebeCambiarPassword { get; set; }
+
         [Column("id_rol")]
         public int IdRol { get; set; }
 

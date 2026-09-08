@@ -4,14 +4,11 @@ using BACKEND.Negocio.Validacion;
 namespace BACKEND.DTOs.Conductores
 {
     /// <summary>
-    /// Edición de un conductor existente. El identificador se toma de la ruta, no del cuerpo.
-    /// El estado se cambia por el endpoint dedicado. No crea ni modifica cuentas de usuario.
+    /// Alta transaccional de conductor con cuenta CONDUCTOR.
+    /// El backend genera la contraseña temporal, resuelve el rol y asigna el estado.
     /// </summary>
-    public class EditarConductorSolicitudDto
+    public class CrearConductorConCuentaSolicitudDto
     {
-        [Range(1, int.MaxValue, ErrorMessage = "Debe indicar un usuario válido.")]
-        public int IdUsuario { get; set; }
-
         [Required(ErrorMessage = "El nombre es obligatorio.")]
         [MaxLength(100, ErrorMessage = "El nombre no puede superar los 100 caracteres.")]
         public string Nombre { get; set; } = string.Empty;
@@ -24,5 +21,10 @@ namespace BACKEND.DTOs.Conductores
         [Required(ErrorMessage = "El teléfono es obligatorio.")]
         [MaxLength(20, ErrorMessage = "El teléfono no puede superar los 20 caracteres.")]
         public string Telefono { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "El correo electrónico es obligatorio.")]
+        [EmailAddress(ErrorMessage = "El correo electrónico no es válido.")]
+        [MaxLength(150, ErrorMessage = "El correo electrónico no puede superar los 150 caracteres.")]
+        public string Email { get; set; } = string.Empty;
     }
 }

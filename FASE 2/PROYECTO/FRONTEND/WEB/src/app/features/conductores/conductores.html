@@ -1,0 +1,172 @@
+<app-page-header title="Conductores" [subtitle]="subtitulo()">
+  <app-search-input
+    placeholder="Buscar conductor..."
+    [value]="busqueda()"
+    (valueChange)="busqueda.set($event)"
+  />
+  <app-filter-select
+    label="Estado"
+    blankLabel="Todos los estados"
+    [items]="opcionesEstado"
+    [value]="estadoFiltro()"
+    (valueChange)="actualizarEstadoFiltro($event)"
+  />
+  <app-action-button label="Nuevo conductor" icon="plus" (clicked)="abrirCrear()" />
+</app-page-header>
+
+@if (error(); as texto) {
+  <p class="banner">{{ texto }}</p>
+}
+
+<app-card>
+  @if (cargando()) {
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  } @else if (error() && conductores().length === 0) {
+    <div class="empty">
+      <p>No fue posible mostrar el listado. Intente nuevamente.</p>
+      <app-action-button label="Reintentar" variant="secondary" (clicked)="cargar()" />
+    </div>
+  } @else if (conductores().length === 0) {
+    <div class="empty">
+      @if (estadoFiltro()) {
+        <p>No hay conductores con el estado seleccionado.</p>
+      } @else {
+        <p>No hay conductores registrados.</p>
+        <app-action-button label="Registrar primer conductor" icon="plus" (clicked)="abrirCrear()" />
+      }
+    </div>
+  } @else if (visibles().length === 0) {
+    <p class="empty">No se encontraron conductores que coincidan con la búsqueda.</p>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Conductor</th>
+            <th>RUT</th>
+            <th>Teléfono</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (conductor of visibles(); track conductor.idConductor) {
+            <tr>
+              <td class="name">{{ conductor.nombre }}</td>
+              <td class="mono">{{ conductor.rut }}</td>
+              <td class="mono">{{ conductor.telefono }}</td>
+              <td>
+                <app-status-badge
+                  [label]="conductor.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'"
+                  [tone]="conductor.estado === 'ACTIVO' ? 'green' : 'slate'"
+                />
+              </td>
+              <td>
+                <div class="actions">
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    title="Editar conductor"
+                    aria-label="Editar conductor"
+                    (click)="abrirEditar(conductor)"
+                  >
+                    <app-icon name="edit" [size]="15" />
+                  </button>
+                  @if (conductor.estado === 'ACTIVO') {
+                    <button
+                      type="button"
+                      class="icon-btn is-danger"
+                      title="Desactivar conductor"
+                      aria-label="Desactivar conductor"
+                      [disabled]="estaCambiandoEstado(conductor.idConductor)"
+                      (click)="pedirDesactivar(conductor)"
+                    >
+                      <app-icon name="ban" [size]="15" />
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="icon-btn is-success"
+                      title="Activar conductor"
+                      aria-label="Activar conductor"
+                      [disabled]="estaCambiandoEstado(conductor.idConductor)"
+                      (click)="activar(conductor)"
+                    >
+                      <app-icon name="check" [size]="15" />
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</app-card>
+
+<app-modal
+  [open]="formularioAbierto()"
+  [titulo]="tituloFormulario()"
+  (closed)="cerrarFormulario()"
+>
+  <app-conductor-form
+    [conductor]="conductorEdicion()"
+    [abierto]="formularioAbierto()"
+    [guardando]="guardando()"
+    [error]="errorFormulario()"
+    (creado)="guardarCreacion($event)"
+    (guardado)="guardar($event)"
+    (cancelado)="cerrarFormulario()"
+  />
+</app-modal>
+
+<app-modal
+  [open]="credenciales() !== null"
+  titulo="Conductor creado correctamente"
+  (closed)="cerrarCredenciales()"
+>
+  @if (credenciales(); as cuenta) {
+    <div class="credenciales">
+      <p class="credenciales-intro">Cuenta de acceso</p>
+      <div class="credencial">
+        <span>Correo</span>
+        <p class="mono">{{ cuenta.email }}</p>
+      </div>
+      <div class="credencial">
+        <span>Contraseña temporal</span>
+        <p class="mono">{{ cuenta.passwordTemporal }}</p>
+      </div>
+      <p class="aviso">
+        Esta contraseña se mostrará una sola vez. Entrégala al conductor de forma segura. Deberá
+        cambiarla al iniciar sesión.
+      </p>
+      @if (avisoCopia(); as aviso) {
+        <p class="copia-ok">{{ aviso }}</p>
+      }
+      <div class="credenciales-acciones">
+        <app-action-button
+          [label]="copiado() ? 'Contraseña copiada' : 'Copiar contraseña'"
+          variant="secondary"
+          (clicked)="copiarPasswordTemporal()"
+        />
+        <app-action-button label="Entendido" (clicked)="cerrarCredenciales()" />
+      </div>
+    </div>
+  }
+</app-modal>
+
+<app-confirm-dialog
+  [open]="confirmacionAbierta()"
+  titulo="Desactivar conductor"
+  [mensaje]="mensajeConfirmacion()"
+  confirmLabel="Desactivar"
+  [danger]="true"
+  [confirmDisabled]="idConductorCambiandoEstado() !== null"
+  (confirmed)="confirmarDesactivar()"
+  (cancelled)="cancelarDesactivar()"
+/>
