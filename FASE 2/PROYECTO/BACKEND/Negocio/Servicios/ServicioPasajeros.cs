@@ -3,6 +3,7 @@ using BACKEND.DTOs.Pasajeros;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Constantes;
 using BACKEND.Negocio.Excepciones;
+using BACKEND.Negocio.Seguridad;
 using BACKEND.Negocio.Validacion;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,17 @@ namespace BACKEND.Negocio.Servicios
 
         Task<PasajeroRespuestaDto> CrearAsync(CrearPasajeroSolicitudDto solicitud, int idAdministrador);
 
+        Task<PasajeroRespuestaDto> CrearConCuentaAsync(
+            CrearPasajeroConCuentaSolicitudDto solicitud,
+            int idAdministrador);
+
+        Task<PasajeroRespuestaDto> HabilitarAccesoAsync(
+            int idPasajero,
+            HabilitarAccesoPasajeroSolicitudDto solicitud,
+            int idAdministrador);
+
+        Task<PasajeroRespuestaDto> ReenviarActivacionAsync(int idPasajero, int idAdministrador);
+
         Task<PasajeroRespuestaDto> EditarAsync(int idPasajero, EditarPasajeroSolicitudDto solicitud, int idAdministrador);
 
         Task<PasajeroRespuestaDto> CambiarEstadoAsync(int idPasajero, CambiarEstadoPasajeroSolicitudDto solicitud, int idAdministrador);
@@ -23,28 +35,39 @@ namespace BACKEND.Negocio.Servicios
 
     /// <summary>
     /// Gestión de pasajeros reservada al rol ADMINISTRADOR.
-    /// No elimina físicamente registros: solo activa o inactiva.
-    /// No crea ni modifica cuentas de usuario; la asociación con id_usuario es opcional.
-    /// La persistencia en la tabla auditoria se incorporará cuando el módulo transversal esté disponible.
+    /// El alta administrativa con cuenta usa una transacción Usuario + Pasajero + activación.
+    /// POST /api/pasajeros sigue permitiendo pasajeros históricos sin cuenta.
     /// </summary>
     public class ServicioPasajeros : IServicioPasajeros
     {
         private const string MensajeRutDuplicado = "Ya existe un pasajero con el RUT indicado.";
         private const string MensajeUsuarioAsociado = "El usuario indicado ya está asociado a otro pasajero.";
         private const string MensajeConflicto = "No fue posible guardar el pasajero con los datos indicados.";
+        private const string MensajeConflictoCuenta = "No fue posible crear la cuenta con los datos indicados.";
 
         private readonly TransporteContext _contexto;
+        private readonly IServicioHashPassword _hashPassword;
+        private readonly IServicioActivacionCuentas _activacion;
         private readonly ILogger<ServicioPasajeros> _logger;
 
-        public ServicioPasajeros(TransporteContext contexto, ILogger<ServicioPasajeros> logger)
+        public ServicioPasajeros(
+            TransporteContext contexto,
+            IServicioHashPassword hashPassword,
+            IServicioActivacionCuentas activacion,
+            ILogger<ServicioPasajeros> logger)
         {
             _contexto = contexto;
+            _hashPassword = hashPassword;
+            _activacion = activacion;
             _logger = logger;
         }
 
         public async Task<IReadOnlyList<PasajeroRespuestaDto>> ListarAsync(EstadoRegistro? estado, int? idEmpresa)
         {
-            var consulta = _contexto.Pasajeros.AsNoTracking();
+            var consulta = _contexto.Pasajeros
+                .AsNoTracking()
+                .Include(p => p.Usuario)
+                .AsQueryable();
 
             if (estado.HasValue)
             {
@@ -60,13 +83,19 @@ namespace BACKEND.Negocio.Servicios
                 .OrderBy(p => p.IdPasajero)
                 .ToListAsync();
 
-            return pasajeros.Select(Mapear).ToList();
+            var ultimas = await ObtenerUltimasActivacionesAsync(
+                pasajeros.Where(p => p.IdUsuario.HasValue).Select(p => p.IdUsuario!.Value));
+
+            return pasajeros
+                .Select(p => Mapear(p, p.Usuario, ObtenerActivacion(ultimas, p.IdUsuario)))
+                .ToList();
         }
 
         public async Task<PasajeroRespuestaDto> ObtenerPorIdAsync(int idPasajero)
         {
             var pasajero = await _contexto.Pasajeros
                 .AsNoTracking()
+                .Include(p => p.Usuario)
                 .FirstOrDefaultAsync(p => p.IdPasajero == idPasajero);
 
             if (pasajero is null)
@@ -74,7 +103,8 @@ namespace BACKEND.Negocio.Servicios
                 throw new ExcepcionNegocio("El pasajero no existe.", StatusCodes.Status404NotFound);
             }
 
-            return Mapear(pasajero);
+            var activacion = await ObtenerUltimaActivacionAsync(pasajero.IdUsuario);
+            return Mapear(pasajero, pasajero.Usuario, activacion);
         }
 
         public async Task<PasajeroRespuestaDto> CrearAsync(CrearPasajeroSolicitudDto solicitud, int idAdministrador)
@@ -114,11 +144,97 @@ namespace BACKEND.Negocio.Servicios
             }
 
             _logger.LogInformation(
-                "El administrador {IdAdministrador} creó el pasajero {IdPasajero}.",
+                "El administrador {IdAdministrador} creó el pasajero {IdPasajero} sin cuenta automática.",
                 idAdministrador,
                 pasajero.IdPasajero);
 
-            return Mapear(pasajero);
+            return await ObtenerPorIdAsync(pasajero.IdPasajero);
+        }
+
+        public async Task<PasajeroRespuestaDto> CrearConCuentaAsync(
+            CrearPasajeroConCuentaSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            var nombre = RequerirTexto(solicitud.Nombre, "El nombre es obligatorio.");
+            var rut = NormalizarRut(solicitud.Rut);
+            var telefono = NormalizarTelefono(solicitud.Telefono);
+            var direccion = RequerirTexto(solicitud.Direccion, "La dirección es obligatoria.");
+            var email = NormalizarEmailOpcional(solicitud.Email);
+
+            await AsegurarEmpresaAsignableAsync(solicitud.IdEmpresa, exigirActiva: true);
+            await AsegurarRutDisponibleAsync(rut);
+            await AsegurarTelefonoUsuarioDisponibleAsync(telefono);
+            await AsegurarEmailUsuarioDisponibleAsync(email);
+
+            var resultado = await CrearCuentaYPasajeroAsync(
+                solicitud.IdEmpresa,
+                nombre,
+                rut,
+                telefono,
+                email,
+                direccion);
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} creó el pasajero {IdPasajero} con cuenta {IdUsuario}.",
+                idAdministrador,
+                resultado.Pasajero.IdPasajero,
+                resultado.Usuario.IdUsuario);
+
+            return Mapear(resultado.Pasajero, resultado.Usuario, resultado.Activacion);
+        }
+
+        public async Task<PasajeroRespuestaDto> HabilitarAccesoAsync(
+            int idPasajero,
+            HabilitarAccesoPasajeroSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            var pasajero = await ObtenerPasajeroAsync(idPasajero);
+            if (pasajero.IdUsuario.HasValue)
+            {
+                throw new ExcepcionNegocio("El pasajero ya tiene una cuenta de acceso.");
+            }
+
+            var telefono = NormalizarTelefono(pasajero.Telefono);
+            var email = NormalizarEmailOpcional(solicitud.Email);
+
+            await AsegurarTelefonoUsuarioDisponibleAsync(telefono);
+            await AsegurarEmailUsuarioDisponibleAsync(email);
+
+            var resultado = await AsociarCuentaAPasajeroExistenteAsync(pasajero, telefono, email);
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} habilitó el acceso del pasajero {IdPasajero} con usuario {IdUsuario}.",
+                idAdministrador,
+                idPasajero,
+                resultado.Usuario.IdUsuario);
+
+            return Mapear(resultado.Pasajero, resultado.Usuario, resultado.Activacion);
+        }
+
+        public async Task<PasajeroRespuestaDto> ReenviarActivacionAsync(int idPasajero, int idAdministrador)
+        {
+            var pasajero = await _contexto.Pasajeros
+                .Include(p => p.Usuario)
+                .FirstOrDefaultAsync(p => p.IdPasajero == idPasajero);
+
+            if (pasajero is null)
+            {
+                throw new ExcepcionNegocio("El pasajero no existe.", StatusCodes.Status404NotFound);
+            }
+
+            if (pasajero.Usuario is null)
+            {
+                throw new ExcepcionNegocio("El pasajero no tiene una cuenta de acceso.");
+            }
+
+            await _activacion.ReenviarAdministradorAsync(pasajero.Usuario.IdUsuario);
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} reenvió la activación del pasajero {IdPasajero}.",
+                idAdministrador,
+                idPasajero);
+
+            return await ObtenerPorIdAsync(idPasajero);
         }
 
         public async Task<PasajeroRespuestaDto> EditarAsync(
@@ -126,35 +242,69 @@ namespace BACKEND.Negocio.Servicios
             EditarPasajeroSolicitudDto solicitud,
             int idAdministrador)
         {
-            var pasajero = await ObtenerPasajeroAsync(idPasajero);
+            var pasajero = await _contexto.Pasajeros
+                .Include(p => p.Usuario)
+                .FirstOrDefaultAsync(p => p.IdPasajero == idPasajero);
 
+            if (pasajero is null)
+            {
+                throw new ExcepcionNegocio("El pasajero no existe.", StatusCodes.Status404NotFound);
+            }
+
+            var idUsuarioSolicitud = pasajero.IdUsuario ?? solicitud.IdUsuario;
             var datos = NormalizarDatos(
                 solicitud.IdEmpresa,
-                solicitud.IdUsuario,
+                idUsuarioSolicitud,
                 solicitud.Nombre,
                 solicitud.Rut,
                 solicitud.Telefono,
                 solicitud.Direccion);
+            var email = NormalizarEmailOpcional(solicitud.Email);
 
             var cambiaEmpresa = pasajero.IdEmpresa != datos.IdEmpresa;
             await AsegurarEmpresaAsignableAsync(datos.IdEmpresa, exigirActiva: cambiaEmpresa);
             await AsegurarRutDisponibleAsync(datos.Rut, idPasajero);
-            await AsegurarUsuarioAsociableAsync(datos.IdUsuario, idPasajero);
 
-            pasajero.IdEmpresa = datos.IdEmpresa;
-            pasajero.IdUsuario = datos.IdUsuario;
-            pasajero.Nombre = datos.Nombre;
-            pasajero.Rut = datos.Rut;
-            pasajero.Telefono = datos.Telefono;
-            pasajero.Direccion = datos.Direccion;
+            if (!pasajero.IdUsuario.HasValue)
+            {
+                await AsegurarUsuarioAsociableAsync(datos.IdUsuario, idPasajero);
+            }
 
+            await using var transaccion = await _contexto.Database.BeginTransactionAsync();
             try
             {
+                pasajero.IdEmpresa = datos.IdEmpresa;
+                pasajero.Nombre = datos.Nombre;
+                pasajero.Rut = datos.Rut;
+                pasajero.Direccion = datos.Direccion;
+
+                if (pasajero.Usuario is not null)
+                {
+                    await SincronizarIdentidadUsuarioAsync(pasajero, pasajero.Usuario, datos.Telefono, email);
+                }
+                else
+                {
+                    pasajero.IdUsuario = datos.IdUsuario;
+                    pasajero.Telefono = datos.Telefono;
+                }
+
                 await _contexto.SaveChangesAsync();
+                await transaccion.CommitAsync();
+            }
+            catch (ExcepcionNegocio)
+            {
+                await transaccion.RollbackAsync();
+                throw;
             }
             catch (DbUpdateException)
             {
+                await transaccion.RollbackAsync();
                 throw new ExcepcionNegocio(MensajeConflicto, StatusCodes.Status409Conflict);
+            }
+            catch
+            {
+                await transaccion.RollbackAsync();
+                throw;
             }
 
             _logger.LogInformation(
@@ -162,7 +312,7 @@ namespace BACKEND.Negocio.Servicios
                 idAdministrador,
                 idPasajero);
 
-            return Mapear(pasajero);
+            return await ObtenerPorIdAsync(idPasajero);
         }
 
         public async Task<PasajeroRespuestaDto> CambiarEstadoAsync(
@@ -181,7 +331,173 @@ namespace BACKEND.Negocio.Servicios
                 idPasajero,
                 solicitud.Estado);
 
-            return Mapear(pasajero);
+            return await ObtenerPorIdAsync(idPasajero);
+        }
+
+        private async Task<(Pasajero Pasajero, Usuario Usuario, ActivacionUsuario Activacion)> CrearCuentaYPasajeroAsync(
+            int idEmpresa,
+            string nombre,
+            string rut,
+            string telefono,
+            string? email,
+            string direccion)
+        {
+            var rol = await ResolverRolPasajeroAsync();
+            ActivacionUsuario? activacion = null;
+            string? codigo = null;
+            Usuario? usuario = null;
+            Pasajero? pasajero = null;
+
+            await using var transaccion = await _contexto.Database.BeginTransactionAsync();
+            try
+            {
+                usuario = CrearUsuarioPasajeroPendiente(rol.IdRol, telefono, email);
+                _contexto.Usuarios.Add(usuario);
+                await _contexto.SaveChangesAsync();
+
+                pasajero = new Pasajero
+                {
+                    IdEmpresa = idEmpresa,
+                    IdUsuario = usuario.IdUsuario,
+                    Nombre = nombre,
+                    Rut = rut,
+                    Telefono = telefono,
+                    Direccion = direccion,
+                    Estado = EstadoRegistro.ACTIVO
+                };
+
+                _contexto.Pasajeros.Add(pasajero);
+                await _contexto.SaveChangesAsync();
+
+                (activacion, codigo) = await _activacion.GenerarAsync(usuario.IdUsuario);
+                await _contexto.SaveChangesAsync();
+                await transaccion.CommitAsync();
+            }
+            catch (ExcepcionNegocio)
+            {
+                await transaccion.RollbackAsync();
+                throw;
+            }
+            catch (DbUpdateException)
+            {
+                await transaccion.RollbackAsync();
+                throw new ExcepcionNegocio(MensajeConflictoCuenta, StatusCodes.Status409Conflict);
+            }
+            catch
+            {
+                await transaccion.RollbackAsync();
+                throw;
+            }
+
+            await _activacion.IntentarEnviarAsync(activacion!, telefono, codigo!);
+            return (pasajero!, usuario!, activacion!);
+        }
+
+        private async Task<(Pasajero Pasajero, Usuario Usuario, ActivacionUsuario Activacion)> AsociarCuentaAPasajeroExistenteAsync(
+            Pasajero pasajero,
+            string telefono,
+            string? email)
+        {
+            var rol = await ResolverRolPasajeroAsync();
+            ActivacionUsuario? activacion = null;
+            string? codigo = null;
+            Usuario? usuario = null;
+
+            await using var transaccion = await _contexto.Database.BeginTransactionAsync();
+            try
+            {
+                usuario = CrearUsuarioPasajeroPendiente(rol.IdRol, telefono, email);
+                _contexto.Usuarios.Add(usuario);
+                await _contexto.SaveChangesAsync();
+
+                pasajero.IdUsuario = usuario.IdUsuario;
+                pasajero.Telefono = telefono;
+                await _contexto.SaveChangesAsync();
+
+                (activacion, codigo) = await _activacion.GenerarAsync(usuario.IdUsuario);
+                await _contexto.SaveChangesAsync();
+                await transaccion.CommitAsync();
+            }
+            catch (ExcepcionNegocio)
+            {
+                await transaccion.RollbackAsync();
+                throw;
+            }
+            catch (DbUpdateException)
+            {
+                await transaccion.RollbackAsync();
+                throw new ExcepcionNegocio(MensajeConflictoCuenta, StatusCodes.Status409Conflict);
+            }
+            catch
+            {
+                await transaccion.RollbackAsync();
+                throw;
+            }
+
+            await _activacion.IntentarEnviarAsync(activacion!, telefono, codigo!);
+            return (pasajero, usuario!, activacion!);
+        }
+
+        private Usuario CrearUsuarioPasajeroPendiente(int idRol, string telefono, string? email)
+        {
+            return new Usuario
+            {
+                Email = email,
+                Telefono = telefono,
+                PasswordHash = _hashPassword.GenerarHash(GeneradorPasswordTemporal.Generar()),
+                DebeCambiarPassword = false,
+                CuentaActivada = false,
+                IdRol = idRol,
+                Estado = EstadoRegistro.ACTIVO,
+                FechaCreacion = DateTime.UtcNow
+            };
+        }
+
+        private async Task SincronizarIdentidadUsuarioAsync(
+            Pasajero pasajero,
+            Usuario usuario,
+            string telefono,
+            string? email)
+        {
+            var telefonoCambio = !string.Equals(usuario.Telefono, telefono, StringComparison.Ordinal);
+            var emailCambio = !string.Equals(usuario.Email, email, StringComparison.Ordinal);
+
+            if (telefonoCambio)
+            {
+                await AsegurarTelefonoUsuarioDisponibleAsync(telefono, usuario.IdUsuario);
+                usuario.Telefono = telefono;
+                pasajero.Telefono = telefono;
+
+                if (!usuario.CuentaActivada)
+                {
+                    await _activacion.InvalidarVigentesAsync(usuario.IdUsuario);
+                }
+            }
+            else
+            {
+                pasajero.Telefono = telefono;
+            }
+
+            if (emailCambio)
+            {
+                await AsegurarEmailUsuarioDisponibleAsync(email, usuario.IdUsuario);
+                usuario.Email = email;
+            }
+        }
+
+        private async Task<Rol> ResolverRolPasajeroAsync()
+        {
+            var rol = await _contexto.Roles
+                .FirstOrDefaultAsync(r =>
+                    r.Nombre == NombresRol.Pasajero
+                    && r.Estado == EstadoRegistro.ACTIVO);
+
+            if (rol is null)
+            {
+                throw new ExcepcionNegocio("El rol PASAJERO no existe o no se encuentra activo.");
+            }
+
+            return rol;
         }
 
         private async Task<Pasajero> ObtenerPasajeroAsync(int idPasajero)
@@ -229,6 +545,39 @@ namespace BACKEND.Negocio.Servicios
             }
         }
 
+        private async Task AsegurarTelefonoUsuarioDisponibleAsync(string telefono, int? idUsuarioExcluido = null)
+        {
+            var consulta = _contexto.Usuarios.Where(u => u.Telefono == telefono);
+            if (idUsuarioExcluido.HasValue)
+            {
+                consulta = consulta.Where(u => u.IdUsuario != idUsuarioExcluido.Value);
+            }
+
+            if (await consulta.AnyAsync())
+            {
+                throw new ExcepcionNegocio(MensajeConflictoCuenta, StatusCodes.Status409Conflict);
+            }
+        }
+
+        private async Task AsegurarEmailUsuarioDisponibleAsync(string? email, int? idUsuarioExcluido = null)
+        {
+            if (email is null)
+            {
+                return;
+            }
+
+            var consulta = _contexto.Usuarios.Where(u => u.Email == email);
+            if (idUsuarioExcluido.HasValue)
+            {
+                consulta = consulta.Where(u => u.IdUsuario != idUsuarioExcluido.Value);
+            }
+
+            if (await consulta.AnyAsync())
+            {
+                throw new ExcepcionNegocio(MensajeConflictoCuenta, StatusCodes.Status409Conflict);
+            }
+        }
+
         private async Task AsegurarUsuarioAsociableAsync(int? idUsuario, int? idPasajeroExcluido = null)
         {
             if (!idUsuario.HasValue)
@@ -264,6 +613,50 @@ namespace BACKEND.Negocio.Servicios
             }
         }
 
+        private async Task<Dictionary<int, ActivacionUsuario>> ObtenerUltimasActivacionesAsync(IEnumerable<int> idsUsuario)
+        {
+            var ids = idsUsuario.Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                return new Dictionary<int, ActivacionUsuario>();
+            }
+
+            var activaciones = await _contexto.ActivacionesUsuario
+                .AsNoTracking()
+                .Where(a => ids.Contains(a.IdUsuario))
+                .ToListAsync();
+
+            return activaciones
+                .GroupBy(a => a.IdUsuario)
+                .ToDictionary(
+                    grupo => grupo.Key,
+                    grupo => grupo.OrderByDescending(a => a.FechaCreacion).First());
+        }
+
+        private async Task<ActivacionUsuario?> ObtenerUltimaActivacionAsync(int? idUsuario)
+        {
+            if (!idUsuario.HasValue)
+            {
+                return null;
+            }
+
+            return await _contexto.ActivacionesUsuario
+                .AsNoTracking()
+                .Where(a => a.IdUsuario == idUsuario.Value)
+                .OrderByDescending(a => a.FechaCreacion)
+                .FirstOrDefaultAsync();
+        }
+
+        private static ActivacionUsuario? ObtenerActivacion(IReadOnlyDictionary<int, ActivacionUsuario> ultimas, int? idUsuario)
+        {
+            if (!idUsuario.HasValue)
+            {
+                return null;
+            }
+
+            return ultimas.TryGetValue(idUsuario.Value, out var activacion) ? activacion : null;
+        }
+
         private static DatosPasajeroNormalizados NormalizarDatos(
             int idEmpresa,
             int? idUsuario,
@@ -277,7 +670,7 @@ namespace BACKEND.Negocio.Servicios
                 idUsuario,
                 RequerirTexto(nombre, "El nombre es obligatorio."),
                 NormalizarRut(rut),
-                RequerirTexto(telefono, "El teléfono es obligatorio."),
+                NormalizarTelefono(telefono),
                 RequerirTexto(direccion, "La dirección es obligatoria."));
         }
 
@@ -297,6 +690,33 @@ namespace BACKEND.Negocio.Servicios
             return rutNormalizado;
         }
 
+        private static string NormalizarTelefono(string? valor)
+        {
+            if (!TelefonoChileno.TryNormalizar(valor, out var telefono))
+            {
+                throw new ExcepcionNegocio(TelefonoChileno.MensajeInvalido);
+            }
+
+            return telefono;
+        }
+
+        private static string? NormalizarEmailOpcional(string? valor)
+        {
+            var texto = valor?.Trim() ?? string.Empty;
+            if (texto.Length == 0)
+            {
+                return null;
+            }
+
+            var email = texto.ToLowerInvariant();
+            if (!email.Contains('@', StringComparison.Ordinal) || email.StartsWith('@') || email.EndsWith('@'))
+            {
+                throw new ExcepcionNegocio("El correo electrónico no es válido.");
+            }
+
+            return email;
+        }
+
         private static string RequerirTexto(string? valor, string mensaje)
         {
             var texto = valor?.Trim() ?? string.Empty;
@@ -309,7 +729,10 @@ namespace BACKEND.Negocio.Servicios
             return texto;
         }
 
-        private static PasajeroRespuestaDto Mapear(Pasajero pasajero)
+        private static PasajeroRespuestaDto Mapear(
+            Pasajero pasajero,
+            Usuario? usuario,
+            ActivacionUsuario? activacion)
         {
             return new PasajeroRespuestaDto
             {
@@ -319,9 +742,33 @@ namespace BACKEND.Negocio.Servicios
                 Nombre = pasajero.Nombre,
                 Rut = pasajero.Rut,
                 Telefono = pasajero.Telefono,
+                Email = usuario?.Email,
                 Direccion = pasajero.Direccion,
-                Estado = pasajero.Estado
+                Estado = pasajero.Estado,
+                EstadoAcceso = ResolverEstadoAcceso(usuario, activacion)
             };
+        }
+
+        private static EstadoAccesoPasajero ResolverEstadoAcceso(Usuario? usuario, ActivacionUsuario? activacion)
+        {
+            if (usuario is null)
+            {
+                return EstadoAccesoPasajero.SIN_CUENTA;
+            }
+
+            if (usuario.CuentaActivada)
+            {
+                return EstadoAccesoPasajero.ACTIVADA;
+            }
+
+            return activacion?.Vigente == true
+                ? activacion.EstadoEnvio switch
+                {
+                    EstadoEnvioActivacion.ENVIADA => EstadoAccesoPasajero.ENVIADA,
+                    EstadoEnvioActivacion.ERROR => EstadoAccesoPasajero.ERROR,
+                    _ => EstadoAccesoPasajero.PENDIENTE
+                }
+                : EstadoAccesoPasajero.PENDIENTE;
         }
 
         private sealed record DatosPasajeroNormalizados(

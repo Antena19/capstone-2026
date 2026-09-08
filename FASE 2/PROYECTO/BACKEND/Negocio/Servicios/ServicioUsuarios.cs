@@ -61,6 +61,7 @@ namespace BACKEND.Negocio.Servicios
                 Email = email,
                 PasswordHash = _hashPassword.GenerarHash(solicitud.Password),
                 DebeCambiarPassword = false,
+                CuentaActivada = true,
                 IdRol = rol.IdRol,
                 Estado = EstadoRegistro.ACTIVO,
                 FechaCreacion = DateTime.UtcNow
@@ -121,7 +122,7 @@ namespace BACKEND.Negocio.Servicios
             return new RestablecerPasswordRespuestaDto
             {
                 IdUsuario = usuario.IdUsuario,
-                Email = usuario.Email,
+                Email = usuario.Email ?? string.Empty,
                 PasswordTemporal = passwordTemporal
             };
         }
@@ -165,7 +166,7 @@ namespace BACKEND.Negocio.Servicios
             return new UsuarioRespuestaDto
             {
                 IdUsuario = usuario.IdUsuario,
-                Email = usuario.Email,
+                Email = usuario.Email ?? string.Empty,
                 IdRol = usuario.IdRol,
                 Rol = usuario.Rol.Nombre,
                 Estado = usuario.Estado,

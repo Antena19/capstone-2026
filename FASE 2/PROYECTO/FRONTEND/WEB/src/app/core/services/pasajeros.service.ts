@@ -4,7 +4,9 @@ import { Observable } from 'rxjs';
 import { urlApi } from '../config/api';
 import {
   CambiarEstadoPasajeroSolicitud,
+  HabilitarAccesoPasajeroSolicitud,
   Pasajero,
+  PasajeroConCuentaSolicitud,
   PasajeroSolicitud,
 } from '../models/pasajero';
 import { EstadoRegistro } from '../models/empresa';
@@ -34,11 +36,26 @@ export class PasajerosService {
     return this.http.post<Pasajero>(urlApi('/api/pasajeros'), solicitud);
   }
 
+  crearConCuenta(solicitud: PasajeroConCuentaSolicitud): Observable<Pasajero> {
+    return this.http.post<Pasajero>(urlApi('/api/pasajeros/con-cuenta'), solicitud);
+  }
+
   editar(idPasajero: number, solicitud: PasajeroSolicitud): Observable<Pasajero> {
     return this.http.put<Pasajero>(urlApi(`/api/pasajeros/${idPasajero}`), solicitud);
   }
 
   cambiarEstado(idPasajero: number, solicitud: CambiarEstadoPasajeroSolicitud): Observable<Pasajero> {
     return this.http.put<Pasajero>(urlApi(`/api/pasajeros/${idPasajero}/estado`), solicitud);
+  }
+
+  reenviarActivacion(idPasajero: number): Observable<Pasajero> {
+    return this.http.post<Pasajero>(urlApi(`/api/pasajeros/${idPasajero}/reenviar-activacion`), {});
+  }
+
+  habilitarAcceso(
+    idPasajero: number,
+    solicitud: HabilitarAccesoPasajeroSolicitud = {},
+  ): Observable<Pasajero> {
+    return this.http.post<Pasajero>(urlApi(`/api/pasajeros/${idPasajero}/habilitar-acceso`), solicitud);
   }
 }

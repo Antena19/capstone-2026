@@ -16,11 +16,13 @@ namespace BACKEND.Negocio.Servicios
     }
 
     /// <summary>
-    /// Autenticación por correo y contraseña, emisión de JWT y cambio de clave del propio usuario.
+    /// Autenticación por identificador (correo o teléfono), emisión de JWT y cambio de clave del propio usuario.
+    /// Acepta el campo legado <c>email</c> como identificador.
     /// </summary>
     public class ServicioAutenticacion : IServicioAutenticacion
     {
         private const string MensajeCredencialesInvalidas = "Credenciales inválidas.";
+        private const string MensajeCuentaNoActivada = "Tu cuenta aún no ha sido activada.";
 
         private readonly TransporteContext _contexto;
         private readonly IServicioHashPassword _hashPassword;
@@ -41,13 +43,9 @@ namespace BACKEND.Negocio.Servicios
 
         public async Task<LoginRespuestaDto> IniciarSesionAsync(LoginSolicitudDto solicitud)
         {
-            var email = NormalizarEmail(solicitud.Email);
+            var identificador = ResolverIdentificador(solicitud);
+            var usuario = await BuscarUsuarioAsync(identificador);
 
-            var usuario = await _contexto.Usuarios
-                .Include(u => u.Rol)
-                .FirstOrDefaultAsync(u => u.Email == email);
-
-            // Si no existe, se verifica un hash simulado para no revelar si el correo está registrado.
             if (usuario is null)
             {
                 _hashPassword.Verificar(string.Empty, solicitud.Password);
@@ -59,10 +57,14 @@ namespace BACKEND.Negocio.Servicios
                 RechazarLogin();
             }
 
-            // Usuario o rol inactivo: misma respuesta genérica que credenciales incorrectas.
             if (usuario.Estado != EstadoRegistro.ACTIVO || usuario.Rol.Estado != EstadoRegistro.ACTIVO)
             {
                 RechazarLogin();
+            }
+
+            if (!usuario.CuentaActivada)
+            {
+                throw new ExcepcionNegocio(MensajeCuentaNoActivada, StatusCodes.Status403Forbidden);
             }
 
             usuario.UltimoAcceso = DateTime.UtcNow;
@@ -76,7 +78,8 @@ namespace BACKEND.Negocio.Servicios
             {
                 Token = token,
                 IdUsuario = usuario.IdUsuario,
-                Email = usuario.Email,
+                Email = usuario.Email ?? string.Empty,
+                Telefono = usuario.Telefono,
                 Rol = usuario.Rol.Nombre,
                 Expiracion = expiracion,
                 DebeCambiarPassword = usuario.DebeCambiarPassword
@@ -99,7 +102,7 @@ namespace BACKEND.Negocio.Servicios
                 .Include(u => u.Rol)
                 .FirstOrDefaultAsync(u => u.IdUsuario == idUsuario);
 
-            if (usuario is null || usuario.Estado != EstadoRegistro.ACTIVO)
+            if (usuario is null || usuario.Estado != EstadoRegistro.ACTIVO || !usuario.CuentaActivada)
             {
                 throw new ExcepcionNegocio("No se pudo completar la operación.", StatusCodes.Status401Unauthorized);
             }
@@ -116,9 +119,34 @@ namespace BACKEND.Negocio.Servicios
             _logger.LogInformation("El usuario {IdUsuario} actualizó su contraseña.", idUsuario);
         }
 
-        private static string NormalizarEmail(string email)
+        private async Task<Usuario?> BuscarUsuarioAsync(string identificador)
         {
-            return email.Trim().ToLowerInvariant();
+            if (identificador.Contains('@', StringComparison.Ordinal))
+            {
+                var email = identificador.Trim().ToLowerInvariant();
+                return await _contexto.Usuarios
+                    .Include(u => u.Rol)
+                    .FirstOrDefaultAsync(u => u.Email == email);
+            }
+
+            if (!TelefonoChileno.TryNormalizar(identificador, out var telefono))
+            {
+                return null;
+            }
+
+            return await _contexto.Usuarios
+                .Include(u => u.Rol)
+                .FirstOrDefaultAsync(u => u.Telefono == telefono);
+        }
+
+        private static string ResolverIdentificador(LoginSolicitudDto solicitud)
+        {
+            if (!string.IsNullOrWhiteSpace(solicitud.Identificador))
+            {
+                return solicitud.Identificador.Trim();
+            }
+
+            return solicitud.Email?.Trim() ?? string.Empty;
         }
 
         [DoesNotReturn]

@@ -1,0 +1,50 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Trayek</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <h1>Iniciar sesión</h1>
+  <p class="lead">Ingresa con tu teléfono o correo.</p>
+
+  <form [formGroup]="form" (ngSubmit)="enviar()">
+    <ion-list>
+      <ion-item>
+        <ion-input
+          label="Teléfono o correo"
+          labelPlacement="stacked"
+          formControlName="identificador"
+          placeholder="+56912345678 o correo"
+          autocomplete="username"
+        />
+      </ion-item>
+      <ion-item>
+        <ion-input
+          type="password"
+          label="Contraseña"
+          labelPlacement="stacked"
+          formControlName="password"
+          autocomplete="current-password"
+        />
+      </ion-item>
+    </ion-list>
+
+    @if (error()) {
+      <ion-note color="danger">{{ error() }}</ion-note>
+    }
+
+    <ion-button expand="block" type="submit" [disabled]="enviando()">
+      @if (enviando()) {
+        <ion-spinner name="crescent" />
+      } @else {
+        Ingresar
+      }
+    </ion-button>
+  </form>
+
+  <p class="activar">
+    ¿Primera vez?
+    <a routerLink="/activar">Activa tu cuenta</a>
+  </p>
+</ion-content>

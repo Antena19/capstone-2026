@@ -84,6 +84,25 @@ td.name {
   background: #ecfdf5;
 }
 
+.text-btn {
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 8px;
+  border-radius: var(--radius-lg);
+}
+
+.text-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.text-btn:hover:not(:disabled) {
+  background: #eff6ff;
+}
+
 .empty {
   display: flex;
   flex-direction: column;

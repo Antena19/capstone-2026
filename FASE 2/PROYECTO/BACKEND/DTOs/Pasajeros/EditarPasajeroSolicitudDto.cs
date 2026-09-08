@@ -5,7 +5,8 @@ namespace BACKEND.DTOs.Pasajeros
 {
     /// <summary>
     /// Edición de un pasajero existente. El identificador se toma de la ruta, no del cuerpo.
-    /// El estado se cambia por el endpoint dedicado. No crea ni modifica cuentas de usuario.
+    /// El estado se cambia por el endpoint dedicado.
+    /// Si el pasajero tiene usuario, el teléfono y el correo se sincronizan con la cuenta en la misma transacción.
     /// </summary>
     public class EditarPasajeroSolicitudDto
     {
@@ -27,6 +28,9 @@ namespace BACKEND.DTOs.Pasajeros
         [Required(ErrorMessage = "El teléfono es obligatorio.")]
         [MaxLength(20, ErrorMessage = "El teléfono no puede superar los 20 caracteres.")]
         public string Telefono { get; set; } = string.Empty;
+
+        [MaxLength(150, ErrorMessage = "El correo electrónico no puede superar los 150 caracteres.")]
+        public string? Email { get; set; }
 
         [Required(ErrorMessage = "La dirección es obligatoria.")]
         [MaxLength(255, ErrorMessage = "La dirección no puede superar los 255 caracteres.")]

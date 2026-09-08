@@ -3,14 +3,15 @@ using System.ComponentModel.DataAnnotations;
 namespace BACKEND.DTOs.Autenticacion
 {
     /// <summary>
-    /// Credenciales de inicio de sesión. La contraseña viaja solo en el cuerpo de la petición.
+    /// Credenciales de inicio de sesión. Acepta identificador (teléfono o correo) y, por compatibilidad, email.
     /// </summary>
     public class LoginSolicitudDto
     {
-        [Required(ErrorMessage = "El correo electrónico es obligatorio.")]
-        [EmailAddress(ErrorMessage = "El correo electrónico no es válido.")]
-        [MaxLength(150, ErrorMessage = "El correo electrónico no puede superar los 150 caracteres.")]
-        public string Email { get; set; } = string.Empty;
+        [MaxLength(150)]
+        public string? Identificador { get; set; }
+
+        [MaxLength(150)]
+        public string? Email { get; set; }
 
         [Required(ErrorMessage = "La contraseña es obligatoria.")]
         public string Password { get; set; } = string.Empty;

@@ -45,10 +45,20 @@
 
   <label class="field">
     <span>Teléfono <abbr title="Obligatorio">*</abbr></span>
-    <input type="text" formControlName="telefono" maxlength="20" />
+    <input type="text" formControlName="telefono" maxlength="20" placeholder="+56912345678" />
     @if (mensajeCampo('telefono'); as mensaje) {
       <p class="hint">{{ mensaje }}</p>
     }
+    <p class="help">Móvil Chile. Se usará como identificador de acceso de la cuenta.</p>
+  </label>
+
+  <label class="field">
+    <span>Correo electrónico</span>
+    <input type="email" formControlName="email" maxlength="150" autocomplete="off" />
+    @if (mensajeCampo('email'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+    <p class="help">Opcional. El teléfono es el identificador principal del pasajero.</p>
   </label>
 
   <label class="field">
@@ -62,7 +72,12 @@
 
   @if (pasajero()?.idUsuario) {
     <p class="note">
-      Este pasajero tiene una cuenta de acceso asociada. El estado del pasajero no modifica esa cuenta.
+      Este pasajero tiene una cuenta asociada. Si cambia el teléfono o el correo, se actualizarán también
+      en la cuenta. No se enviará un SMS automático.
+    </p>
+  } @else if (!esEdicion()) {
+    <p class="note">
+      Se creará una cuenta PASAJERO y se enviará un código de activación al teléfono.
     </p>
   }
 

@@ -56,6 +56,7 @@ namespace BACKEND.Controladores
 
         /// <summary>
         /// Crea un pasajero con estado ACTIVO. No crea una cuenta de usuario.
+        /// Preferir POST /api/pasajeros/con-cuenta para altas administrativas nuevas.
         /// </summary>
         [HttpPost]
         [ProducesResponseType(typeof(PasajeroRespuestaDto), StatusCodes.Status201Created)]
@@ -68,6 +69,61 @@ namespace BACKEND.Controladores
             var idAdministrador = User.ObtenerIdUsuario();
             var pasajero = await _servicioPasajeros.CrearAsync(solicitud, idAdministrador);
             return CreatedAtAction(nameof(ObtenerPorId), new { id = pasajero.IdPasajero }, pasajero);
+        }
+
+        /// <summary>
+        /// Alta transaccional de pasajero con cuenta PASAJERO y código de activación por SMS.
+        /// </summary>
+        [HttpPost("con-cuenta")]
+        [ProducesResponseType(typeof(PasajeroRespuestaDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<PasajeroRespuestaDto>> CrearConCuenta(
+            [FromBody] CrearPasajeroConCuentaSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var pasajero = await _servicioPasajeros.CrearConCuentaAsync(solicitud, idAdministrador);
+            return CreatedAtAction(nameof(ObtenerPorId), new { id = pasajero.IdPasajero }, pasajero);
+        }
+
+        /// <summary>
+        /// Crea una cuenta PASAJERO pendiente de activación para un pasajero histórico sin usuario.
+        /// </summary>
+        [HttpPost("{id:int}/habilitar-acceso")]
+        [ProducesResponseType(typeof(PasajeroRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<PasajeroRespuestaDto>> HabilitarAcceso(
+            int id,
+            [FromBody] HabilitarAccesoPasajeroSolicitudDto? solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var pasajero = await _servicioPasajeros.HabilitarAccesoAsync(
+                id,
+                solicitud ?? new HabilitarAccesoPasajeroSolicitudDto(),
+                idAdministrador);
+            return Ok(pasajero);
+        }
+
+        /// <summary>
+        /// Genera y envía un nuevo código de activación para un pasajero con cuenta pendiente.
+        /// </summary>
+        [HttpPost("{id:int}/reenviar-activacion")]
+        [ProducesResponseType(typeof(PasajeroRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<PasajeroRespuestaDto>> ReenviarActivacion(int id)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var pasajero = await _servicioPasajeros.ReenviarActivacionAsync(id, idAdministrador);
+            return Ok(pasajero);
         }
 
         /// <summary>

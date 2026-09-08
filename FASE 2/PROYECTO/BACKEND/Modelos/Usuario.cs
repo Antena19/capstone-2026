@@ -15,10 +15,13 @@ namespace BACKEND.Modelos
         [Column("id_usuario")]
         public int IdUsuario { get; set; }
 
-        [Required]
         [MaxLength(150)]
         [Column("email")]
-        public string Email { get; set; } = string.Empty;
+        public string? Email { get; set; }
+
+        [MaxLength(20)]
+        [Column("telefono")]
+        public string? Telefono { get; set; }
 
         /// <summary>
         /// Hash de la contraseña. Nunca se serializa ni se incluye en DTOs.
@@ -31,6 +34,9 @@ namespace BACKEND.Modelos
 
         [Column("debe_cambiar_password")]
         public bool DebeCambiarPassword { get; set; }
+
+        [Column("cuenta_activada")]
+        public bool CuentaActivada { get; set; } = true;
 
         [Column("id_rol")]
         public int IdRol { get; set; }

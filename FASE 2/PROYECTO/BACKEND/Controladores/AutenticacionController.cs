@@ -15,24 +15,64 @@ namespace BACKEND.Controladores
     public class AutenticacionController : ControllerBase
     {
         private readonly IServicioAutenticacion _servicioAutenticacion;
+        private readonly IServicioActivacionCuentas _servicioActivacion;
 
-        public AutenticacionController(IServicioAutenticacion servicioAutenticacion)
+        public AutenticacionController(
+            IServicioAutenticacion servicioAutenticacion,
+            IServicioActivacionCuentas servicioActivacion)
         {
             _servicioAutenticacion = servicioAutenticacion;
+            _servicioActivacion = servicioActivacion;
         }
 
         /// <summary>
-        /// Valida correo y contraseña, exige usuario y rol activos, actualiza ultimo_acceso y emite un JWT.
+        /// Valida identificador (correo o teléfono) y contraseña, exige usuario y rol activos,
+        /// exige cuenta activada, actualiza ultimo_acceso y emite un JWT.
         /// </summary>
         [AllowAnonymous]
         [HttpPost("login")]
         [ProducesResponseType(typeof(LoginRespuestaDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<LoginRespuestaDto>> Login([FromBody] LoginSolicitudDto solicitud)
         {
             var respuesta = await _servicioAutenticacion.IniciarSesionAsync(solicitud);
             return Ok(respuesta);
+        }
+
+        /// <summary>
+        /// Activa una cuenta PASAJERO con teléfono, código temporal y nueva contraseña.
+        /// No emite JWT: el usuario debe iniciar sesión después.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("activar-cuenta")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ActivarCuenta([FromBody] ActivarCuentaSolicitudDto solicitud)
+        {
+            await _servicioActivacion.ActivarCuentaAsync(
+                solicitud.Telefono,
+                solicitud.Codigo,
+                solicitud.NuevaPassword);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Reenvía un código de activación. La respuesta es genérica para no enumerar cuentas.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpPost("reenviar-activacion")]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<MensajeRespuestaDto>> ReenviarActivacion(
+            [FromBody] ReenviarActivacionSolicitudDto solicitud)
+        {
+            await _servicioActivacion.ReenviarPublicoAsync(solicitud.Telefono);
+            return Ok(new MensajeRespuestaDto
+            {
+                Mensaje = ServicioActivacionCuentas.MensajeReenvioPublico
+            });
         }
 
         /// <summary>

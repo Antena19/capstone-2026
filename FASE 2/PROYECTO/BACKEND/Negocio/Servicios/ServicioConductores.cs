@@ -160,6 +160,7 @@ namespace BACKEND.Negocio.Servicios
                     Email = email,
                     PasswordHash = passwordHash,
                     DebeCambiarPassword = true,
+                    CuentaActivada = true,
                     IdRol = rolConductor.IdRol,
                     Estado = EstadoRegistro.ACTIVO,
                     FechaCreacion = DateTime.UtcNow

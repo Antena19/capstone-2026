@@ -3,7 +3,7 @@ export interface MensajeRespuesta {
 }
 
 export interface LoginSolicitud {
-  email: string;
+  identificador: string;
   password: string;
 }
 

@@ -58,6 +58,7 @@
             <th>Empresa</th>
             <th>Teléfono</th>
             <th>Estado</th>
+            <th>Acceso</th>
             <th>Acciones</th>
           </tr>
         </thead>
@@ -75,6 +76,12 @@
                 />
               </td>
               <td>
+                <app-status-badge
+                  [label]="etiquetaAcceso(pasajero.estadoAcceso)"
+                  [tone]="tonoAcceso(pasajero.estadoAcceso)"
+                />
+              </td>
+              <td>
                 <div class="actions">
                   <button
                     type="button"
@@ -85,6 +92,26 @@
                   >
                     <app-icon name="edit" [size]="15" />
                   </button>
+                  @if (puedeReenviar(pasajero)) {
+                    <button
+                      type="button"
+                      class="text-btn"
+                      [disabled]="estaProcesandoAcceso(pasajero.idPasajero)"
+                      (click)="reenviarActivacion(pasajero)"
+                    >
+                      Reenviar
+                    </button>
+                  }
+                  @if (puedeHabilitar(pasajero)) {
+                    <button
+                      type="button"
+                      class="text-btn"
+                      [disabled]="estaProcesandoAcceso(pasajero.idPasajero)"
+                      (click)="habilitarAcceso(pasajero)"
+                    >
+                      Habilitar acceso
+                    </button>
+                  }
                   @if (pasajero.estado === 'ACTIVO') {
                     <button
                       type="button"
@@ -131,6 +158,7 @@
     [catalogoListo]="catalogoCargado()"
     [error]="errorFormulario()"
     (guardado)="guardar($event)"
+    (creado)="crearConCuenta($event)"
     (cancelado)="cerrarFormulario()"
   />
 </app-modal>

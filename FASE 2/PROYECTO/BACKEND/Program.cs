@@ -9,6 +9,7 @@ using BACKEND.Negocio.Configuracion;
 using BACKEND.Negocio.Filtros;
 using BACKEND.Negocio.Seguridad;
 using BACKEND.Negocio.Servicios;
+using BACKEND.Negocio.Sms;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -141,7 +142,8 @@ builder.Services
 
                 if (usuario is null
                     || usuario.Estado != EstadoRegistro.ACTIVO
-                    || usuario.Rol.Estado != EstadoRegistro.ACTIVO)
+                    || usuario.Rol.Estado != EstadoRegistro.ACTIVO
+                    || !usuario.CuentaActivada)
                 {
                     contexto.Fail("Sesión no autorizada.");
                     return;
@@ -181,7 +183,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendWeb", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins("http://localhost:4200", "http://localhost:8100")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -189,6 +191,35 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSingleton<IServicioHashPassword, ServicioHashPassword>();
 builder.Services.AddSingleton<IServicioJwt, ServicioJwt>();
+builder.Services.Configure<ActivacionUsuariosOpciones>(
+    builder.Configuration.GetSection(ActivacionUsuariosOpciones.Seccion));
+builder.Services.Configure<SmsOpciones>(
+    builder.Configuration.GetSection(SmsOpciones.Seccion));
+
+var activacionOpciones = builder.Configuration.GetSection(ActivacionUsuariosOpciones.Seccion)
+    .Get<ActivacionUsuariosOpciones>()
+    ?? new ActivacionUsuariosOpciones();
+
+if (string.IsNullOrWhiteSpace(activacionOpciones.HmacKey) || activacionOpciones.HmacKey.Length < 32)
+{
+    throw new InvalidOperationException(
+        "ActivacionUsuarios:HmacKey no está configurada o es demasiado corta. Utilice User Secrets con al menos 32 caracteres.");
+}
+
+builder.Services.AddSingleton<IServicioHashCodigoActivacion, ServicioHashCodigoActivacion>();
+builder.Services.AddSingleton<ProveedorSmsDesarrollo>();
+builder.Services.AddSingleton<IProveedorSms>(sp =>
+{
+    var proveedor = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SmsOpciones>>().Value.Proveedor;
+    if (!string.Equals(proveedor, "Desarrollo", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            $"El proveedor SMS '{proveedor}' no está implementado. Configure Sms:Proveedor = Desarrollo.");
+    }
+
+    return sp.GetRequiredService<ProveedorSmsDesarrollo>();
+});
+builder.Services.AddScoped<IServicioActivacionCuentas, ServicioActivacionCuentas>();
 builder.Services.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
 builder.Services.AddScoped<IServicioUsuarios, ServicioUsuarios>();
 builder.Services.AddScoped<IServicioEmpresas, ServicioEmpresas>();

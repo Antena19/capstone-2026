@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Empresa } from '../../core/models/empresa';
-import { Pasajero, PasajeroSolicitud } from '../../core/models/pasajero';
+import { Pasajero, PasajeroConCuentaSolicitud, PasajeroSolicitud } from '../../core/models/pasajero';
 import { normalizarRut } from '../../core/utils/rut';
 import { rutChilenoValidator } from '../../core/validators/rut.validator';
 import { ActionButton } from '../../shared/components/action-button/action-button';
@@ -20,6 +20,7 @@ export class PasajeroForm {
   readonly guardando = input(false);
   readonly catalogoListo = input(false);
   readonly error = input<string | null>(null);
+  readonly creado = output<PasajeroConCuentaSolicitud>();
   readonly guardado = output<PasajeroSolicitud>();
   readonly cancelado = output<void>();
 
@@ -30,6 +31,7 @@ export class PasajeroForm {
     nombre: ['', [Validators.required, Validators.maxLength(100)]],
     rut: ['', [Validators.required, Validators.maxLength(12), rutChilenoValidator()]],
     telefono: ['', [Validators.required, Validators.maxLength(20)]],
+    email: ['', [Validators.email, Validators.maxLength(150)]],
     direccion: ['', [Validators.required, Validators.maxLength(255)]],
   });
 
@@ -69,6 +71,7 @@ export class PasajeroForm {
           nombre: actual.nombre,
           rut: actual.rut,
           telefono: actual.telefono,
+          email: actual.email ?? '',
           direccion: actual.direccion,
         });
         return;
@@ -79,6 +82,7 @@ export class PasajeroForm {
         nombre: '',
         rut: '',
         telefono: '',
+        email: '',
         direccion: '',
       });
     });
@@ -96,21 +100,15 @@ export class PasajeroForm {
     const valores = this.form.getRawValue();
     const rutNormalizado = normalizarRut(valores.rut);
     const idEmpresa = Number(valores.idEmpresa);
-    const solicitud: PasajeroSolicitud = {
-      idEmpresa,
-      idUsuario: this.pasajero()?.idUsuario ?? null,
-      nombre: valores.nombre.trim(),
-      rut: rutNormalizado ?? valores.rut.trim(),
-      telefono: valores.telefono.trim(),
-      direccion: valores.direccion.trim(),
-    };
+    const email = valores.email.trim().toLowerCase() || null;
 
     this.form.patchValue({
       idEmpresa: valores.idEmpresa,
-      nombre: solicitud.nombre,
-      rut: solicitud.rut,
-      telefono: solicitud.telefono,
-      direccion: solicitud.direccion,
+      nombre: valores.nombre.trim(),
+      rut: rutNormalizado ?? valores.rut.trim(),
+      telefono: valores.telefono.trim(),
+      email: email ?? '',
+      direccion: valores.direccion.trim(),
     });
 
     if (this.form.invalid || !Number.isInteger(idEmpresa) || idEmpresa < 1) {
@@ -118,7 +116,24 @@ export class PasajeroForm {
       return;
     }
 
-    this.guardado.emit(solicitud);
+    const base = {
+      idEmpresa,
+      nombre: valores.nombre.trim(),
+      rut: rutNormalizado ?? valores.rut.trim(),
+      telefono: valores.telefono.trim(),
+      email,
+      direccion: valores.direccion.trim(),
+    };
+
+    if (this.esEdicion()) {
+      this.guardado.emit({
+        ...base,
+        idUsuario: this.pasajero()?.idUsuario ?? null,
+      });
+      return;
+    }
+
+    this.creado.emit(base);
   }
 
   normalizarRutCampo(): void {
@@ -130,7 +145,7 @@ export class PasajeroForm {
   }
 
   mensajeCampo(
-    control: 'idEmpresa' | 'nombre' | 'rut' | 'telefono' | 'direccion',
+    control: 'idEmpresa' | 'nombre' | 'rut' | 'telefono' | 'email' | 'direccion',
   ): string | null {
     const campo = this.form.controls[control];
     if (!campo.touched || !campo.invalid) {
@@ -143,6 +158,10 @@ export class PasajeroForm {
 
     if (campo.hasError('rut')) {
       return 'Ingresa un RUT válido.';
+    }
+
+    if (campo.hasError('email')) {
+      return 'Ingresa un correo válido.';
     }
 
     if (campo.hasError('maxlength')) {

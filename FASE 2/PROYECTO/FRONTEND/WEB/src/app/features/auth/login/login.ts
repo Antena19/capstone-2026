@@ -49,7 +49,7 @@ export class LoginPage {
 
     const { email, password, recordar } = this.form.getRawValue();
 
-    this.auth.iniciarSesion({ email, password }, recordar).subscribe({
+    this.auth.iniciarSesion({ identificador: email, password }, recordar).subscribe({
       next: (respuesta) => {
         if (!this.auth.esRolAdministrador(respuesta.rol) || !this.auth.autenticado()) {
           this.enviando.set(false);

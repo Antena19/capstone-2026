@@ -34,19 +34,43 @@ CREATE TABLE `rol` (
 
 CREATE TABLE `usuario` (
   `id_usuario` INT NOT NULL AUTO_INCREMENT,
-  `email` VARCHAR(150) NOT NULL,
+  `email` VARCHAR(150) NULL,
+  `telefono` VARCHAR(20) NULL,
   `password_hash` VARCHAR(255) NOT NULL,
   `debe_cambiar_password` TINYINT(1) NOT NULL DEFAULT 0,
+  `cuenta_activada` TINYINT(1) NOT NULL DEFAULT 1,
   `id_rol` INT NOT NULL,
   `estado` ENUM('ACTIVO', 'INACTIVO') NOT NULL DEFAULT 'ACTIVO',
   `fecha_creacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `ultimo_acceso` DATETIME NULL,
   PRIMARY KEY (`id_usuario`),
   UNIQUE KEY `uk_usuario_email` (`email`),
+  UNIQUE KEY `uk_usuario_telefono` (`telefono`),
   KEY `ix_usuario_id_rol` (`id_rol`),
   KEY `ix_usuario_estado` (`estado`),
   CONSTRAINT `fk_usuario_rol`
     FOREIGN KEY (`id_rol`) REFERENCES `rol` (`id_rol`)
+    ON DELETE RESTRICT
+    ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `activacion_usuario` (
+  `id_activacion` INT NOT NULL AUTO_INCREMENT,
+  `id_usuario` INT NOT NULL,
+  `codigo_hash` VARCHAR(128) NOT NULL,
+  `fecha_creacion` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `fecha_expiracion` DATETIME NOT NULL,
+  `usado` TINYINT(1) NOT NULL DEFAULT 0,
+  `vigente` TINYINT(1) NOT NULL DEFAULT 1,
+  `intentos` INT NOT NULL DEFAULT 0,
+  `fecha_uso` DATETIME NULL,
+  `estado_envio` ENUM('PENDIENTE', 'ENVIADA', 'ERROR') NOT NULL DEFAULT 'PENDIENTE',
+  `fecha_envio` DATETIME NULL,
+  PRIMARY KEY (`id_activacion`),
+  KEY `ix_activacion_usuario_id_usuario` (`id_usuario`),
+  KEY `ix_activacion_usuario_vigente` (`id_usuario`, `vigente`),
+  CONSTRAINT `fk_activacion_usuario`
+    FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`)
     ON DELETE RESTRICT
     ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

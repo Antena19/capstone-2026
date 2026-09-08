@@ -18,6 +18,8 @@ namespace BACKEND.Datos.MySQL
 
         public DbSet<Usuario> Usuarios => Set<Usuario>();
 
+        public DbSet<ActivacionUsuario> ActivacionesUsuario => Set<ActivacionUsuario>();
+
         public DbSet<EmpresaCliente> EmpresasCliente => Set<EmpresaCliente>();
 
         public DbSet<Pasajero> Pasajeros => Set<Pasajero>();
@@ -77,8 +79,11 @@ namespace BACKEND.Datos.MySQL
 
                 entity.Property(e => e.Email)
                     .HasColumnName("email")
-                    .HasMaxLength(150)
-                    .IsRequired();
+                    .HasMaxLength(150);
+
+                entity.Property(e => e.Telefono)
+                    .HasColumnName("telefono")
+                    .HasMaxLength(20);
 
                 entity.Property(e => e.PasswordHash)
                     .HasColumnName("password_hash")
@@ -89,6 +94,11 @@ namespace BACKEND.Datos.MySQL
                     .HasColumnName("debe_cambiar_password")
                     .IsRequired()
                     .HasDefaultValue(false);
+
+                entity.Property(e => e.CuentaActivada)
+                    .HasColumnName("cuenta_activada")
+                    .IsRequired()
+                    .HasDefaultValue(true);
 
                 entity.Property(e => e.IdRol)
                     .HasColumnName("id_rol")
@@ -112,6 +122,10 @@ namespace BACKEND.Datos.MySQL
                     .IsUnique()
                     .HasDatabaseName("uk_usuario_email");
 
+                entity.HasIndex(e => e.Telefono)
+                    .IsUnique()
+                    .HasDatabaseName("uk_usuario_telefono");
+
                 entity.HasIndex(e => e.IdRol)
                     .HasDatabaseName("ix_usuario_id_rol");
 
@@ -123,6 +137,69 @@ namespace BACKEND.Datos.MySQL
                     .HasForeignKey(e => e.IdRol)
                     .OnDelete(DeleteBehavior.Restrict)
                     .HasConstraintName("fk_usuario_rol");
+            });
+
+            modelBuilder.Entity<ActivacionUsuario>(entity =>
+            {
+                entity.ToTable("activacion_usuario");
+                entity.HasKey(e => e.IdActivacion);
+
+                entity.Property(e => e.IdActivacion)
+                    .HasColumnName("id_activacion");
+
+                entity.Property(e => e.IdUsuario)
+                    .HasColumnName("id_usuario")
+                    .IsRequired();
+
+                entity.Property(e => e.CodigoHash)
+                    .HasColumnName("codigo_hash")
+                    .HasMaxLength(128)
+                    .IsRequired();
+
+                entity.Property(e => e.FechaCreacion)
+                    .HasColumnName("fecha_creacion")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                    .IsRequired();
+
+                entity.Property(e => e.FechaExpiracion)
+                    .HasColumnName("fecha_expiracion")
+                    .IsRequired();
+
+                entity.Property(e => e.Usado)
+                    .HasColumnName("usado")
+                    .IsRequired()
+                    .HasDefaultValue(false);
+
+                entity.Property(e => e.Vigente)
+                    .HasColumnName("vigente")
+                    .IsRequired()
+                    .HasDefaultValue(true);
+
+                entity.Property(e => e.Intentos)
+                    .HasColumnName("intentos")
+                    .IsRequired()
+                    .HasDefaultValue(0);
+
+                entity.Property(e => e.FechaUso)
+                    .HasColumnName("fecha_uso");
+
+                entity.Property(e => e.EstadoEnvio)
+                    .HasColumnName("estado_envio")
+                    .HasConversion<string>()
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.Property(e => e.FechaEnvio)
+                    .HasColumnName("fecha_envio");
+
+                entity.HasIndex(e => e.IdUsuario)
+                    .HasDatabaseName("ix_activacion_usuario_id_usuario");
+
+                entity.HasOne(e => e.Usuario)
+                    .WithMany()
+                    .HasForeignKey(e => e.IdUsuario)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_activacion_usuario");
             });
 
             modelBuilder.Entity<EmpresaCliente>(entity =>

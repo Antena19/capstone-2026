@@ -1,20 +1,35 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>
-      Blank
-    </ion-title>
+    <ion-title>Mis servicios</ion-title>
+    <ion-button slot="end" fill="clear" (click)="cerrarSesion()">Salir</ion-button>
   </ion-toolbar>
 </ion-header>
 
 <ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Blank</ion-title>
-    </ion-toolbar>
-  </ion-header>
-
-  <div id="container">
-    <strong>Ready to create an app?</strong>
-    <p>Start with Ionic <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p>
-  </div>
+  @if (cargando()) {
+    <div class="centro">
+      <ion-spinner name="crescent" />
+    </div>
+  } @else if (error()) {
+    <div class="ion-padding">
+      <ion-note color="danger">{{ error() }}</ion-note>
+      <ion-button expand="block" fill="outline" (click)="cargar()">Reintentar</ion-button>
+    </div>
+  } @else if (servicios().length === 0) {
+    <div class="ion-padding">
+      <p>No tienes servicios asignados por ahora.</p>
+    </div>
+  } @else {
+    <ion-list>
+      @for (servicio of servicios(); track servicio.idPasajeroServicio) {
+        <ion-item>
+          <ion-label>
+            <h2>{{ servicio.nombreRuta || ('Servicio ' + servicio.idServicio) }}</h2>
+            <p>{{ servicio.fecha }} · {{ servicio.horaInicio }}</p>
+            <p>{{ servicio.estadoServicio }} · {{ servicio.estadoConfirmacion }}</p>
+          </ion-label>
+        </ion-item>
+      }
+    </ion-list>
+  }
 </ion-content>

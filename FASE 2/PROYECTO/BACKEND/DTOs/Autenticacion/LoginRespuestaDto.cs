@@ -12,6 +12,8 @@ namespace BACKEND.DTOs.Autenticacion
 
         public string Email { get; set; } = string.Empty;
 
+        public string? Telefono { get; set; }
+
         public string Rol { get; set; } = string.Empty;
 
         public DateTime Expiracion { get; set; }

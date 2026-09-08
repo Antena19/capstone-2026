@@ -1,0 +1,89 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Activa tu cuenta</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <p class="lead">Ingresa el teléfono, el código de 6 dígitos y define tu contraseña.</p>
+
+  <form [formGroup]="form" (ngSubmit)="enviar()">
+    <ion-list>
+      <ion-item>
+        <ion-input
+          label="Teléfono"
+          labelPlacement="stacked"
+          formControlName="telefono"
+          placeholder="+56912345678"
+          autocomplete="tel"
+        />
+      </ion-item>
+      <ion-item>
+        <ion-input
+          label="Código de activación"
+          labelPlacement="stacked"
+          formControlName="codigo"
+          maxlength="6"
+          inputmode="numeric"
+        />
+      </ion-item>
+      <ion-item>
+        <ion-input
+          type="password"
+          label="Nueva contraseña"
+          labelPlacement="stacked"
+          formControlName="nuevaPassword"
+          autocomplete="new-password"
+        />
+      </ion-item>
+      <ion-item>
+        <ion-input
+          type="password"
+          label="Confirmar contraseña"
+          labelPlacement="stacked"
+          formControlName="confirmarPassword"
+          autocomplete="new-password"
+        />
+      </ion-item>
+    </ion-list>
+
+    @if (form.touched && form.hasError('confirmar')) {
+      <ion-note color="danger">Las contraseñas no coinciden.</ion-note>
+    }
+    @if (form.controls.nuevaPassword.touched && form.controls.nuevaPassword.invalid) {
+      <ion-note color="danger">La contraseña debe tener entre 8 y 100 caracteres, con al menos una letra y un número.</ion-note>
+    }
+    @if (error()) {
+      <ion-note color="danger">{{ error() }}</ion-note>
+    }
+    @if (exito()) {
+      <ion-note color="success">{{ exito() }}</ion-note>
+    }
+
+    <ion-button expand="block" type="submit" [disabled]="enviando()">
+      @if (enviando()) {
+        <ion-spinner name="crescent" />
+      } @else {
+        Activar cuenta
+      }
+    </ion-button>
+  </form>
+
+  <ion-button
+    expand="block"
+    fill="clear"
+    type="button"
+    [disabled]="reenviando() || cooldown() > 0"
+    (click)="reenviar()"
+  >
+    @if (cooldown() > 0) {
+      Reenviar en {{ cooldown() }} s
+    } @else {
+      ¿No recibiste el código? Reenviar
+    }
+  </ion-button>
+
+  <p class="login">
+    <a routerLink="/login">Volver a iniciar sesión</a>
+  </p>
+</ion-content>

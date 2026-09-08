@@ -34,7 +34,7 @@ namespace BACKEND.Negocio.Servicios
             var claims = new List<Claim>
             {
                 new(ExtensionesClaims.ClaimIdUsuario, usuario.IdUsuario.ToString()),
-                new(ExtensionesClaims.ClaimEmail, usuario.Email),
+                new(ExtensionesClaims.ClaimEmail, usuario.Email ?? string.Empty),
                 new(ExtensionesClaims.ClaimRol, usuario.Rol.Nombre)
             };
 

@@ -4,7 +4,7 @@ import { EmpresasService } from '../../core/services/empresas.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { PasajerosService } from '../../core/services/pasajeros.service';
 import { Empresa, EstadoRegistro } from '../../core/models/empresa';
-import { Pasajero, PasajeroSolicitud } from '../../core/models/pasajero';
+import { EstadoAccesoPasajero, Pasajero, PasajeroConCuentaSolicitud, PasajeroSolicitud } from '../../core/models/pasajero';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
@@ -16,6 +16,7 @@ import { PageHeader } from '../../shared/components/page-header/page-header';
 import { SearchInput } from '../../shared/components/search-input/search-input';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 import { PasajeroForm } from './pasajero-form';
+import { environment } from '../../../environments/environment';
 
 type ModoFormulario = 'crear' | 'editar';
 
@@ -67,6 +68,7 @@ export class PasajerosPage {
   readonly confirmacionAbierta = signal(false);
   readonly pasajeroEstado = signal<Pasajero | null>(null);
   readonly idPasajeroCambiandoEstado = signal<number | null>(null);
+  readonly idPasajeroAcceso = signal<number | null>(null);
 
   readonly opcionesEmpresa = computed<FilterOption[]>(() =>
     this.empresas().map((empresa) => ({
@@ -84,7 +86,7 @@ export class PasajerosPage {
 
     return lista.filter((pasajero) => {
       const empresa = this.nombreEmpresa(pasajero.idEmpresa);
-      return [pasajero.nombre, pasajero.rut, pasajero.telefono, empresa]
+      return [pasajero.nombre, pasajero.rut, pasajero.telefono, pasajero.email, empresa]
         .join(' ')
         .toLowerCase()
         .includes(texto);
@@ -193,24 +195,20 @@ export class PasajerosPage {
       return;
     }
 
+    const edicion = this.pasajeroEdicion();
+    if (this.modo() !== 'editar' || !edicion) {
+      return;
+    }
+
     this.guardando.set(true);
     this.errorFormulario.set(null);
 
-    const esEdicion = this.modo() === 'editar';
-    const edicion = this.pasajeroEdicion();
-    const peticion =
-      esEdicion && edicion
-        ? this.api.editar(edicion.idPasajero, solicitud)
-        : this.api.crear(solicitud);
-
-    peticion.subscribe({
+    this.api.editar(edicion.idPasajero, solicitud).subscribe({
       next: () => {
         this.guardando.set(false);
         this.formularioAbierto.set(false);
         this.pasajeroEdicion.set(null);
-        this.feedback.mostrar(
-          esEdicion ? 'Pasajero actualizado correctamente.' : 'Pasajero creado correctamente.',
-        );
+        this.feedback.mostrar('Pasajero actualizado correctamente.');
         this.cargar();
       },
       error: (err: unknown) => {
@@ -218,6 +216,128 @@ export class PasajerosPage {
         this.errorFormulario.set(mensajeErrorHttp(err, 'No fue posible guardar el pasajero.'));
       },
     });
+  }
+
+  crearConCuenta(solicitud: PasajeroConCuentaSolicitud): void {
+    if (this.guardando()) {
+      return;
+    }
+
+    this.guardando.set(true);
+    this.errorFormulario.set(null);
+
+    this.api.crearConCuenta(solicitud).subscribe({
+      next: (pasajero) => {
+        this.guardando.set(false);
+        this.formularioAbierto.set(false);
+        this.pasajeroEdicion.set(null);
+        this.feedback.mostrar(this.mensajeAlta(pasajero.telefono, pasajero.estadoAcceso));
+        this.cargar();
+      },
+      error: (err: unknown) => {
+        this.guardando.set(false);
+        this.errorFormulario.set(mensajeErrorHttp(err, 'No fue posible crear el pasajero.'));
+      },
+    });
+  }
+
+  etiquetaAcceso(estado: EstadoAccesoPasajero): string {
+    switch (estado) {
+      case 'ACTIVADA':
+        return 'Activado';
+      case 'ERROR':
+        return 'Error de envío';
+      case 'SIN_CUENTA':
+        return 'Sin cuenta';
+      default:
+        return 'Pendiente';
+    }
+  }
+
+  tonoAcceso(estado: EstadoAccesoPasajero): 'green' | 'amber' | 'red' | 'slate' {
+    switch (estado) {
+      case 'ACTIVADA':
+        return 'green';
+      case 'ERROR':
+        return 'red';
+      case 'SIN_CUENTA':
+        return 'slate';
+      default:
+        return 'amber';
+    }
+  }
+
+  puedeReenviar(pasajero: Pasajero): boolean {
+    return pasajero.estadoAcceso === 'PENDIENTE'
+      || pasajero.estadoAcceso === 'ENVIADA'
+      || pasajero.estadoAcceso === 'ERROR';
+  }
+
+  puedeHabilitar(pasajero: Pasajero): boolean {
+    return pasajero.estadoAcceso === 'SIN_CUENTA';
+  }
+
+  estaProcesandoAcceso(idPasajero: number): boolean {
+    return this.idPasajeroAcceso() === idPasajero;
+  }
+
+  reenviarActivacion(pasajero: Pasajero): void {
+    if (this.estaProcesandoAcceso(pasajero.idPasajero) || !this.puedeReenviar(pasajero)) {
+      return;
+    }
+
+    this.idPasajeroAcceso.set(pasajero.idPasajero);
+    this.api.reenviarActivacion(pasajero.idPasajero).subscribe({
+      next: () => {
+        this.idPasajeroAcceso.set(null);
+        this.feedback.mostrar(
+          environment.production
+            ? 'Activación reenviada.'
+            : 'Activación simulada correctamente.',
+        );
+        this.cargar();
+      },
+      error: (err: unknown) => {
+        this.idPasajeroAcceso.set(null);
+        this.error.set(mensajeErrorHttp(err, 'No fue posible reenviar la activación.'));
+      },
+    });
+  }
+
+  habilitarAcceso(pasajero: Pasajero): void {
+    if (this.estaProcesandoAcceso(pasajero.idPasajero) || !this.puedeHabilitar(pasajero)) {
+      return;
+    }
+
+    this.idPasajeroAcceso.set(pasajero.idPasajero);
+    this.api.habilitarAcceso(pasajero.idPasajero).subscribe({
+      next: () => {
+        this.idPasajeroAcceso.set(null);
+        this.feedback.mostrar(
+          environment.production
+            ? `Se habilitó el acceso para ${pasajero.telefono}.`
+            : 'Acceso habilitado. SMS simulado en entorno de desarrollo.',
+        );
+        this.cargar();
+      },
+      error: (err: unknown) => {
+        this.idPasajeroAcceso.set(null);
+        this.error.set(mensajeErrorHttp(err, 'No fue posible habilitar el acceso.'));
+      },
+    });
+  }
+
+  private mensajeAlta(telefono: string, estadoAcceso: EstadoAccesoPasajero): string {
+    const invitacion = `Pasajero creado correctamente. Se generó una invitación de activación para ${telefono}.`;
+    if (estadoAcceso === 'ERROR') {
+      return `${invitacion} El envío quedó con error; puede reenviar la activación.`;
+    }
+
+    if (!environment.production) {
+      return `${invitacion} SMS simulado en entorno de desarrollo.`;
+    }
+
+    return invitacion;
   }
 
   pedirDesactivar(pasajero: Pasajero): void {

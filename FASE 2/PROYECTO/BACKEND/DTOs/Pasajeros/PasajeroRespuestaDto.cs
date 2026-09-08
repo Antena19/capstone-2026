@@ -2,10 +2,6 @@ using BACKEND.Modelos;
 
 namespace BACKEND.DTOs.Pasajeros
 {
-    /// <summary>
-    /// Datos de pasajero que pueden devolverse al cliente administrativo.
-    /// No incluye password_hash ni información interna de autenticación.
-    /// </summary>
     public class PasajeroRespuestaDto
     {
         public int IdPasajero { get; set; }
@@ -20,8 +16,12 @@ namespace BACKEND.DTOs.Pasajeros
 
         public string Telefono { get; set; } = string.Empty;
 
+        public string? Email { get; set; }
+
         public string Direccion { get; set; } = string.Empty;
 
         public EstadoRegistro Estado { get; set; }
+
+        public EstadoAccesoPasajero EstadoAcceso { get; set; } = EstadoAccesoPasajero.SIN_CUENTA;
     }
 }
