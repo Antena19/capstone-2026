@@ -2,6 +2,7 @@ using BACKEND.DTOs.Comun;
 using BACKEND.DTOs.Pasajeros;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Constantes;
+using BACKEND.Negocio.Importacion;
 using BACKEND.Negocio.Seguridad;
 using BACKEND.Negocio.Servicios;
 using Microsoft.AspNetCore.Authorization;
@@ -18,11 +19,18 @@ namespace BACKEND.Controladores
     [Authorize(Roles = NombresRol.Administrador)]
     public class PasajerosController : ControllerBase
     {
-        private readonly IServicioPasajeros _servicioPasajeros;
+        private const string TipoExcel =
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-        public PasajerosController(IServicioPasajeros servicioPasajeros)
+        private readonly IServicioPasajeros _servicioPasajeros;
+        private readonly IServicioImportacionPasajeros _servicioImportacion;
+
+        public PasajerosController(
+            IServicioPasajeros servicioPasajeros,
+            IServicioImportacionPasajeros servicioImportacion)
         {
             _servicioPasajeros = servicioPasajeros;
+            _servicioImportacion = servicioImportacion;
         }
 
         /// <summary>
@@ -159,6 +167,85 @@ namespace BACKEND.Controladores
             var idAdministrador = User.ObtenerIdUsuario();
             var pasajero = await _servicioPasajeros.CambiarEstadoAsync(id, solicitud, idAdministrador);
             return Ok(pasajero);
+        }
+
+        /// <summary>
+        /// Plantilla .xlsx opcional. No es requisito para importar una nómina propia.
+        /// </summary>
+        [HttpGet("importacion/plantilla")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public IActionResult DescargarPlantilla()
+        {
+            var archivo = _servicioImportacion.GenerarPlantilla();
+            return File(archivo.Contenido, TipoExcel, archivo.NombreArchivo);
+        }
+
+        [HttpPost("importacion/inspeccionar")]
+        [RequestSizeLimit(LimitesImportacionPasajeros.MaxBytesSolicitud)]
+        [RequestFormLimits(MultipartBodyLengthLimit = LimitesImportacionPasajeros.MaxBytesSolicitud)]
+        [ProducesResponseType(typeof(HojasImportacionDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public ActionResult<HojasImportacionDto> Inspeccionar([FromForm] IFormFile archivo)
+        {
+            return Ok(_servicioImportacion.Inspeccionar(archivo));
+        }
+
+        [HttpPost("importacion/encabezados")]
+        [RequestSizeLimit(LimitesImportacionPasajeros.MaxBytesSolicitud)]
+        [RequestFormLimits(MultipartBodyLengthLimit = LimitesImportacionPasajeros.MaxBytesSolicitud)]
+        [ProducesResponseType(typeof(EncabezadosImportacionDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public ActionResult<EncabezadosImportacionDto> Encabezados(
+            [FromForm] IFormFile archivo,
+            [FromForm] string nombreHoja)
+        {
+            return Ok(_servicioImportacion.LeerEncabezados(archivo, nombreHoja));
+        }
+
+        [HttpPost("importacion/validar")]
+        [RequestSizeLimit(LimitesImportacionPasajeros.MaxBytesSolicitud)]
+        [RequestFormLimits(MultipartBodyLengthLimit = LimitesImportacionPasajeros.MaxBytesSolicitud)]
+        [ProducesResponseType(typeof(PreviewImportacionPasajerosDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<PreviewImportacionPasajerosDto>> Validar(
+            [FromForm] int idEmpresa,
+            [FromForm] IFormFile archivo,
+            [FromForm] string nombreHoja,
+            [FromForm] string mapeoJson)
+        {
+            var preview = await _servicioImportacion.ValidarAsync(idEmpresa, archivo, nombreHoja, mapeoJson);
+            return Ok(preview);
+        }
+
+        [HttpPost("importacion")]
+        [RequestSizeLimit(LimitesImportacionPasajeros.MaxBytesSolicitud)]
+        [RequestFormLimits(MultipartBodyLengthLimit = LimitesImportacionPasajeros.MaxBytesSolicitud)]
+        [ProducesResponseType(typeof(ResultadoImportacionPasajerosDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<ResultadoImportacionPasajerosDto>> Importar(
+            [FromForm] int idEmpresa,
+            [FromForm] IFormFile archivo,
+            [FromForm] string nombreHoja,
+            [FromForm] string mapeoJson)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var resultado = await _servicioImportacion.ImportarAsync(
+                idEmpresa,
+                archivo,
+                nombreHoja,
+                mapeoJson,
+                idAdministrador);
+            return Ok(resultado);
         }
     }
 }

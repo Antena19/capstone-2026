@@ -13,6 +13,7 @@ import { Icon } from '../icon/icon';
 export class Modal {
   readonly open = input(false);
   readonly titulo = input.required<string>();
+  readonly wide = input(false);
   readonly closed = output<void>();
 
   constructor() {

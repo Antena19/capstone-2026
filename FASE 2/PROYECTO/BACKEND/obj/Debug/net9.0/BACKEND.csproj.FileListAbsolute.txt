@@ -131,3 +131,7 @@ C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\BACKEND.deps.json
 C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\BACKEND.runtimeconfig.json
 C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\BACKEND.dll
 C:\Users\angel\AppData\Local\Temp\trayek-vehiculos-build\BACKEND.pdb
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\DatosPrueba\ImportacionPasajeros\mapeo.json
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\DatosPrueba\ImportacionPasajeros\mapeo_falta.json
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\DatosPrueba\ImportacionPasajeros\mapeo_inex.json
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\DatosPrueba\ImportacionPasajeros\mapeo_falta_nombre.json

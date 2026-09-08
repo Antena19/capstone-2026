@@ -702,16 +702,9 @@ namespace BACKEND.Negocio.Servicios
 
         private static string? NormalizarEmailOpcional(string? valor)
         {
-            var texto = valor?.Trim() ?? string.Empty;
-            if (texto.Length == 0)
+            if (!EmailContacto.TryNormalizarOpcional(valor, out var email))
             {
-                return null;
-            }
-
-            var email = texto.ToLowerInvariant();
-            if (!email.Contains('@', StringComparison.Ordinal) || email.StartsWith('@') || email.EndsWith('@'))
-            {
-                throw new ExcepcionNegocio("El correo electrónico no es válido.");
+                throw new ExcepcionNegocio(EmailContacto.MensajeInvalido);
             }
 
             return email;

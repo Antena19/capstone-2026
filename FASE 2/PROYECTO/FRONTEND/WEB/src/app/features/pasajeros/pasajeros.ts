@@ -16,6 +16,7 @@ import { PageHeader } from '../../shared/components/page-header/page-header';
 import { SearchInput } from '../../shared/components/search-input/search-input';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 import { PasajeroForm } from './pasajero-form';
+import { PasajeroImport } from './pasajero-import';
 import { environment } from '../../../environments/environment';
 
 type ModoFormulario = 'crear' | 'editar';
@@ -33,6 +34,7 @@ type ModoFormulario = 'crear' | 'editar';
     Modal,
     ConfirmDialog,
     PasajeroForm,
+    PasajeroImport,
   ],
   templateUrl: './pasajeros.html',
   styleUrl: './pasajeros.scss',
@@ -69,6 +71,7 @@ export class PasajerosPage {
   readonly pasajeroEstado = signal<Pasajero | null>(null);
   readonly idPasajeroCambiandoEstado = signal<number | null>(null);
   readonly idPasajeroAcceso = signal<number | null>(null);
+  readonly importacionAbierta = signal(false);
 
   readonly opcionesEmpresa = computed<FilterOption[]>(() =>
     this.empresas().map((empresa) => ({
@@ -164,6 +167,14 @@ export class PasajerosPage {
     this.pasajeroEdicion.set(null);
     this.errorFormulario.set(null);
     this.formularioAbierto.set(true);
+  }
+
+  abrirImportar(): void {
+    this.importacionAbierta.set(true);
+  }
+
+  cerrarImportacion(): void {
+    this.importacionAbierta.set(false);
   }
 
   abrirEditar(pasajero: Pasajero): void {

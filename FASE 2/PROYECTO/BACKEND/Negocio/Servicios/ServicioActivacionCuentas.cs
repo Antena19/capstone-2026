@@ -16,6 +16,8 @@ namespace BACKEND.Negocio.Servicios
     {
         Task<(ActivacionUsuario Activacion, string Codigo)> GenerarAsync(int idUsuario);
 
+        Task<(ActivacionUsuario Activacion, string Codigo)> GenerarParaUsuarioNuevoAsync(int idUsuario);
+
         Task IntentarEnviarAsync(ActivacionUsuario activacion, string telefono, string codigoPlano);
 
         Task ActivarCuentaAsync(string telefono, string codigo, string nuevaPassword);
@@ -65,8 +67,16 @@ namespace BACKEND.Negocio.Servicios
         public async Task<(ActivacionUsuario Activacion, string Codigo)> GenerarAsync(int idUsuario)
         {
             var codigo = GenerarCodigoPlano();
-            var activacion = await GenerarConCodigoAsync(idUsuario, codigo);
+            var activacion = await GenerarConCodigoAsync(idUsuario, codigo, invalidarAnteriores: true);
             return (activacion, codigo);
+        }
+
+        public Task<(ActivacionUsuario Activacion, string Codigo)> GenerarParaUsuarioNuevoAsync(int idUsuario)
+        {
+            var codigo = GenerarCodigoPlano();
+            var activacion = CrearActivacion(idUsuario, codigo);
+            _contexto.ActivacionesUsuario.Add(activacion);
+            return Task.FromResult((activacion, codigo));
         }
 
         public async Task IntentarEnviarAsync(ActivacionUsuario activacion, string telefono, string codigoPlano)
@@ -191,7 +201,7 @@ namespace BACKEND.Negocio.Servicios
             }
 
             var codigo = GenerarCodigoPlano();
-            var activacion = await GenerarConCodigoAsync(usuario.IdUsuario, codigo);
+            var activacion = await GenerarConCodigoAsync(usuario.IdUsuario, codigo, invalidarAnteriores: true);
             await _contexto.SaveChangesAsync();
             await IntentarEnviarAsync(activacion, telefonoNormalizado, codigo);
         }
@@ -220,7 +230,7 @@ namespace BACKEND.Negocio.Servicios
             }
 
             var codigo = GenerarCodigoPlano();
-            var activacion = await GenerarConCodigoAsync(idUsuario, codigo);
+            var activacion = await GenerarConCodigoAsync(idUsuario, codigo, invalidarAnteriores: true);
             await _contexto.SaveChangesAsync();
             await IntentarEnviarAsync(activacion, usuario.Telefono, codigo);
 
@@ -249,11 +259,22 @@ namespace BACKEND.Negocio.Servicios
                 .AnyAsync(a => a.IdUsuario == idUsuario && a.FechaCreacion >= limite);
         }
 
-        private async Task<ActivacionUsuario> GenerarConCodigoAsync(int idUsuario, string codigo)
+        private async Task<ActivacionUsuario> GenerarConCodigoAsync(int idUsuario, string codigo, bool invalidarAnteriores)
         {
-            await InvalidarVigentesAsync(idUsuario);
+            if (invalidarAnteriores)
+            {
+                await InvalidarVigentesAsync(idUsuario);
+            }
+
+            var activacion = CrearActivacion(idUsuario, codigo);
+            _contexto.ActivacionesUsuario.Add(activacion);
+            return activacion;
+        }
+
+        private ActivacionUsuario CrearActivacion(int idUsuario, string codigo)
+        {
             var ahora = DateTime.UtcNow;
-            var activacion = new ActivacionUsuario
+            return new ActivacionUsuario
             {
                 IdUsuario = idUsuario,
                 CodigoHash = _hashCodigo.GenerarHash(idUsuario, codigo),
@@ -264,8 +285,6 @@ namespace BACKEND.Negocio.Servicios
                 Intentos = 0,
                 EstadoEnvio = EstadoEnvioActivacion.PENDIENTE
             };
-            _contexto.ActivacionesUsuario.Add(activacion);
-            return activacion;
         }
     }
 }

@@ -1,0 +1,145 @@
+.import {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.step {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.banner {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #991b1b;
+  background: #fef2f2;
+  border-radius: var(--radius-lg);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field > span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-slate-600);
+}
+
+abbr {
+  text-decoration: none;
+  color: #dc2626;
+}
+
+input,
+select {
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.help {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.map-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.summary {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.summary .ok {
+  font-weight: 600;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+}
+
+.filters button {
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.filters button.is-active {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.table-wrap {
+  max-height: 360px;
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+th,
+td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-slate-100);
+  vertical-align: top;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.errores {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #991b1b;
+}
+
+.detalle {
+  max-height: 180px;
+  overflow: auto;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  .map-grid {
+    grid-template-columns: 1fr;
+  }
+}

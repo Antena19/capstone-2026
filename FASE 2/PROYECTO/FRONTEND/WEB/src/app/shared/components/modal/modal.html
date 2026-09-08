@@ -2,6 +2,7 @@
   <div class="backdrop" (click)="onBackdrop($event)" (keydown.escape)="closed.emit()">
     <div
       class="dialog"
+      [class.is-wide]="wide()"
       role="dialog"
       aria-modal="true"
       [attr.aria-labelledby]="'modal-title'"

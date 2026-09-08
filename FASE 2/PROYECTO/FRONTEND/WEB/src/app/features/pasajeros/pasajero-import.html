@@ -1,0 +1,208 @@
+<div class="import">
+  <p class="step">{{ tituloPaso() }}</p>
+
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  }
+
+  @if (paso() === 'archivo') {
+    <label class="field">
+      <span>Empresa <abbr title="Obligatorio">*</abbr></span>
+      <select [value]="idEmpresa()" (change)="idEmpresa.set($any($event.target).value)">
+        <option value="">Seleccione una empresa</option>
+        @for (empresa of empresasActivas(); track empresa.idEmpresa) {
+          <option [value]="empresa.idEmpresa">{{ empresa.razonSocial }} · {{ empresa.rut }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="field">
+      <span>Archivo Excel <abbr title="Obligatorio">*</abbr></span>
+      <input
+        #inputArchivo
+        type="file"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        (change)="seleccionarArchivo($event)"
+      />
+      @if (archivo(); as file) {
+        <p class="help">{{ file.name }}</p>
+      }
+    </label>
+
+    <p class="help">
+      Puedes usar una nómina propia de la empresa o descargar la plantilla de Trayek.
+    </p>
+
+    <div class="actions">
+      <app-action-button label="Descargar plantilla" variant="ghost" icon="download" (clicked)="descargarPlantilla()" />
+      <div class="spacer"></div>
+      <app-action-button label="Cancelar" variant="secondary" (clicked)="cancelar()" />
+      <app-action-button label="Continuar" [disabled]="cargando()" (clicked)="continuarArchivo()" />
+    </div>
+  }
+
+  @if (paso() === 'hoja') {
+    <p class="help">Archivo: {{ archivo()?.name }}</p>
+    <label class="field">
+      <span>Hoja a importar <abbr title="Obligatorio">*</abbr></span>
+      <select [value]="hoja()" (change)="hoja.set($any($event.target).value)">
+        @for (nombre of hojas(); track nombre) {
+          <option [value]="nombre">{{ nombre }}</option>
+        }
+      </select>
+    </label>
+    <div class="actions">
+      <app-action-button label="Volver" variant="secondary" [disabled]="cargando()" (clicked)="volver()" />
+      <app-action-button label="Continuar" [disabled]="cargando()" (clicked)="continuarHoja()" />
+    </div>
+  }
+
+  @if (paso() === 'mapeo') {
+    <p class="help">Archivo: {{ archivo()?.name }} · Hoja: {{ hoja() }}</p>
+    <div class="map-grid">
+      <label class="field">
+        <span>Nombre <abbr title="Obligatorio">*</abbr></span>
+        <select [value]="mapeo().nombreColumna || ''" (change)="actualizarMapeo('nombreColumna', $any($event.target).value)">
+          <option value="">Seleccione una columna</option>
+          @for (columna of opcionesColumna('nombreColumna'); track columna.indice) {
+            <option [value]="columna.indice">{{ etiquetaColumna(columna) }}</option>
+          }
+        </select>
+      </label>
+      <label class="field">
+        <span>RUT <abbr title="Obligatorio">*</abbr></span>
+        <select [value]="mapeo().rutColumna || ''" (change)="actualizarMapeo('rutColumna', $any($event.target).value)">
+          <option value="">Seleccione una columna</option>
+          @for (columna of opcionesColumna('rutColumna'); track columna.indice) {
+            <option [value]="columna.indice">{{ etiquetaColumna(columna) }}</option>
+          }
+        </select>
+      </label>
+      <label class="field">
+        <span>Teléfono <abbr title="Obligatorio">*</abbr></span>
+        <select [value]="mapeo().telefonoColumna || ''" (change)="actualizarMapeo('telefonoColumna', $any($event.target).value)">
+          <option value="">Seleccione una columna</option>
+          @for (columna of opcionesColumna('telefonoColumna'); track columna.indice) {
+            <option [value]="columna.indice">{{ etiquetaColumna(columna) }}</option>
+          }
+        </select>
+      </label>
+      <label class="field">
+        <span>Correo</span>
+        <select [value]="mapeo().emailColumna ?? ''" (change)="actualizarMapeo('emailColumna', $any($event.target).value)">
+          <option value="">No importar</option>
+          @for (columna of opcionesColumna('emailColumna'); track columna.indice) {
+            <option [value]="columna.indice">{{ etiquetaColumna(columna) }}</option>
+          }
+        </select>
+      </label>
+      <label class="field">
+        <span>Dirección <abbr title="Obligatorio">*</abbr></span>
+        <select [value]="mapeo().direccionColumna || ''" (change)="actualizarMapeo('direccionColumna', $any($event.target).value)">
+          <option value="">Seleccione una columna</option>
+          @for (columna of opcionesColumna('direccionColumna'); track columna.indice) {
+            <option [value]="columna.indice">{{ etiquetaColumna(columna) }}</option>
+          }
+        </select>
+      </label>
+    </div>
+    <p class="help">Las columnas no mapeadas, como cargo o centro de costo, se ignoran.</p>
+    <div class="actions">
+      <app-action-button label="Volver" variant="secondary" [disabled]="cargando()" (clicked)="volver()" />
+      <app-action-button label="Validar" [disabled]="cargando() || !mapeoCompleto()" (clicked)="validar()" />
+    </div>
+  }
+
+  @if (paso() === 'preview' && preview(); as datos) {
+    <div class="summary">
+      <p>{{ datos.totalFilas }} registros encontrados</p>
+      <p>{{ datos.validas }} válidos</p>
+      <p>{{ datos.invalidas }} con errores</p>
+    </div>
+    <p class="help">
+      Se crearán {{ datos.validas }} pasajeros con cuenta de acceso.
+      @if (datos.invalidas > 0) {
+        {{ datos.invalidas }} registros serán omitidos.
+      }
+    </p>
+    <div class="filters">
+      <button type="button" [class.is-active]="filtro() === 'todas'" (click)="filtro.set('todas')">Todos</button>
+      <button type="button" [class.is-active]="filtro() === 'validas'" (click)="filtro.set('validas')">Válidos</button>
+      <button type="button" [class.is-active]="filtro() === 'errores'" (click)="filtro.set('errores')">Con errores</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fila</th>
+            <th>Nombre</th>
+            <th>RUT</th>
+            <th>Teléfono</th>
+            <th>Correo</th>
+            <th>Dirección</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (fila of filasVisibles(); track fila.numeroFila) {
+            <tr>
+              <td>{{ fila.numeroFila }}</td>
+              <td>{{ fila.nombre }}</td>
+              <td class="mono">{{ fila.rut }}</td>
+              <td class="mono">{{ fila.telefono }}</td>
+              <td>{{ fila.email || '—' }}</td>
+              <td>{{ fila.direccion }}</td>
+              <td>
+                <app-status-badge
+                  [label]="fila.esValida ? 'Válido' : 'Error'"
+                  [tone]="fila.esValida ? 'green' : 'red'"
+                />
+                @if (!fila.esValida) {
+                  <p class="errores">{{ fila.errores.join(' ') }}</p>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <app-action-button label="Volver" variant="secondary" [disabled]="importando()" (clicked)="volver()" />
+      <app-action-button
+        label="Importar pasajeros válidos"
+        [disabled]="importando() || datos.validas === 0"
+        (clicked)="confirmarImportacion()"
+      />
+    </div>
+  }
+
+  @if (paso() === 'resultado' && resultado(); as datos) {
+    <div class="summary">
+      <p class="ok">Importación completada</p>
+      <p>{{ datos.creados }} pasajeros creados</p>
+      <p>{{ datos.activacionesEnviadas }} activaciones enviadas/simuladas</p>
+      <p>{{ datos.activacionesError }} activaciones con error</p>
+      <p>{{ datos.omitidos }} registros omitidos</p>
+    </div>
+    @if (datos.filasOmitidas.length > 0) {
+      <div class="detalle">
+        <p>Registros omitidos</p>
+        @for (fila of datos.filasOmitidas; track fila.numeroFila) {
+          <p>Fila {{ fila.numeroFila }}: {{ fila.errores.join(' ') }}</p>
+        }
+      </div>
+    }
+    @if (datos.enviosError.length > 0) {
+      <div class="detalle">
+        <p>Errores de envío</p>
+        @for (envio of datos.enviosError; track envio.idPasajero) {
+          <p>{{ envio.telefono }}: {{ envio.mensaje }}</p>
+        }
+      </div>
+    }
+    <div class="actions">
+      <app-action-button label="Cerrar" variant="secondary" (clicked)="cancelar()" />
+      <app-action-button label="Ver pasajeros" (clicked)="verPasajeros()" />
+    </div>
+  }
+</div>

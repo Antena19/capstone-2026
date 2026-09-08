@@ -37,6 +37,11 @@ builder.Services.AddControllers(options =>
             .FirstOrDefault(texto => !string.IsNullOrWhiteSpace(texto))
             ?? "Los datos enviados no son válidos.";
 
+        if (mensaje.Contains("Request body too large", StringComparison.OrdinalIgnoreCase))
+        {
+            mensaje = "El archivo supera el máximo de 5 MB.";
+        }
+
         return new BadRequestObjectResult(new MensajeRespuestaDto { Mensaje = mensaje });
     };
 });
@@ -224,6 +229,7 @@ builder.Services.AddScoped<IServicioAutenticacion, ServicioAutenticacion>();
 builder.Services.AddScoped<IServicioUsuarios, ServicioUsuarios>();
 builder.Services.AddScoped<IServicioEmpresas, ServicioEmpresas>();
 builder.Services.AddScoped<IServicioPasajeros, ServicioPasajeros>();
+builder.Services.AddScoped<IServicioImportacionPasajeros, ServicioImportacionPasajeros>();
 builder.Services.AddScoped<IServicioConductores, ServicioConductores>();
 builder.Services.AddScoped<IServicioVehiculos, ServicioVehiculos>();
 builder.Services.AddScoped<IServicioRutas, ServicioRutas>();

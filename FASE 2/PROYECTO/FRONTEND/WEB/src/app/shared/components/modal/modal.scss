@@ -19,6 +19,10 @@
   box-shadow: 0 16px 40px rgb(15 23 42 / 18%);
 }
 
+.dialog.is-wide {
+  max-width: 960px;
+}
+
 .head {
   display: flex;
   align-items: center;

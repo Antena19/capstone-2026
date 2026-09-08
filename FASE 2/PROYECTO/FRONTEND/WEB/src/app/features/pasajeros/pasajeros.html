@@ -18,6 +18,7 @@
     [value]="estadoFiltro()"
     (valueChange)="actualizarEstadoFiltro($event)"
   />
+  <app-action-button label="Importar Excel" variant="secondary" (clicked)="abrirImportar()" />
   <app-action-button label="Nuevo pasajero" icon="plus" (clicked)="abrirCrear()" />
 </app-page-header>
 
@@ -160,6 +161,20 @@
     (guardado)="guardar($event)"
     (creado)="crearConCuenta($event)"
     (cancelado)="cerrarFormulario()"
+  />
+</app-modal>
+
+<app-modal
+  [open]="importacionAbierta()"
+  titulo="Importar pasajeros"
+  [wide]="true"
+  (closed)="cerrarImportacion()"
+>
+  <app-pasajero-import
+    [empresas]="empresas()"
+    [abierto]="importacionAbierta()"
+    (importado)="cargar()"
+    (cancelado)="cerrarImportacion()"
   />
 </app-modal>
 
