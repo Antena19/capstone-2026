@@ -7,6 +7,8 @@ using BACKEND.Modelos;
 using BACKEND.Negocio.Bootstrap;
 using BACKEND.Negocio.Configuracion;
 using BACKEND.Negocio.Filtros;
+using BACKEND.Negocio.Geocodificacion;
+using BACKEND.Negocio.Ruteo;
 using BACKEND.Negocio.Seguridad;
 using BACKEND.Negocio.Servicios;
 using BACKEND.Negocio.Sms;
@@ -230,6 +232,28 @@ builder.Services.AddScoped<IServicioUsuarios, ServicioUsuarios>();
 builder.Services.AddScoped<IServicioEmpresas, ServicioEmpresas>();
 builder.Services.AddScoped<IServicioPasajeros, ServicioPasajeros>();
 builder.Services.AddScoped<IServicioImportacionPasajeros, ServicioImportacionPasajeros>();
+builder.Services.Configure<GeoapifyOptions>(builder.Configuration.GetSection(GeoapifyOptions.Seccion));
+builder.Services.AddHttpClient<IGeocodificador, GeoapifyGeocodificador>((sp, client) =>
+{
+    var opciones = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<GeoapifyOptions>>().Value;
+    var baseUrl = string.IsNullOrWhiteSpace(opciones.BaseUrl)
+        ? "https://api.geoapify.com/v1/"
+        : opciones.BaseUrl.TrimEnd('/') + "/";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(12);
+})
+.RemoveAllLoggers();
+builder.Services.AddHttpClient<IRuteador, GeoapifyRuteador>((sp, client) =>
+{
+    var opciones = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<GeoapifyOptions>>().Value;
+    var baseUrl = string.IsNullOrWhiteSpace(opciones.BaseUrl)
+        ? "https://api.geoapify.com/v1/"
+        : opciones.BaseUrl.TrimEnd('/') + "/";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(20);
+})
+.RemoveAllLoggers();
+builder.Services.AddScoped<IServicioGeocodificacionPasajeros, ServicioGeocodificacionPasajeros>();
 builder.Services.AddScoped<IServicioConductores, ServicioConductores>();
 builder.Services.AddScoped<IServicioVehiculos, ServicioVehiculos>();
 builder.Services.AddScoped<IServicioRutas, ServicioRutas>();

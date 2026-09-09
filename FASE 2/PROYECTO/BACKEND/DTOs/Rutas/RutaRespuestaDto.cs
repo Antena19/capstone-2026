@@ -16,13 +16,13 @@ namespace BACKEND.DTOs.Rutas
 
         public string Sector { get; set; } = string.Empty;
 
-        public PuntoGeoJsonDto Origen { get; set; } = new();
+        public ExtremoRutaDto? Origen { get; set; }
 
-        public PuntoGeoJsonDto Destino { get; set; } = new();
+        public ExtremoRutaDto? Destino { get; set; }
 
         public List<PuntoRecogidaRutaDto> PuntosRecogida { get; set; } = new();
 
-        public LineaGeoJsonDto Trazado { get; set; } = new();
+        public LineaGeoJsonDto? Trazado { get; set; }
 
         public double DistanciaEstimadaKm { get; set; }
 

@@ -17,10 +17,18 @@ namespace BACKEND.DTOs.Rutas
         [MaxLength(255, ErrorMessage = "La referencia no puede superar 255 caracteres.")]
         public string? Referencia { get; set; }
 
-        [Range(1, int.MaxValue, ErrorMessage = "El orden del punto debe ser un entero positivo.")]
+        [Range(0, int.MaxValue, ErrorMessage = "El orden del punto no puede ser negativo.")]
         public int Orden { get; set; }
 
         [Required(ErrorMessage = "La ubicación del punto es obligatoria.")]
         public PuntoGeoJsonDto Ubicacion { get; set; } = new();
+
+        public List<int> PasajerosIds { get; set; } = [];
+
+        public int CantidadPasajeros { get; set; }
+
+        public double? Latitud { get; set; }
+
+        public double? Longitud { get; set; }
     }
 }

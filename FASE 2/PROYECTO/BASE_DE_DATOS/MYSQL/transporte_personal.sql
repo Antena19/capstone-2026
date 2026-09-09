@@ -98,12 +98,17 @@ CREATE TABLE `pasajero` (
   `rut` VARCHAR(12) NOT NULL,
   `telefono` VARCHAR(20) NOT NULL,
   `direccion` VARCHAR(255) NOT NULL,
+  `latitud` DECIMAL(10,7) NULL,
+  `longitud` DECIMAL(10,7) NULL,
+  `direccion_geocodificada` VARCHAR(255) NULL,
+  `fecha_geocodificacion` DATETIME NULL,
   `estado` ENUM('ACTIVO', 'INACTIVO') NOT NULL DEFAULT 'ACTIVO',
   PRIMARY KEY (`id_pasajero`),
   UNIQUE KEY `uk_pasajero_rut` (`rut`),
   UNIQUE KEY `uk_pasajero_id_usuario` (`id_usuario`),
   KEY `ix_pasajero_id_empresa` (`id_empresa`),
   KEY `ix_pasajero_estado` (`estado`),
+  KEY `ix_pasajero_geocodificacion` (`id_empresa`, `estado`, `latitud`),
   CONSTRAINT `fk_pasajero_empresa_cliente`
     FOREIGN KEY (`id_empresa`) REFERENCES `empresa_cliente` (`id_empresa`)
     ON DELETE RESTRICT

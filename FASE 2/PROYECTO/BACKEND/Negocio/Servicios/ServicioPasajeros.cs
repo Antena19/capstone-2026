@@ -276,6 +276,15 @@ namespace BACKEND.Negocio.Servicios
                 pasajero.IdEmpresa = datos.IdEmpresa;
                 pasajero.Nombre = datos.Nombre;
                 pasajero.Rut = datos.Rut;
+
+                if (!string.Equals(pasajero.Direccion.Trim(), datos.Direccion, StringComparison.OrdinalIgnoreCase))
+                {
+                    pasajero.Latitud = null;
+                    pasajero.Longitud = null;
+                    pasajero.DireccionGeocodificada = null;
+                    pasajero.FechaGeocodificacion = null;
+                }
+
                 pasajero.Direccion = datos.Direccion;
 
                 if (pasajero.Usuario is not null)

@@ -24,10 +24,28 @@ namespace BACKEND.Modelos
         public string Sector { get; set; } = string.Empty;
 
         [BsonElement("origen")]
-        public PuntoGeoJson Origen { get; set; } = new();
+        [BsonIgnoreIfNull]
+        public PuntoGeoJson? Origen { get; set; }
+
+        [BsonElement("nombreOrigen")]
+        [BsonIgnoreIfNull]
+        public string? NombreOrigen { get; set; }
+
+        [BsonElement("referenciaOrigen")]
+        [BsonIgnoreIfNull]
+        public string? ReferenciaOrigen { get; set; }
 
         [BsonElement("destino")]
-        public PuntoGeoJson Destino { get; set; } = new();
+        [BsonIgnoreIfNull]
+        public PuntoGeoJson? Destino { get; set; }
+
+        [BsonElement("nombreDestino")]
+        [BsonIgnoreIfNull]
+        public string? NombreDestino { get; set; }
+
+        [BsonElement("referenciaDestino")]
+        [BsonIgnoreIfNull]
+        public string? ReferenciaDestino { get; set; }
 
         /// <summary>
         /// Puntos de recogida embebidos. Puede ser un arreglo vacío.
@@ -37,7 +55,8 @@ namespace BACKEND.Modelos
         public List<PuntoRecogidaRuta> PuntosRecogida { get; set; } = new();
 
         [BsonElement("trazado")]
-        public LineaGeoJson Trazado { get; set; } = new();
+        [BsonIgnoreIfNull]
+        public LineaGeoJson? Trazado { get; set; }
 
         [BsonElement("distanciaEstimadaKm")]
         public double DistanciaEstimadaKm { get; set; }

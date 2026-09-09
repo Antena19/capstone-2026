@@ -2,6 +2,7 @@ using BACKEND.Datos.MySQL;
 using BACKEND.DTOs.Rutas;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Excepciones;
+using BACKEND.Negocio.Ruteo;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -16,6 +17,8 @@ namespace BACKEND.Negocio.Servicios
 
         Task<RutaRespuestaDto> CrearAsync(CrearRutaSolicitudDto solicitud, int idAdministrador);
 
+        Task<RutaRespuestaDto> CrearDisenoAsync(CrearRutaDisenoSolicitudDto solicitud, int idAdministrador);
+
         Task<RutaRespuestaDto> EditarAsync(string idRuta, EditarRutaSolicitudDto solicitud, int idAdministrador);
 
         Task<RutaRespuestaDto> CambiarEstadoAsync(string idRuta, CambiarEstadoRutaSolicitudDto solicitud, int idAdministrador);
@@ -25,6 +28,29 @@ namespace BACKEND.Negocio.Servicios
         Task<RutaRespuestaDto> EditarPuntoRecogidaAsync(string idRuta, string idPunto, PuntoRecogidaRutaDto solicitud, int idAdministrador);
 
         Task<RutaRespuestaDto> EliminarPuntoRecogidaAsync(string idRuta, string idPunto, int idAdministrador);
+
+        Task<RutaRespuestaDto> AsignarPasajerosPuntoAsync(
+            string idRuta,
+            string idPunto,
+            AsignarPasajerosPuntoSolicitudDto solicitud,
+            int idAdministrador);
+
+        Task<RutaRespuestaDto> ReordenarPuntosAsync(
+            string idRuta,
+            ReordenarPuntosSolicitudDto solicitud,
+            int idAdministrador);
+
+        Task<RutaRespuestaDto> DefinirOrigenAsync(
+            string idRuta,
+            DefinirExtremoRutaSolicitudDto solicitud,
+            int idAdministrador);
+
+        Task<RutaRespuestaDto> DefinirDestinoAsync(
+            string idRuta,
+            DefinirExtremoRutaSolicitudDto solicitud,
+            int idAdministrador);
+
+        Task<RutaRespuestaDto> CalcularTrazadoAsync(string idRuta, int idAdministrador, CancellationToken cancellationToken);
     }
 
     /// <summary>
@@ -42,15 +68,18 @@ namespace BACKEND.Negocio.Servicios
 
         private readonly IMongoCollection<Ruta> _rutas;
         private readonly TransporteContext _contexto;
+        private readonly IRuteador _ruteador;
         private readonly ILogger<ServicioRutas> _logger;
 
         public ServicioRutas(
             IMongoCollection<Ruta> rutas,
             TransporteContext contexto,
+            IRuteador ruteador,
             ILogger<ServicioRutas> logger)
         {
             _rutas = rutas;
             _contexto = contexto;
+            _ruteador = ruteador;
             _logger = logger;
         }
 
@@ -133,6 +162,47 @@ namespace BACKEND.Negocio.Servicios
                 "El administrador {IdAdministrador} creó la ruta {IdRuta}.",
                 idAdministrador,
                 ruta.Id.ToString());
+
+            return Mapear(ruta);
+        }
+
+        public async Task<RutaRespuestaDto> CrearDisenoAsync(CrearRutaDisenoSolicitudDto solicitud, int idAdministrador)
+        {
+            var nombre = RequerirTexto(solicitud.Nombre, "El nombre es obligatorio.");
+            if (nombre.Length > 150)
+            {
+                throw new ExcepcionNegocio("El nombre no puede superar 150 caracteres.");
+            }
+
+            await AsegurarEmpresaAsignableAsync(solicitud.EmpresaId, exigirActiva: true);
+
+            var sector = solicitud.Sector?.Trim() ?? string.Empty;
+            if (sector.Length > 150)
+            {
+                throw new ExcepcionNegocio("El sector no puede superar 150 caracteres.");
+            }
+
+            var ruta = new Ruta
+            {
+                Nombre = nombre,
+                EmpresaId = solicitud.EmpresaId,
+                Sector = sector,
+                Origen = null,
+                Destino = null,
+                PuntosRecogida = [],
+                Trazado = null,
+                DistanciaEstimadaKm = 0,
+                DuracionEstimadaMin = 0,
+                Estado = EstadoRegistro.ACTIVO
+            };
+
+            await _rutas.InsertOneAsync(ruta);
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} creó la ruta de diseño {IdRuta} para la empresa {EmpresaId}.",
+                idAdministrador,
+                ruta.Id.ToString(),
+                solicitud.EmpresaId);
 
             return Mapear(ruta);
         }
@@ -220,6 +290,12 @@ namespace BACKEND.Negocio.Servicios
             var ruta = await ObtenerRutaDocumentoAsync(idRuta);
             var punto = NormalizarPuntoRecogida(solicitud, ruta.PuntosRecogida, permitirIdExistente: false);
             ruta.PuntosRecogida.Add(punto);
+            if ((solicitud.PasajerosIds ?? []).Count > 0)
+            {
+                await AsignarPasajerosInternoAsync(ruta, punto, solicitud.PasajerosIds ?? []);
+            }
+
+            InvalidarTrazado(ruta);
             await _rutas.ReplaceOneAsync(r => r.Id == ruta.Id, ruta);
 
             _logger.LogInformation(
@@ -243,10 +319,16 @@ namespace BACKEND.Negocio.Servicios
 
             solicitud.IdPunto = actual.IdPunto;
             var actualizado = NormalizarPuntoRecogida(solicitud, resto, permitirIdExistente: false);
+            var ubicacionCambio = !MismasCoordenadas(actual.Ubicacion, actualizado.Ubicacion);
             actual.Nombre = actualizado.Nombre;
             actual.Referencia = actualizado.Referencia;
             actual.Orden = actualizado.Orden;
             actual.Ubicacion = actualizado.Ubicacion;
+            actual.PasajerosIds ??= [];
+            if (ubicacionCambio)
+            {
+                InvalidarTrazado(ruta);
+            }
 
             await _rutas.ReplaceOneAsync(r => r.Id == ruta.Id, ruta);
 
@@ -270,11 +352,18 @@ namespace BACKEND.Negocio.Servicios
             if (await PuntoEstaEnUsoAsync(idRuta, actual.IdPunto))
             {
                 throw new ExcepcionNegocio(
-                    "No se puede eliminar el punto de recogida porque está asignado a pasajeros de servicios de esta ruta.",
+                    "El punto no puede eliminarse porque está siendo utilizado por servicios.",
                     StatusCodes.Status409Conflict);
             }
 
+            if ((actual.PasajerosIds ?? []).Count > 0)
+            {
+                throw new ExcepcionNegocio(
+                    "Debes desasociar los pasajeros de este punto antes de eliminarlo.");
+            }
+
             ruta.PuntosRecogida.Remove(actual);
+            InvalidarTrazado(ruta);
             await _rutas.ReplaceOneAsync(r => r.Id == ruta.Id, ruta);
 
             _logger.LogInformation(
@@ -284,6 +373,273 @@ namespace BACKEND.Negocio.Servicios
                 idRuta);
 
             return Mapear(ruta);
+        }
+
+        public async Task<RutaRespuestaDto> AsignarPasajerosPuntoAsync(
+            string idRuta,
+            string idPunto,
+            AsignarPasajerosPuntoSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            var ruta = await ObtenerRutaDocumentoAsync(idRuta);
+            var punto = BuscarPunto(ruta, idPunto);
+            await AsignarPasajerosInternoAsync(ruta, punto, solicitud.PasajerosIds ?? []);
+            await _rutas.ReplaceOneAsync(r => r.Id == ruta.Id, ruta);
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} actualizó los pasajeros del punto {IdPunto} de la ruta {IdRuta}.",
+                idAdministrador,
+                punto.IdPunto,
+                idRuta);
+
+            return Mapear(ruta);
+        }
+
+        public async Task<RutaRespuestaDto> ReordenarPuntosAsync(
+            string idRuta,
+            ReordenarPuntosSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            var ruta = await ObtenerRutaDocumentoAsync(idRuta);
+            var pedidos = solicitud.Puntos ?? [];
+            if (pedidos.Count != ruta.PuntosRecogida.Count)
+            {
+                throw new ExcepcionNegocio("Debes indicar todos los puntos de la ruta para reordenar.");
+            }
+
+            var idsPedido = pedidos
+                .Select(p => RequerirTexto(p.IdPunto, "El identificador del punto es obligatorio."))
+                .ToList();
+
+            if (idsPedido.Distinct(StringComparer.OrdinalIgnoreCase).Count() != idsPedido.Count)
+            {
+                throw new ExcepcionNegocio("No se permiten identificadores de punto duplicados.");
+            }
+
+            var porId = ruta.PuntosRecogida.ToDictionary(p => p.IdPunto, StringComparer.OrdinalIgnoreCase);
+            if (idsPedido.Any(id => !porId.ContainsKey(id)))
+            {
+                throw new ExcepcionNegocio("Uno o más puntos no pertenecen a esta ruta.");
+            }
+
+            if (ruta.PuntosRecogida.Any(p => !idsPedido.Contains(p.IdPunto, StringComparer.OrdinalIgnoreCase)))
+            {
+                throw new ExcepcionNegocio("Debes indicar todos los puntos de la ruta para reordenar.");
+            }
+
+            var ordenados = pedidos
+                .OrderBy(p => p.Orden)
+                .ThenBy(p => p.IdPunto, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            for (var i = 0; i < ordenados.Count; i++)
+            {
+                porId[ordenados[i].IdPunto].Orden = i + 1;
+            }
+
+            InvalidarTrazado(ruta);
+            await _rutas.ReplaceOneAsync(r => r.Id == ruta.Id, ruta);
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} reordenó los puntos de la ruta {IdRuta}.",
+                idAdministrador,
+                idRuta);
+
+            return Mapear(ruta);
+        }
+
+        public Task<RutaRespuestaDto> DefinirOrigenAsync(
+            string idRuta,
+            DefinirExtremoRutaSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            return DefinirExtremoAsync(idRuta, solicitud, esOrigen: true, idAdministrador);
+        }
+
+        public Task<RutaRespuestaDto> DefinirDestinoAsync(
+            string idRuta,
+            DefinirExtremoRutaSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            return DefinirExtremoAsync(idRuta, solicitud, esOrigen: false, idAdministrador);
+        }
+
+        public async Task<RutaRespuestaDto> CalcularTrazadoAsync(
+            string idRuta,
+            int idAdministrador,
+            CancellationToken cancellationToken)
+        {
+            var ruta = await ObtenerRutaDocumentoAsync(idRuta);
+            var origen = ExtraerWaypoint(ruta.Origen, "origen");
+            var destino = ExtraerWaypoint(ruta.Destino, "destino");
+            var puntos = (ruta.PuntosRecogida ?? [])
+                .OrderBy(p => p.Orden)
+                .ToList();
+
+            var waypoints = new List<WaypointRuteo>
+            {
+                new(origen.Latitud, origen.Longitud, "origen")
+            };
+            foreach (var punto in puntos)
+            {
+                var posicion = ExtraerWaypoint(punto.Ubicacion, punto.IdPunto);
+                waypoints.Add(new WaypointRuteo(posicion.Latitud, posicion.Longitud, punto.IdPunto));
+            }
+
+            waypoints.Add(new WaypointRuteo(destino.Latitud, destino.Longitud, "destino"));
+
+            var calculado = await _ruteador.CalcularAsync(waypoints, cancellationToken);
+            if (calculado.Coordenadas.Count < 2)
+            {
+                throw new ExcepcionNegocio("No fue posible calcular un recorrido entre los puntos seleccionados.");
+            }
+
+            ruta.Trazado = new LineaGeoJson
+            {
+                Type = TipoLineString,
+                Coordinates = calculado.Coordenadas.Select(p => new[] { p[0], p[1] }).ToList()
+            };
+            ruta.DistanciaEstimadaKm = Math.Round(calculado.DistanciaMetros / 1000.0, 3, MidpointRounding.AwayFromZero);
+            ruta.DuracionEstimadaMin = calculado.DuracionSegundos <= 0
+                ? 0
+                : (int)Math.Ceiling(calculado.DuracionSegundos / 60.0);
+
+            await _rutas.ReplaceOneAsync(r => r.Id == ruta.Id, ruta);
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} calculó el trazado de la ruta {IdRuta}. Waypoints {Cantidad}. Distancia {Km} km. Duración {Min} min.",
+                idAdministrador,
+                idRuta,
+                waypoints.Count,
+                ruta.DistanciaEstimadaKm,
+                ruta.DuracionEstimadaMin);
+
+            return Mapear(ruta);
+        }
+
+        private async Task<RutaRespuestaDto> DefinirExtremoAsync(
+            string idRuta,
+            DefinirExtremoRutaSolicitudDto solicitud,
+            bool esOrigen,
+            int idAdministrador)
+        {
+            var ruta = await ObtenerRutaDocumentoAsync(idRuta);
+            var nombre = RequerirTexto(solicitud.Nombre, "El nombre es obligatorio.");
+            if (nombre.Length > 150)
+            {
+                throw new ExcepcionNegocio("El nombre no puede superar 150 caracteres.");
+            }
+
+            var referencia = string.IsNullOrWhiteSpace(solicitud.Referencia) ? null : solicitud.Referencia.Trim();
+            if (referencia is { Length: > 255 })
+            {
+                throw new ExcepcionNegocio("La referencia no puede superar 255 caracteres.");
+            }
+
+            ValidarPosicion([solicitud.Longitud, solicitud.Latitud], esOrigen ? "origen" : "destino");
+            var punto = new PuntoGeoJson
+            {
+                Type = TipoPoint,
+                Coordinates = [solicitud.Longitud, solicitud.Latitud]
+            };
+
+            if (esOrigen)
+            {
+                ruta.Origen = punto;
+                ruta.NombreOrigen = nombre;
+                ruta.ReferenciaOrigen = referencia;
+            }
+            else
+            {
+                ruta.Destino = punto;
+                ruta.NombreDestino = nombre;
+                ruta.ReferenciaDestino = referencia;
+            }
+
+            InvalidarTrazado(ruta);
+            await _rutas.ReplaceOneAsync(r => r.Id == ruta.Id, ruta);
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} actualizó el {Extremo} de la ruta {IdRuta}.",
+                idAdministrador,
+                esOrigen ? "origen" : "destino",
+                idRuta);
+
+            return Mapear(ruta);
+        }
+
+        private static void InvalidarTrazado(Ruta ruta)
+        {
+            ruta.Trazado = null;
+            ruta.DistanciaEstimadaKm = 0;
+            ruta.DuracionEstimadaMin = 0;
+        }
+
+        private static (double Latitud, double Longitud) ExtraerWaypoint(PuntoGeoJson? punto, string campo)
+        {
+            if (punto?.Coordinates is not { Length: 2 })
+            {
+                throw new ExcepcionNegocio($"La ruta no tiene {campo} definido.");
+            }
+
+            ValidarPosicion(punto.Coordinates, campo);
+            return (punto.Coordinates[1], punto.Coordinates[0]);
+        }
+
+        private static bool MismasCoordenadas(PuntoGeoJson? izquierdo, PuntoGeoJson? derecho)
+        {
+            if (izquierdo?.Coordinates is not { Length: 2 } || derecho?.Coordinates is not { Length: 2 })
+            {
+                return false;
+            }
+
+            return Math.Abs(izquierdo.Coordinates[0] - derecho.Coordinates[0]) < 1e-7
+                && Math.Abs(izquierdo.Coordinates[1] - derecho.Coordinates[1]) < 1e-7;
+        }
+
+        private async Task AsignarPasajerosInternoAsync(Ruta ruta, PuntoRecogidaRuta punto, IReadOnlyCollection<int> pasajerosIds)
+        {
+            var ids = pasajerosIds
+                .Distinct()
+                .Where(id => id > 0)
+                .ToList();
+
+            if (ids.Count > 0)
+            {
+                var pasajeros = await _contexto.Pasajeros
+                    .AsNoTracking()
+                    .Where(p => ids.Contains(p.IdPasajero))
+                    .Select(p => new { p.IdPasajero, p.IdEmpresa, p.Estado })
+                    .ToListAsync();
+
+                if (pasajeros.Count != ids.Count)
+                {
+                    throw new ExcepcionNegocio("Uno o más pasajeros no existen.");
+                }
+
+                if (pasajeros.Any(p => p.Estado != EstadoRegistro.ACTIVO))
+                {
+                    throw new ExcepcionNegocio("Solo se pueden asociar pasajeros activos.");
+                }
+
+                if (pasajeros.Any(p => p.IdEmpresa != ruta.EmpresaId))
+                {
+                    throw new ExcepcionNegocio("Los pasajeros deben pertenecer a la misma empresa de la ruta.");
+                }
+            }
+
+            foreach (var otro in ruta.PuntosRecogida)
+            {
+                otro.PasajerosIds ??= [];
+                if (EsMismoIdPunto(otro.IdPunto, punto.IdPunto))
+                {
+                    continue;
+                }
+
+                otro.PasajerosIds.RemoveAll(ids.Contains);
+            }
+
+            punto.PasajerosIds = ids;
         }
 
         private async Task<Ruta> ObtenerRutaDocumentoAsync(string idRuta)
@@ -297,6 +653,11 @@ namespace BACKEND.Negocio.Servicios
             }
 
             ruta.PuntosRecogida ??= new List<PuntoRecogidaRuta>();
+            foreach (var punto in ruta.PuntosRecogida)
+            {
+                punto.PasajerosIds ??= [];
+            }
+
             return ruta;
         }
 
@@ -429,14 +790,23 @@ namespace BACKEND.Negocio.Servicios
             bool permitirIdExistente)
         {
             var nombre = RequerirTexto(solicitud.Nombre, "El nombre del punto de recogida es obligatorio.");
-            var referencia = string.IsNullOrWhiteSpace(solicitud.Referencia) ? null : solicitud.Referencia.Trim();
-
-            if (solicitud.Orden <= 0)
+            if (nombre.Length > 150)
             {
-                throw new ExcepcionNegocio("El orden del punto debe ser un entero positivo.");
+                throw new ExcepcionNegocio("El nombre del punto no puede superar 150 caracteres.");
             }
 
-            if (existentes.Any(p => p.Orden == solicitud.Orden))
+            var referencia = string.IsNullOrWhiteSpace(solicitud.Referencia) ? null : solicitud.Referencia.Trim();
+            if (referencia is { Length: > 255 })
+            {
+                throw new ExcepcionNegocio("La referencia no puede superar 255 caracteres.");
+            }
+
+            var orden = solicitud.Orden;
+            if (orden <= 0)
+            {
+                orden = existentes.Count == 0 ? 1 : existentes.Max(p => p.Orden) + 1;
+            }
+            else if (existentes.Any(p => p.Orden == orden))
             {
                 throw new ExcepcionNegocio("El orden del punto de recogida ya está utilizado en esta ruta.");
             }
@@ -462,8 +832,9 @@ namespace BACKEND.Negocio.Servicios
                 IdPunto = idPunto,
                 Nombre = nombre,
                 Referencia = referencia,
-                Orden = solicitud.Orden,
-                Ubicacion = MapearPunto(ValidarPunto(solicitud.Ubicacion, "ubicacion"))
+                Orden = orden,
+                Ubicacion = MapearPunto(ValidarPunto(solicitud.Ubicacion, "ubicacion")),
+                PasajerosIds = []
             };
         }
 
@@ -584,8 +955,35 @@ namespace BACKEND.Negocio.Servicios
             };
         }
 
-        private static PuntoGeoJsonDto MapearPuntoDto(PuntoGeoJson punto)
+        private static ExtremoRutaDto? MapearExtremo(
+            PuntoGeoJson? punto,
+            string? nombre,
+            string? referencia,
+            string fallback)
         {
+            var ubicacion = MapearPuntoDto(punto);
+            if (ubicacion is null || punto?.Coordinates is not { Length: 2 })
+            {
+                return null;
+            }
+
+            return new ExtremoRutaDto
+            {
+                Nombre = string.IsNullOrWhiteSpace(nombre) ? fallback : nombre.Trim(),
+                Referencia = string.IsNullOrWhiteSpace(referencia) ? null : referencia.Trim(),
+                Longitud = punto.Coordinates[0],
+                Latitud = punto.Coordinates[1],
+                Ubicacion = ubicacion
+            };
+        }
+
+        private static PuntoGeoJsonDto? MapearPuntoDto(PuntoGeoJson? punto)
+        {
+            if (punto is null)
+            {
+                return null;
+            }
+
             return new PuntoGeoJsonDto
             {
                 Type = string.IsNullOrWhiteSpace(punto.Type) ? "Point" : punto.Type,
@@ -593,15 +991,35 @@ namespace BACKEND.Negocio.Servicios
             };
         }
 
+        private static LineaGeoJsonDto? MapearTrazadoDto(LineaGeoJson? trazado)
+        {
+            if (trazado is null)
+            {
+                return null;
+            }
+
+            return new LineaGeoJsonDto
+            {
+                Type = string.IsNullOrWhiteSpace(trazado.Type) ? "LineString" : trazado.Type,
+                Coordinates = trazado.Coordinates ?? []
+            };
+        }
+
         private static PuntoRecogidaRutaDto MapearPuntoRecogidaDto(PuntoRecogidaRuta punto)
         {
+            var coordenadas = punto.Ubicacion?.Coordinates ?? [];
+            var ids = punto.PasajerosIds ?? [];
             return new PuntoRecogidaRutaDto
             {
                 IdPunto = punto.IdPunto,
                 Nombre = punto.Nombre,
                 Referencia = punto.Referencia,
                 Orden = punto.Orden,
-                Ubicacion = MapearPuntoDto(punto.Ubicacion ?? new PuntoGeoJson())
+                Ubicacion = MapearPuntoDto(punto.Ubicacion) ?? new PuntoGeoJsonDto(),
+                PasajerosIds = ids.ToList(),
+                CantidadPasajeros = ids.Count,
+                Longitud = coordenadas.Length == 2 ? coordenadas[0] : null,
+                Latitud = coordenadas.Length == 2 ? coordenadas[1] : null
             };
         }
 
@@ -613,17 +1031,13 @@ namespace BACKEND.Negocio.Servicios
                 Nombre = ruta.Nombre,
                 EmpresaId = ruta.EmpresaId,
                 Sector = ruta.Sector,
-                Origen = MapearPuntoDto(ruta.Origen),
-                Destino = MapearPuntoDto(ruta.Destino),
+                Origen = MapearExtremo(ruta.Origen, ruta.NombreOrigen, ruta.ReferenciaOrigen, "Origen"),
+                Destino = MapearExtremo(ruta.Destino, ruta.NombreDestino, ruta.ReferenciaDestino, "Destino"),
                 PuntosRecogida = (ruta.PuntosRecogida ?? new List<PuntoRecogidaRuta>())
                     .OrderBy(p => p.Orden)
                     .Select(MapearPuntoRecogidaDto)
                     .ToList(),
-                Trazado = new LineaGeoJsonDto
-                {
-                    Type = ruta.Trazado.Type,
-                    Coordinates = ruta.Trazado.Coordinates
-                },
+                Trazado = MapearTrazadoDto(ruta.Trazado),
                 DistanciaEstimadaKm = ruta.DistanciaEstimadaKm,
                 DuracionEstimadaMin = ruta.DuracionEstimadaMin,
                 Estado = ruta.Estado

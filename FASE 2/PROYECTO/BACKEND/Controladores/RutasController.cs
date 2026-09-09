@@ -19,10 +19,68 @@ namespace BACKEND.Controladores
     public class RutasController : ControllerBase
     {
         private readonly IServicioRutas _servicioRutas;
+        private readonly IServicioGeocodificacionPasajeros _servicioGeocodificacion;
 
-        public RutasController(IServicioRutas servicioRutas)
+        public RutasController(
+            IServicioRutas servicioRutas,
+            IServicioGeocodificacionPasajeros servicioGeocodificacion)
         {
             _servicioRutas = servicioRutas;
+            _servicioGeocodificacion = servicioGeocodificacion;
+        }
+
+        [HttpGet("pasajeros")]
+        [ProducesResponseType(typeof(IReadOnlyList<PasajeroMapaDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<IReadOnlyList<PasajeroMapaDto>>> ListarPasajerosMapa(
+            [FromQuery] int idEmpresa,
+            CancellationToken cancellationToken)
+        {
+            var pasajeros = await _servicioGeocodificacion.ListarPorEmpresaAsync(idEmpresa, cancellationToken);
+            return Ok(pasajeros);
+        }
+
+        [HttpPost("pasajeros/{idPasajero:int}/geocodificar")]
+        [ProducesResponseType(typeof(PasajeroMapaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<PasajeroMapaDto>> GeocodificarPasajero(
+            int idPasajero,
+            CancellationToken cancellationToken)
+        {
+            var pasajero = await _servicioGeocodificacion.GeocodificarAsync(idPasajero, cancellationToken);
+            return Ok(pasajero);
+        }
+
+        [HttpPost("pasajeros/geocodificar-pendientes")]
+        [ProducesResponseType(typeof(ResultadoGeocodificacionLoteDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<ResultadoGeocodificacionLoteDto>> GeocodificarPendientes(
+            [FromBody] GeocodificarPendientesSolicitudDto solicitud,
+            CancellationToken cancellationToken)
+        {
+            var resultado = await _servicioGeocodificacion.GeocodificarPendientesAsync(
+                solicitud.IdEmpresa,
+                cancellationToken);
+            return Ok(resultado);
+        }
+
+        [HttpPost("diseno")]
+        [ProducesResponseType(typeof(RutaRespuestaDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<RutaRespuestaDto>> CrearDiseno([FromBody] CrearRutaDisenoSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var ruta = await _servicioRutas.CrearDisenoAsync(solicitud, idAdministrador);
+            return CreatedAtAction(nameof(ObtenerPorId), new { id = ruta.IdRuta }, ruta);
         }
 
         /// <summary>
@@ -105,6 +163,51 @@ namespace BACKEND.Controladores
             return Ok(ruta);
         }
 
+        [HttpPut("{id}/origen")]
+        [ProducesResponseType(typeof(RutaRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<RutaRespuestaDto>> DefinirOrigen(
+            string id,
+            [FromBody] DefinirExtremoRutaSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var ruta = await _servicioRutas.DefinirOrigenAsync(id, solicitud, idAdministrador);
+            return Ok(ruta);
+        }
+
+        [HttpPut("{id}/destino")]
+        [ProducesResponseType(typeof(RutaRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<RutaRespuestaDto>> DefinirDestino(
+            string id,
+            [FromBody] DefinirExtremoRutaSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var ruta = await _servicioRutas.DefinirDestinoAsync(id, solicitud, idAdministrador);
+            return Ok(ruta);
+        }
+
+        [HttpPost("{id}/calcular-trazado")]
+        [ProducesResponseType(typeof(RutaRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<RutaRespuestaDto>> CalcularTrazado(
+            string id,
+            CancellationToken cancellationToken)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var ruta = await _servicioRutas.CalcularTrazadoAsync(id, idAdministrador, cancellationToken);
+            return Ok(ruta);
+        }
+
         /// <summary>
         /// Agrega un punto de recogida a la ruta. Si no se envía idPunto, el backend genera PR-NNN.
         /// </summary>
@@ -123,6 +226,21 @@ namespace BACKEND.Controladores
             return CreatedAtAction(nameof(ObtenerPorId), new { id = ruta.IdRuta }, ruta);
         }
 
+        [HttpPut("{id}/puntos-recogida/orden")]
+        [ProducesResponseType(typeof(RutaRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<RutaRespuestaDto>> ReordenarPuntos(
+            string id,
+            [FromBody] ReordenarPuntosSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var ruta = await _servicioRutas.ReordenarPuntosAsync(id, solicitud, idAdministrador);
+            return Ok(ruta);
+        }
+
         /// <summary>
         /// Actualiza un punto de recogida existente. El identificador no cambia.
         /// </summary>
@@ -139,6 +257,22 @@ namespace BACKEND.Controladores
         {
             var idAdministrador = User.ObtenerIdUsuario();
             var ruta = await _servicioRutas.EditarPuntoRecogidaAsync(id, idPunto, solicitud, idAdministrador);
+            return Ok(ruta);
+        }
+
+        [HttpPut("{id}/puntos-recogida/{idPunto}/pasajeros")]
+        [ProducesResponseType(typeof(RutaRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<RutaRespuestaDto>> AsignarPasajeros(
+            string id,
+            string idPunto,
+            [FromBody] AsignarPasajerosPuntoSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var ruta = await _servicioRutas.AsignarPasajerosPuntoAsync(id, idPunto, solicitud, idAdministrador);
             return Ok(ruta);
         }
 

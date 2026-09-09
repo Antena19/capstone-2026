@@ -292,6 +292,21 @@ namespace BACKEND.Datos.MySQL
                     .HasMaxLength(255)
                     .IsRequired();
 
+                entity.Property(e => e.Latitud)
+                    .HasColumnName("latitud")
+                    .HasPrecision(10, 7);
+
+                entity.Property(e => e.Longitud)
+                    .HasColumnName("longitud")
+                    .HasPrecision(10, 7);
+
+                entity.Property(e => e.DireccionGeocodificada)
+                    .HasColumnName("direccion_geocodificada")
+                    .HasMaxLength(255);
+
+                entity.Property(e => e.FechaGeocodificacion)
+                    .HasColumnName("fecha_geocodificacion");
+
                 entity.Property(e => e.Estado)
                     .HasColumnName("estado")
                     .HasConversion<string>()
@@ -311,6 +326,9 @@ namespace BACKEND.Datos.MySQL
 
                 entity.HasIndex(e => e.Estado)
                     .HasDatabaseName("ix_pasajero_estado");
+
+                entity.HasIndex(e => new { e.IdEmpresa, e.Estado, e.Latitud })
+                    .HasDatabaseName("ix_pasajero_geocodificacion");
 
                 entity.HasOne(e => e.Empresa)
                     .WithMany()

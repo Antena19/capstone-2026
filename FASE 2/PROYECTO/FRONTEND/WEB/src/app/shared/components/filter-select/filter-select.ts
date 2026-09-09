@@ -17,6 +17,7 @@ export class FilterSelect {
   readonly items = input<FilterOption[]>([]);
   readonly includeBlank = input(true);
   readonly blankLabel = input<string>();
+  readonly disabled = input(false);
   readonly value = model('');
 
   readonly opciones = computed<FilterOption[]>(() => {

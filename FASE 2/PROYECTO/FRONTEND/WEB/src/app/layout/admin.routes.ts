@@ -40,7 +40,7 @@ export const adminRoutes: Routes = [
       {
         path: 'rutas',
         loadComponent: () =>
-          import('../features/placeholder/placeholder-page').then((m) => m.PlaceholderPage),
+          import('../features/rutas/rutas').then((m) => m.RutasPage),
         data: { title: 'Rutas' },
       },
       {

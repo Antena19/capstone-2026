@@ -41,6 +41,19 @@ namespace BACKEND.Modelos
         [Column("direccion")]
         public string Direccion { get; set; } = string.Empty;
 
+        [Column("latitud")]
+        public decimal? Latitud { get; set; }
+
+        [Column("longitud")]
+        public decimal? Longitud { get; set; }
+
+        [MaxLength(255)]
+        [Column("direccion_geocodificada")]
+        public string? DireccionGeocodificada { get; set; }
+
+        [Column("fecha_geocodificacion")]
+        public DateTime? FechaGeocodificacion { get; set; }
+
         [Required]
         [Column("estado")]
         public EstadoRegistro Estado { get; set; } = EstadoRegistro.ACTIVO;

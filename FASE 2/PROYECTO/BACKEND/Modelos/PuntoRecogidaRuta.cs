@@ -23,5 +23,8 @@ namespace BACKEND.Modelos
 
         [BsonElement("ubicacion")]
         public PuntoGeoJson Ubicacion { get; set; } = new();
+
+        [BsonElement("pasajerosIds")]
+        public List<int> PasajerosIds { get; set; } = [];
     }
 }
