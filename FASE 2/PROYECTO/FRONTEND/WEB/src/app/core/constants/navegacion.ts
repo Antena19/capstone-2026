@@ -5,6 +5,7 @@ export type IconName =
   | 'conductores'
   | 'vehiculos'
   | 'ruta'
+  | 'planificaciones'
   | 'servicios'
   | 'reportes'
   | 'bus'
@@ -50,7 +51,10 @@ export const MENU_ADMIN: NavGroup[] = [
   },
   {
     titulo: 'Planificación',
-    items: [{ path: '/servicios', label: 'Servicios', icon: 'servicios' }],
+    items: [
+      { path: '/planificaciones', label: 'Planificaciones', icon: 'planificaciones' },
+      { path: '/servicios', label: 'Servicios', icon: 'servicios' },
+    ],
   },
   {
     titulo: 'Análisis',

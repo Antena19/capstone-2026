@@ -9,7 +9,7 @@ namespace BACKEND.DTOs.Planificaciones
     public class CambiarEstadoPlanificacionSolicitudDto
     {
         [Required(ErrorMessage = "El estado es obligatorio.")]
-        [EnumDataType(typeof(EstadoPlanificacion), ErrorMessage = "El estado debe ser BORRADOR, ACTIVA, CERRADA o CANCELADA.")]
+        [EnumDataType(typeof(EstadoPlanificacion), ErrorMessage = "El estado debe ser ACTIVA, CERRADA o CANCELADA.")]
         public EstadoPlanificacion Estado { get; set; }
     }
 }

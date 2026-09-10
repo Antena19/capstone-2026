@@ -62,6 +62,8 @@ namespace BACKEND.Controladores
         [HttpPost]
         [ProducesResponseType(typeof(PlanificacionRespuestaDto), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<PlanificacionRespuestaDto>> Crear(
@@ -79,6 +81,7 @@ namespace BACKEND.Controladores
         [ProducesResponseType(typeof(PlanificacionRespuestaDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<PlanificacionRespuestaDto>> Editar(
@@ -93,10 +96,11 @@ namespace BACKEND.Controladores
         /// <summary>
         /// Cambia el estado de una planificación según las transiciones permitidas.
         /// </summary>
-        [HttpPut("{id:int}/estado")]
+        [HttpPatch("{id:int}/estado")]
         [ProducesResponseType(typeof(PlanificacionRespuestaDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<PlanificacionRespuestaDto>> CambiarEstado(

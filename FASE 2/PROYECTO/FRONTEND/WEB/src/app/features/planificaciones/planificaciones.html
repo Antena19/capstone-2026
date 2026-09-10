@@ -1,0 +1,165 @@
+<app-page-header title="Planificaciones" [subtitle]="subtitulo">
+  <app-filter-select
+    label="Empresa"
+    blankLabel="Todas las empresas"
+    [items]="opcionesEmpresa()"
+    [value]="empresaFiltro()"
+    (valueChange)="actualizarEmpresaFiltro($event)"
+  />
+  <label class="filtro-mes">
+    <span class="sr-only">Período</span>
+    <input
+      type="month"
+      [value]="periodoFiltro()"
+      aria-label="Período"
+      (change)="actualizarPeriodoFiltro($event)"
+    />
+  </label>
+  <app-filter-select
+    label="Estado"
+    blankLabel="Todos los estados"
+    [items]="opcionesEstado"
+    [value]="estadoFiltro()"
+    (valueChange)="actualizarEstadoFiltro($event)"
+  />
+  @if (hayFiltros()) {
+    <app-action-button label="Limpiar filtros" variant="ghost" (clicked)="limpiarFiltros()" />
+  }
+  <app-action-button label="Nueva planificación" icon="plus" (clicked)="abrirCrear()" />
+</app-page-header>
+
+@if (error(); as texto) {
+  <p class="banner">{{ texto }}</p>
+}
+
+<app-card>
+  @if (cargando()) {
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  } @else if (error() && planificaciones().length === 0) {
+    <div class="empty">
+      <p>No fue posible mostrar el listado. Intente nuevamente.</p>
+      <app-action-button label="Reintentar" variant="secondary" (clicked)="cargar()" />
+    </div>
+  } @else if (planificaciones().length === 0) {
+    <div class="empty">
+      @if (hayFiltros()) {
+        <p>No hay planificaciones con los filtros seleccionados.</p>
+        <app-action-button label="Limpiar filtros" variant="secondary" (clicked)="limpiarFiltros()" />
+      } @else {
+        <p>No hay planificaciones registradas.</p>
+        <app-action-button label="Registrar primera planificación" icon="plus" (clicked)="abrirCrear()" />
+      }
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Período</th>
+            <th>Empresa</th>
+            <th>Estado</th>
+            <th>Creada por</th>
+            <th>Fecha creación</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (planificacion of planificaciones(); track planificacion.idPlanificacion) {
+            <tr>
+              <td class="mono name">{{ planificacion.periodo }}</td>
+              <td>{{ planificacion.razonSocialEmpresa }}</td>
+              <td>
+                <app-status-badge
+                  [label]="planificacion.estado"
+                  [tone]="tonoEstado(planificacion.estado)"
+                />
+              </td>
+              <td>{{ planificacion.emailUsuarioCreador || '—' }}</td>
+              <td class="mono">{{ planificacion.fechaCreacion | date: 'dd-MM-yyyy' }}</td>
+              <td>
+                <div class="actions">
+                  @if (planificacion.estado === 'BORRADOR') {
+                    <button
+                      type="button"
+                      class="text-btn"
+                      [disabled]="estaCambiandoEstado(planificacion.idPlanificacion)"
+                      (click)="abrirEditar(planificacion)"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      class="text-btn"
+                      [disabled]="estaCambiandoEstado(planificacion.idPlanificacion)"
+                      (click)="pedirCambioEstado(planificacion, 'ACTIVA')"
+                    >
+                      Activar
+                    </button>
+                    <button
+                      type="button"
+                      class="text-btn is-danger"
+                      [disabled]="estaCambiandoEstado(planificacion.idPlanificacion)"
+                      (click)="pedirCambioEstado(planificacion, 'CANCELADA')"
+                    >
+                      Cancelar
+                    </button>
+                  } @else if (planificacion.estado === 'ACTIVA') {
+                    <button
+                      type="button"
+                      class="text-btn"
+                      [disabled]="estaCambiandoEstado(planificacion.idPlanificacion)"
+                      (click)="pedirCambioEstado(planificacion, 'CERRADA')"
+                    >
+                      Cerrar
+                    </button>
+                    <button
+                      type="button"
+                      class="text-btn is-danger"
+                      [disabled]="estaCambiandoEstado(planificacion.idPlanificacion)"
+                      (click)="pedirCambioEstado(planificacion, 'CANCELADA')"
+                    >
+                      Cancelar
+                    </button>
+                  } @else {
+                    <span class="sin-acciones">—</span>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</app-card>
+
+<app-modal
+  [open]="formularioAbierto()"
+  [titulo]="tituloFormulario()"
+  (closed)="cerrarFormulario()"
+>
+  <app-planificacion-form
+    [planificacion]="planificacionEdicion()"
+    [empresas]="empresasFormulario()"
+    [abierto]="formularioAbierto()"
+    [guardando]="guardando()"
+    [error]="errorFormulario()"
+    (guardado)="guardar($event)"
+    (cancelado)="cerrarFormulario()"
+  />
+</app-modal>
+
+<app-confirm-dialog
+  [open]="confirmacionAbierta()"
+  [titulo]="tituloConfirmacion()"
+  [mensaje]="mensajeConfirmacion()"
+  confirmLabel="Confirmar"
+  [danger]="confirmacionPeligrosa()"
+  [confirmDisabled]="idCambiandoEstado() !== null"
+  (confirmed)="confirmarCambioEstado()"
+  (cancelled)="cancelarCambioEstado()"
+/>

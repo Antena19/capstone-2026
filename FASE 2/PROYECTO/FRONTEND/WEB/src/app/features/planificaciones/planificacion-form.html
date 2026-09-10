@@ -1,0 +1,41 @@
+<form class="form" [formGroup]="form" (ngSubmit)="enviar()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  }
+
+  <label class="field">
+    <span>Empresa <abbr title="Obligatorio">*</abbr></span>
+    <select formControlName="idEmpresa">
+      <option value="">Selecciona una empresa</option>
+      @for (empresa of empresas(); track empresa.idEmpresa) {
+        <option [value]="empresa.idEmpresa">{{ empresa.razonSocial }}</option>
+      }
+    </select>
+    @if (mensajeCampo('idEmpresa'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+  </label>
+
+  <label class="field">
+    <span>Período <abbr title="Obligatorio">*</abbr></span>
+    <input type="month" formControlName="periodo" [min]="periodoMinimo" />
+    @if (mensajeCampo('periodo'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+  </label>
+
+  <div class="actions">
+    <app-action-button
+      label="Cancelar"
+      variant="secondary"
+      type="button"
+      [disabled]="guardando()"
+      (clicked)="cancelado.emit()"
+    />
+    <app-action-button
+      [label]="esEdicion() ? 'Guardar cambios' : 'Crear planificación'"
+      type="submit"
+      [disabled]="guardando()"
+    />
+  </div>
+</form>

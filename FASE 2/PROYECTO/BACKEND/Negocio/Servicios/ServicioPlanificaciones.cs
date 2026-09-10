@@ -32,7 +32,6 @@ namespace BACKEND.Negocio.Servicios
     /// Gestión de planificaciones reservada al rol ADMINISTRADOR.
     /// No elimina físicamente registros. CERRADA y CANCELADA son estados finales.
     /// Los servicios se asociarán posteriormente mediante servicio.id_planificacion.
-    /// La persistencia en la tabla auditoria se incorporará cuando el módulo transversal esté disponible.
     /// </summary>
     public class ServicioPlanificaciones : IServicioPlanificaciones
     {
@@ -68,6 +67,7 @@ namespace BACKEND.Negocio.Servicios
             var periodoFiltro = periodo?.Trim();
             if (!string.IsNullOrEmpty(periodoFiltro))
             {
+                NormalizarPeriodo(periodoFiltro);
                 consulta = consulta.Where(p => p.Periodo == periodoFiltro);
             }
 
@@ -76,25 +76,27 @@ namespace BACKEND.Negocio.Servicios
                 consulta = consulta.Where(p => p.Estado == estado.Value);
             }
 
-            var planificaciones = await consulta
-                .OrderBy(p => p.IdPlanificacion)
+            return await Proyectar(
+                    consulta
+                        .OrderByDescending(p => p.Periodo)
+                        .ThenByDescending(p => p.FechaCreacion))
                 .ToListAsync();
-
-            return planificaciones.Select(Mapear).ToList();
         }
 
         public async Task<PlanificacionRespuestaDto> ObtenerPorIdAsync(int idPlanificacion)
         {
-            var planificacion = await _contexto.Planificaciones
-                .AsNoTracking()
-                .FirstOrDefaultAsync(p => p.IdPlanificacion == idPlanificacion);
+            var planificacion = await Proyectar(
+                    _contexto.Planificaciones
+                        .AsNoTracking()
+                        .Where(p => p.IdPlanificacion == idPlanificacion))
+                .FirstOrDefaultAsync();
 
             if (planificacion is null)
             {
                 throw new ExcepcionNegocio("La planificación no existe.", StatusCodes.Status404NotFound);
             }
 
-            return Mapear(planificacion);
+            return planificacion;
         }
 
         public async Task<PlanificacionRespuestaDto> CrearAsync(
@@ -102,7 +104,9 @@ namespace BACKEND.Negocio.Servicios
             int idUsuarioCreador)
         {
             var periodo = NormalizarPeriodo(solicitud.Periodo);
+            AsegurarPeriodoNoAnteriorAlMesActual(periodo);
             await AsegurarEmpresaAsignableAsync(solicitud.IdEmpresa, exigirActiva: true);
+            await AsegurarPeriodoDisponibleAsync(solicitud.IdEmpresa, periodo);
 
             var planificacion = new Planificacion
             {
@@ -121,7 +125,7 @@ namespace BACKEND.Negocio.Servicios
                 idUsuarioCreador,
                 planificacion.IdPlanificacion);
 
-            return Mapear(planificacion);
+            return await ObtenerPorIdAsync(planificacion.IdPlanificacion);
         }
 
         public async Task<PlanificacionRespuestaDto> EditarAsync(
@@ -133,12 +137,16 @@ namespace BACKEND.Negocio.Servicios
 
             if (planificacion.Estado != EstadoPlanificacion.BORRADOR)
             {
-                throw new ExcepcionNegocio("Solo se puede editar una planificación en estado BORRADOR.");
+                throw new ExcepcionNegocio(
+                    "Solo se puede editar una planificación en estado BORRADOR.",
+                    StatusCodes.Status409Conflict);
             }
 
             var periodo = NormalizarPeriodo(solicitud.Periodo);
+            AsegurarPeriodoNoAnteriorAlMesActual(periodo);
             var cambiaEmpresa = planificacion.IdEmpresa != solicitud.IdEmpresa;
             await AsegurarEmpresaAsignableAsync(solicitud.IdEmpresa, exigirActiva: cambiaEmpresa);
+            await AsegurarPeriodoDisponibleAsync(solicitud.IdEmpresa, periodo, idPlanificacion);
 
             planificacion.IdEmpresa = solicitud.IdEmpresa;
             planificacion.Periodo = periodo;
@@ -149,7 +157,7 @@ namespace BACKEND.Negocio.Servicios
                 idAdministrador,
                 idPlanificacion);
 
-            return Mapear(planificacion);
+            return await ObtenerPorIdAsync(idPlanificacion);
         }
 
         public async Task<PlanificacionRespuestaDto> CambiarEstadoAsync(
@@ -158,23 +166,30 @@ namespace BACKEND.Negocio.Servicios
             int idAdministrador)
         {
             var planificacion = await ObtenerPlanificacionAsync(idPlanificacion);
+            var destino = solicitud.Estado;
 
-            if (!TransicionesPermitidas.Contains((planificacion.Estado, solicitud.Estado)))
+            if (destino == EstadoPlanificacion.BORRADOR)
             {
-                throw new ExcepcionNegocio(
-                    $"No está permitido cambiar el estado de {planificacion.Estado} a {solicitud.Estado}.");
+                throw new ExcepcionNegocio("El estado BORRADOR no es un destino válido de transición.");
             }
 
-            planificacion.Estado = solicitud.Estado;
+            if (!TransicionesPermitidas.Contains((planificacion.Estado, destino)))
+            {
+                throw new ExcepcionNegocio(
+                    $"No se puede cambiar una planificación {planificacion.Estado} a {destino}.",
+                    StatusCodes.Status409Conflict);
+            }
+
+            planificacion.Estado = destino;
             await _contexto.SaveChangesAsync();
 
             _logger.LogInformation(
                 "El administrador {IdAdministrador} cambió el estado de la planificación {IdPlanificacion} a {Estado}.",
                 idAdministrador,
                 idPlanificacion,
-                solicitud.Estado);
+                destino);
 
-            return Mapear(planificacion);
+            return await ObtenerPorIdAsync(idPlanificacion);
         }
 
         private async Task<Planificacion> ObtenerPlanificacionAsync(int idPlanificacion)
@@ -198,12 +213,35 @@ namespace BACKEND.Negocio.Servicios
 
             if (empresa is null)
             {
-                throw new ExcepcionNegocio("La empresa indicada no existe.");
+                throw new ExcepcionNegocio("La empresa indicada no existe.", StatusCodes.Status404NotFound);
             }
 
             if (exigirActiva && empresa.Estado != EstadoRegistro.ACTIVO)
             {
-                throw new ExcepcionNegocio("La empresa indicada no se encuentra activa.");
+                throw new ExcepcionNegocio(
+                    "No se puede crear una planificación para una empresa inactiva.",
+                    StatusCodes.Status409Conflict);
+            }
+        }
+
+        private async Task AsegurarPeriodoDisponibleAsync(
+            int idEmpresa,
+            string periodo,
+            int? idPlanificacionExcluida = null)
+        {
+            var existe = await _contexto.Planificaciones
+                .AsNoTracking()
+                .AnyAsync(p =>
+                    p.IdEmpresa == idEmpresa
+                    && p.Periodo == periodo
+                    && p.Estado != EstadoPlanificacion.CANCELADA
+                    && (!idPlanificacionExcluida.HasValue || p.IdPlanificacion != idPlanificacionExcluida.Value));
+
+            if (existe)
+            {
+                throw new ExcepcionNegocio(
+                    $"Ya existe una planificación {periodo} vigente para esta empresa.",
+                    StatusCodes.Status409Conflict);
             }
         }
 
@@ -222,23 +260,40 @@ namespace BACKEND.Negocio.Servicios
                 || !int.TryParse(valor[5..], out var mes)
                 || mes is < 1 or > 12)
             {
-                throw new ExcepcionNegocio("El período debe tener el formato AAAA-MM.");
+                throw new ExcepcionNegocio("El período debe tener el formato YYYY-MM.");
             }
 
             return valor;
         }
 
-        private static PlanificacionRespuestaDto Mapear(Planificacion planificacion)
+        private static void AsegurarPeriodoNoAnteriorAlMesActual(string periodo)
         {
-            return new PlanificacionRespuestaDto
+            var anio = int.Parse(periodo[..4]);
+            var mes = int.Parse(periodo[5..]);
+            var periodoSolicitado = new DateOnly(anio, mes, 1);
+            var hoy = DateTime.Now;
+            var mesActual = new DateOnly(hoy.Year, hoy.Month, 1);
+
+            if (periodoSolicitado < mesActual)
             {
-                IdPlanificacion = planificacion.IdPlanificacion,
-                IdEmpresa = planificacion.IdEmpresa,
-                Periodo = planificacion.Periodo,
-                FechaCreacion = planificacion.FechaCreacion,
-                IdUsuarioCreador = planificacion.IdUsuarioCreador,
-                Estado = planificacion.Estado
-            };
+                throw new ExcepcionNegocio(
+                    "No se puede crear ni modificar una planificación para un período anterior al mes actual.");
+            }
+        }
+
+        private static IQueryable<PlanificacionRespuestaDto> Proyectar(IQueryable<Planificacion> consulta)
+        {
+            return consulta.Select(p => new PlanificacionRespuestaDto
+            {
+                IdPlanificacion = p.IdPlanificacion,
+                IdEmpresa = p.IdEmpresa,
+                RazonSocialEmpresa = p.Empresa.RazonSocial,
+                Periodo = p.Periodo,
+                FechaCreacion = p.FechaCreacion,
+                IdUsuarioCreador = p.IdUsuarioCreador,
+                EmailUsuarioCreador = p.UsuarioCreador.Email,
+                Estado = p.Estado
+            });
         }
     }
 }

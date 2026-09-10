@@ -12,7 +12,7 @@ namespace BACKEND.DTOs.Planificaciones
         public int IdEmpresa { get; set; }
 
         [Required(ErrorMessage = "El período es obligatorio.")]
-        [RegularExpression(@"^\d{4}-(0[1-9]|1[0-2])$", ErrorMessage = "El período debe tener el formato AAAA-MM.")]
+        [RegularExpression(@"^\d{4}-(0[1-9]|1[0-2])$", ErrorMessage = "El período debe tener el formato YYYY-MM.")]
         public string Periodo { get; set; } = string.Empty;
     }
 }

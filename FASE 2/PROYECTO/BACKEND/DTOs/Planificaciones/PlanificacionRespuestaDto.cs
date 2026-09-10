@@ -11,11 +11,15 @@ namespace BACKEND.DTOs.Planificaciones
 
         public int IdEmpresa { get; set; }
 
+        public string RazonSocialEmpresa { get; set; } = string.Empty;
+
         public string Periodo { get; set; } = string.Empty;
 
         public DateTime FechaCreacion { get; set; }
 
         public int IdUsuarioCreador { get; set; }
+
+        public string? EmailUsuarioCreador { get; set; }
 
         public EstadoPlanificacion Estado { get; set; }
     }

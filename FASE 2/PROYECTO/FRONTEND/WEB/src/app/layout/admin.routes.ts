@@ -44,6 +44,12 @@ export const adminRoutes: Routes = [
         data: { title: 'Rutas' },
       },
       {
+        path: 'planificaciones',
+        loadComponent: () =>
+          import('../features/planificaciones/planificaciones').then((m) => m.PlanificacionesPage),
+        data: { title: 'Planificaciones' },
+      },
+      {
         path: 'servicios',
         loadComponent: () =>
           import('../features/placeholder/placeholder-page').then((m) => m.PlaceholderPage),
