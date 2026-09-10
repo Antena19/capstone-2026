@@ -1,0 +1,77 @@
+<form class="form" [formGroup]="form" (ngSubmit)="enviar()" [attr.aria-busy]="guardando() || cargando()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  } @else if (errorCarga(); as texto) {
+    <p class="banner">{{ texto }}</p>
+    <div class="acciones-error">
+      <app-action-button label="Reintentar" variant="secondary" type="button" [disabled]="guardando()" (clicked)="reintentar()" />
+    </div>
+  }
+
+  @if (cargando()) {
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  }
+
+  @if (servicio(); as actual) {
+    <fieldset class="cuerpo" [disabled]="guardando() || cargando()">
+      @if (esRecurrente()) {
+        <p class="nota">Esta asignación se aplica solo a este servicio.</p>
+      }
+
+      <label class="field">
+        <span>Conductor <abbr title="Obligatorio">*</abbr></span>
+        <select formControlName="idConductor">
+          <option value="">Selecciona un conductor</option>
+          @for (conductor of conductores(); track conductor.idConductor) {
+            <option [value]="conductor.idConductor">{{ etiquetaConductor(conductor) }}</option>
+          }
+        </select>
+        @if (conductores().length === 0) {
+          <p class="nota">No hay conductores activos disponibles.</p>
+        }
+      </label>
+
+      <label class="field">
+        <span>Vehículo <abbr title="Obligatorio">*</abbr></span>
+        <select formControlName="idVehiculo">
+          <option value="">Selecciona un vehículo</option>
+          @for (vehiculo of vehiculos(); track vehiculo.idVehiculo) {
+            <option [value]="vehiculo.idVehiculo">{{ etiquetaVehiculo(vehiculo) }}</option>
+          }
+        </select>
+        @if (vehiculos().length === 0) {
+          <p class="nota">No hay vehículos activos disponibles.</p>
+        }
+      </label>
+
+      @if (vehiculoSeleccionado(); as vehiculo) {
+        <p class="nota">Capacidad del vehículo: {{ vehiculo.capacidad }} pasajeros</p>
+        <p class="nota">Pasajeros asignados: {{ pasajerosActivos() }}</p>
+        @if (capacidadExcedida()) {
+          <p class="aviso">
+            Hay más pasajeros activos en el servicio que la capacidad de este vehículo.
+          </p>
+        }
+      }
+    </fieldset>
+  }
+
+  <div class="actions">
+    <app-action-button
+      label="Cancelar"
+      variant="secondary"
+      type="button"
+      [disabled]="guardando()"
+      (clicked)="cerrar()"
+    />
+    <app-action-button
+      [label]="etiquetaGuardar()"
+      type="submit"
+      [disabled]="guardando() || cargando() || !servicio() || form.invalid || (esReemplazo() && !hayCambio()) || conductores().length === 0 || vehiculos().length === 0"
+    />
+  </div>
+</form>

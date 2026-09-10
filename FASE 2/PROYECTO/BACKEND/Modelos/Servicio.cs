@@ -7,6 +7,7 @@ namespace BACKEND.Modelos
     /// Entidad de servicio de transporte. Mapea la tabla <c>servicio</c> de MySQL.
     /// No se expone en las respuestas de la API: se utilizan DTOs.
     /// <c>id_ruta</c> es el ObjectId hexadecimal de una ruta en MongoDB; no hay FK entre motores.
+    /// <c>id_serie</c> es nulo en un servicio único y un UUID compartido en ocurrencias recurrentes.
     /// </summary>
     [Table("servicio")]
     public class Servicio
@@ -24,6 +25,10 @@ namespace BACKEND.Modelos
         [MaxLength(24)]
         [Column("id_ruta")]
         public string IdRuta { get; set; } = string.Empty;
+
+        [MaxLength(36)]
+        [Column("id_serie")]
+        public string? IdSerie { get; set; }
 
         [Column("fecha")]
         public DateOnly Fecha { get; set; }

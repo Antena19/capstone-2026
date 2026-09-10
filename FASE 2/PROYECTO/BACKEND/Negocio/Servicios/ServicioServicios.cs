@@ -1,6 +1,8 @@
 using BACKEND.Datos.MySQL;
+using BACKEND.DTOs.PasajerosServicio;
 using BACKEND.DTOs.Servicios;
 using BACKEND.Modelos;
+using BACKEND.Negocio.Constantes;
 using BACKEND.Negocio.Excepciones;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson;
@@ -21,11 +23,25 @@ namespace BACKEND.Negocio.Servicios
 
         Task<ServicioRespuestaDto> CrearAsync(CrearServicioSolicitudDto solicitud, int idAdministrador);
 
+        Task<CrearServiciosRecurrentesRespuestaDto> CrearRecurrentesAsync(
+            CrearServiciosRecurrentesSolicitudDto solicitud,
+            int idAdministrador);
+
         Task<ServicioRespuestaDto> EditarAsync(int idServicio, EditarServicioSolicitudDto solicitud, int idAdministrador);
+
+        Task<IReadOnlyList<ServicioRespuestaDto>> EditarSerieAsync(
+            int idServicio,
+            EditarSerieServiciosSolicitudDto solicitud,
+            int idAdministrador);
 
         Task<ServicioRespuestaDto> CambiarEstadoAsync(
             int idServicio,
             CambiarEstadoServicioSolicitudDto solicitud,
+            int idAdministrador);
+
+        Task<IReadOnlyList<ServicioRespuestaDto>> CambiarEstadoSerieAsync(
+            int idServicio,
+            CambiarEstadoSerieServiciosSolicitudDto solicitud,
             int idAdministrador);
 
         Task<ServicioRespuestaDto> IniciarComoConductorAsync(int idServicio, int idUsuario);
@@ -51,17 +67,20 @@ namespace BACKEND.Negocio.Servicios
         private readonly TransporteContext _contexto;
         private readonly IMongoCollection<Ruta> _rutas;
         private readonly IServicioAsistencias _servicioAsistencias;
+        private readonly IServicioPasajerosServicio _servicioPasajerosServicio;
         private readonly ILogger<ServicioServicios> _logger;
 
         public ServicioServicios(
             TransporteContext contexto,
             IMongoCollection<Ruta> rutas,
             IServicioAsistencias servicioAsistencias,
+            IServicioPasajerosServicio servicioPasajerosServicio,
             ILogger<ServicioServicios> logger)
         {
             _contexto = contexto;
             _rutas = rutas;
             _servicioAsistencias = servicioAsistencias;
+            _servicioPasajerosServicio = servicioPasajerosServicio;
             _logger = logger;
         }
 
@@ -132,29 +151,104 @@ namespace BACKEND.Negocio.Servicios
                 solicitud.HoraFin,
                 solicitud.TipoServicio);
 
-            var servicio = new Servicio
-            {
-                IdEmpresa = datos.IdEmpresa,
-                IdPlanificacion = datos.IdPlanificacion,
-                IdRuta = datos.IdRuta,
-                Fecha = datos.Fecha,
-                HoraInicio = datos.HoraInicio,
-                HoraFin = datos.HoraFin,
-                FechaHoraInicioReal = null,
-                FechaHoraFinReal = null,
-                TipoServicio = datos.TipoServicio,
-                Estado = EstadoServicio.PROGRAMADO
-            };
+            var pasajeros = solicitud.Pasajeros ?? [];
+            var transaccionPropia = pasajeros.Count > 0 && _contexto.Database.CurrentTransaction is null;
 
-            _contexto.Servicios.Add(servicio);
+            if (transaccionPropia)
+            {
+                await using var transaccion = await _contexto.Database.BeginTransactionAsync();
+                var creado = await PersistirServicioUnicoAsync(datos, pasajeros, idAdministrador);
+                await transaccion.CommitAsync();
+                return creado;
+            }
+
+            return await PersistirServicioUnicoAsync(datos, pasajeros, idAdministrador);
+        }
+
+        public async Task<CrearServiciosRecurrentesRespuestaDto> CrearRecurrentesAsync(
+            CrearServiciosRecurrentesSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            if (solicitud.FechaDesde > solicitud.FechaHasta)
+            {
+                throw new ExcepcionNegocio("La fecha inicial no puede ser posterior a la fecha final.");
+            }
+
+            var dias = NormalizarDiasSemana(solicitud.DiasSemana);
+            var datosBase = await ValidarProgramacionAsync(
+                solicitud.IdEmpresa,
+                solicitud.IdPlanificacion,
+                solicitud.IdRuta,
+                solicitud.FechaDesde,
+                solicitud.HoraInicio,
+                solicitud.HoraFin,
+                solicitud.TipoServicio);
+
+            ValidarFechaEnPeriodo(solicitud.FechaHasta, datosBase.Periodo);
+            AsegurarFechaNoAnteriorAlDiaActual(solicitud.FechaHasta);
+
+            var fechas = GenerarFechasSerie(
+                solicitud.FechaDesde,
+                solicitud.FechaHasta,
+                dias,
+                datosBase.Periodo);
+
+            var pasajeros = solicitud.Pasajeros ?? [];
+            var idSerie = Guid.NewGuid().ToString();
+
+            await using var transaccion = await _contexto.Database.BeginTransactionAsync();
+
+            var servicios = new List<Servicio>();
+            foreach (var fecha in fechas)
+            {
+                var servicio = new Servicio
+                {
+                    IdEmpresa = datosBase.IdEmpresa,
+                    IdPlanificacion = datosBase.IdPlanificacion,
+                    IdRuta = datosBase.IdRuta,
+                    IdSerie = idSerie,
+                    Fecha = fecha,
+                    HoraInicio = datosBase.HoraInicio,
+                    HoraFin = datosBase.HoraFin,
+                    FechaHoraInicioReal = null,
+                    FechaHoraFinReal = null,
+                    TipoServicio = datosBase.TipoServicio,
+                    Estado = EstadoServicio.PROGRAMADO
+                };
+                _contexto.Servicios.Add(servicio);
+                servicios.Add(servicio);
+            }
+
             await _contexto.SaveChangesAsync();
 
-            _logger.LogInformation(
-                "El administrador {IdAdministrador} creó el servicio {IdServicio}.",
-                idAdministrador,
-                servicio.IdServicio);
+            if (pasajeros.Count > 0)
+            {
+                foreach (var servicio in servicios)
+                {
+                    await _servicioPasajerosServicio.CrearLoteAsync(
+                        new CrearPasajerosServicioLoteSolicitudDto
+                        {
+                            IdServicio = servicio.IdServicio,
+                            Pasajeros = pasajeros.ToList()
+                        },
+                        idAdministrador);
+                }
+            }
 
-            return Mapear(servicio);
+            await transaccion.CommitAsync();
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} creó la serie {IdSerie} con {Cantidad} servicios.",
+                idAdministrador,
+                idSerie,
+                servicios.Count);
+
+            return new CrearServiciosRecurrentesRespuestaDto
+            {
+                IdSerie = idSerie,
+                CantidadServicios = servicios.Count,
+                Servicios = servicios.Select(Mapear).ToList()
+            };
         }
 
         public async Task<ServicioRespuestaDto> EditarAsync(
@@ -195,6 +289,54 @@ namespace BACKEND.Negocio.Servicios
             return Mapear(servicio);
         }
 
+        public async Task<IReadOnlyList<ServicioRespuestaDto>> EditarSerieAsync(
+            int idServicio,
+            EditarSerieServiciosSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            var origen = await ObtenerServicioAsync(idServicio);
+            await AsegurarPlanificacionAsignableAsync(origen.IdPlanificacion, origen.IdEmpresa);
+
+            var tipo = NormalizarTipoServicio(solicitud.TipoServicio);
+            ValidarHorario(solicitud.HoraInicio, solicitud.HoraFin);
+            var idRuta = await AsegurarRutaAsignableAsync(solicitud.IdRuta, origen.IdEmpresa);
+
+            var objetivos = await ObtenerServiciosDeAlcanceAsync(origen, solicitud.Alcance);
+            if (solicitud.Alcance == AlcanceEdicionSerie.ESTE)
+            {
+                AsegurarFechaNoAnteriorAlDiaActual(origen.Fecha);
+            }
+            else
+            {
+                var hoy = DateOnly.FromDateTime(DateTime.Now);
+                objetivos = objetivos.Where(s => s.Fecha >= hoy).ToList();
+            }
+
+            if (objetivos.Count == 0)
+            {
+                throw new ExcepcionNegocio("No hay servicios PROGRAMADOS para aplicar el alcance indicado.");
+            }
+
+            foreach (var servicio in objetivos)
+            {
+                servicio.IdRuta = idRuta;
+                servicio.HoraInicio = solicitud.HoraInicio;
+                servicio.HoraFin = solicitud.HoraFin;
+                servicio.TipoServicio = tipo;
+            }
+
+            await _contexto.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} actualizó {Cantidad} servicios de la serie {IdSerie} con alcance {Alcance}.",
+                idAdministrador,
+                objetivos.Count,
+                origen.IdSerie,
+                solicitud.Alcance);
+
+            return objetivos.Select(Mapear).ToList();
+        }
+
         public async Task<ServicioRespuestaDto> CambiarEstadoAsync(
             int idServicio,
             CambiarEstadoServicioSolicitudDto solicitud,
@@ -228,6 +370,46 @@ namespace BACKEND.Negocio.Servicios
                 solicitud.Estado);
 
             return Mapear(servicio);
+        }
+
+        public async Task<IReadOnlyList<ServicioRespuestaDto>> CambiarEstadoSerieAsync(
+            int idServicio,
+            CambiarEstadoSerieServiciosSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            if (solicitud.Estado != EstadoServicio.CANCELADO)
+            {
+                throw new ExcepcionNegocio("Solo se puede cancelar una serie desde este endpoint.");
+            }
+
+            var origen = await ObtenerServicioAsync(idServicio);
+            var objetivos = await ObtenerServiciosDeAlcanceAsync(origen, solicitud.Alcance);
+            if (objetivos.Count == 0)
+            {
+                throw new ExcepcionNegocio("No hay servicios PROGRAMADOS para aplicar el alcance indicado.");
+            }
+
+            foreach (var servicio in objetivos)
+            {
+                if (!TransicionesPermitidas.Contains((servicio.Estado, EstadoServicio.CANCELADO)))
+                {
+                    throw new ExcepcionNegocio(
+                        $"No está permitido cambiar el estado de {servicio.Estado} a {EstadoServicio.CANCELADO}.");
+                }
+
+                servicio.Estado = EstadoServicio.CANCELADO;
+            }
+
+            await _contexto.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} canceló {Cantidad} servicios de la serie {IdSerie} con alcance {Alcance}.",
+                idAdministrador,
+                objetivos.Count,
+                origen.IdSerie,
+                solicitud.Alcance);
+
+            return objetivos.Select(Mapear).ToList();
         }
 
         public async Task<ServicioRespuestaDto> IniciarComoConductorAsync(int idServicio, int idUsuario)
@@ -348,6 +530,48 @@ namespace BACKEND.Negocio.Servicios
             return servicio;
         }
 
+        private async Task<ServicioRespuestaDto> PersistirServicioUnicoAsync(
+            DatosProgramacion datos,
+            IReadOnlyList<PasajeroServicioInicialDto> pasajeros,
+            int idAdministrador)
+        {
+            var servicio = new Servicio
+            {
+                IdEmpresa = datos.IdEmpresa,
+                IdPlanificacion = datos.IdPlanificacion,
+                IdRuta = datos.IdRuta,
+                IdSerie = null,
+                Fecha = datos.Fecha,
+                HoraInicio = datos.HoraInicio,
+                HoraFin = datos.HoraFin,
+                FechaHoraInicioReal = null,
+                FechaHoraFinReal = null,
+                TipoServicio = datos.TipoServicio,
+                Estado = EstadoServicio.PROGRAMADO
+            };
+
+            _contexto.Servicios.Add(servicio);
+            await _contexto.SaveChangesAsync();
+
+            if (pasajeros.Count > 0)
+            {
+                await _servicioPasajerosServicio.CrearLoteAsync(
+                    new CrearPasajerosServicioLoteSolicitudDto
+                    {
+                        IdServicio = servicio.IdServicio,
+                        Pasajeros = pasajeros.ToList()
+                    },
+                    idAdministrador);
+            }
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} creó el servicio {IdServicio}.",
+                idAdministrador,
+                servicio.IdServicio);
+
+            return Mapear(servicio);
+        }
+
         private async Task<DatosProgramacion> ValidarProgramacionAsync(
             int idEmpresa,
             int idPlanificacion,
@@ -357,8 +581,9 @@ namespace BACKEND.Negocio.Servicios
             TimeOnly horaFin,
             string tipoServicio)
         {
-            var tipo = RequerirTexto(tipoServicio, "El tipo de servicio es obligatorio.");
+            var tipo = NormalizarTipoServicio(tipoServicio);
             ValidarHorario(horaInicio, horaFin);
+            AsegurarFechaNoAnteriorAlDiaActual(fecha);
 
             await AsegurarEmpresaActivaAsync(idEmpresa);
             var planificacion = await AsegurarPlanificacionAsignableAsync(idPlanificacion, idEmpresa);
@@ -372,7 +597,8 @@ namespace BACKEND.Negocio.Servicios
                 fecha,
                 horaInicio,
                 horaFin,
-                tipo);
+                tipo,
+                planificacion.Periodo);
         }
 
         private async Task AsegurarEmpresaActivaAsync(int idEmpresa)
@@ -403,9 +629,18 @@ namespace BACKEND.Negocio.Servicios
                 throw new ExcepcionNegocio("La planificación indicada no existe.", StatusCodes.Status404NotFound);
             }
 
-            if (planificacion.Estado != EstadoPlanificacion.ACTIVA)
+            if (planificacion.Estado is EstadoPlanificacion.CERRADA or EstadoPlanificacion.CANCELADA)
             {
-                throw new ExcepcionNegocio("La planificación indicada debe estar ACTIVA.");
+                throw new ExcepcionNegocio(
+                    "No se pueden crear o modificar servicios en una planificación cerrada o cancelada.",
+                    StatusCodes.Status409Conflict);
+            }
+
+            if (planificacion.Estado is not (EstadoPlanificacion.BORRADOR or EstadoPlanificacion.ACTIVA))
+            {
+                throw new ExcepcionNegocio(
+                    "No se pueden crear o modificar servicios en una planificación cerrada o cancelada.",
+                    StatusCodes.Status409Conflict);
             }
 
             if (planificacion.IdEmpresa != idEmpresa)
@@ -455,24 +690,122 @@ namespace BACKEND.Negocio.Servicios
             }
         }
 
+        private static void AsegurarFechaNoAnteriorAlDiaActual(DateOnly fecha)
+        {
+            var hoy = DateOnly.FromDateTime(DateTime.Now);
+            if (fecha < hoy)
+            {
+                throw new ExcepcionNegocio(
+                    "No se puede crear ni modificar un servicio para una fecha anterior al día actual.");
+            }
+        }
+
+        private static void AsegurarServicioProgramado(Servicio servicio)
+        {
+            if (servicio.Estado != EstadoServicio.PROGRAMADO)
+            {
+                throw new ExcepcionNegocio("Solo se puede editar un servicio en estado PROGRAMADO.");
+            }
+        }
+
+        private static string NormalizarTipoServicio(string? tipoServicio)
+        {
+            var tipo = (tipoServicio ?? string.Empty).Trim().ToUpperInvariant();
+            if (!TiposServicio.EsValido(tipo))
+            {
+                throw new ExcepcionNegocio(TiposServicio.MensajeInvalido);
+            }
+
+            return tipo;
+        }
+
+        private static HashSet<DayOfWeek> NormalizarDiasSemana(IReadOnlyCollection<DiaSemana>? dias)
+        {
+            if (dias is null || dias.Count == 0)
+            {
+                throw new ExcepcionNegocio("Debe indicar al menos un día de la semana.");
+            }
+
+            return dias.Select(MapearDiaSemana).ToHashSet();
+        }
+
+        private static DayOfWeek MapearDiaSemana(DiaSemana dia)
+        {
+            return dia switch
+            {
+                DiaSemana.LUNES => DayOfWeek.Monday,
+                DiaSemana.MARTES => DayOfWeek.Tuesday,
+                DiaSemana.MIERCOLES => DayOfWeek.Wednesday,
+                DiaSemana.JUEVES => DayOfWeek.Thursday,
+                DiaSemana.VIERNES => DayOfWeek.Friday,
+                DiaSemana.SABADO => DayOfWeek.Saturday,
+                DiaSemana.DOMINGO => DayOfWeek.Sunday,
+                _ => throw new ExcepcionNegocio("El día de la semana indicado no es válido.")
+            };
+        }
+
+        private static IReadOnlyList<DateOnly> GenerarFechasSerie(
+            DateOnly fechaDesde,
+            DateOnly fechaHasta,
+            IReadOnlyCollection<DayOfWeek> dias,
+            string periodo)
+        {
+            var fechas = new List<DateOnly>();
+            for (var fecha = fechaDesde; fecha <= fechaHasta; fecha = fecha.AddDays(1))
+            {
+                if (!dias.Contains(fecha.DayOfWeek))
+                {
+                    continue;
+                }
+
+                ValidarFechaEnPeriodo(fecha, periodo);
+                AsegurarFechaNoAnteriorAlDiaActual(fecha);
+                fechas.Add(fecha);
+            }
+
+            if (fechas.Count == 0)
+            {
+                throw new ExcepcionNegocio("El rango y los días seleccionados no generan ninguna ocurrencia.");
+            }
+
+            return fechas;
+        }
+
+        private async Task<IReadOnlyList<Servicio>> ObtenerServiciosDeAlcanceAsync(
+            Servicio origen,
+            AlcanceEdicionSerie alcance)
+        {
+            if (alcance == AlcanceEdicionSerie.ESTE)
+            {
+                AsegurarServicioProgramado(origen);
+                return [origen];
+            }
+
+            if (string.IsNullOrWhiteSpace(origen.IdSerie))
+            {
+                throw new ExcepcionNegocio("El servicio no pertenece a una serie.");
+            }
+
+            var consulta = _contexto.Servicios.Where(s =>
+                s.IdSerie == origen.IdSerie && s.Estado == EstadoServicio.PROGRAMADO);
+
+            if (alcance == AlcanceEdicionSerie.ESTE_Y_FUTUROS)
+            {
+                consulta = consulta.Where(s => s.Fecha >= origen.Fecha);
+            }
+
+            return await consulta
+                .OrderBy(s => s.Fecha)
+                .ThenBy(s => s.IdServicio)
+                .ToListAsync();
+        }
+
         private static void ValidarHorario(TimeOnly horaInicio, TimeOnly horaFin)
         {
             if (horaFin <= horaInicio)
             {
                 throw new ExcepcionNegocio("La hora de fin debe ser posterior a la hora de inicio.");
             }
-        }
-
-        private static string RequerirTexto(string? valor, string mensaje)
-        {
-            var texto = valor?.Trim() ?? string.Empty;
-
-            if (texto.Length == 0)
-            {
-                throw new ExcepcionNegocio(mensaje);
-            }
-
-            return texto;
         }
 
         private static ServicioRespuestaDto Mapear(Servicio servicio)
@@ -483,6 +816,7 @@ namespace BACKEND.Negocio.Servicios
                 IdEmpresa = servicio.IdEmpresa,
                 IdPlanificacion = servicio.IdPlanificacion,
                 IdRuta = servicio.IdRuta,
+                IdSerie = servicio.IdSerie,
                 Fecha = servicio.Fecha,
                 HoraInicio = servicio.HoraInicio,
                 HoraFin = servicio.HoraFin,
@@ -500,6 +834,7 @@ namespace BACKEND.Negocio.Servicios
             DateOnly Fecha,
             TimeOnly HoraInicio,
             TimeOnly HoraFin,
-            string TipoServicio);
+            string TipoServicio,
+            string Periodo);
     }
 }

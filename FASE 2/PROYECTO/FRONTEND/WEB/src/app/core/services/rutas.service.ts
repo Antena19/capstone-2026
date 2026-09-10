@@ -37,8 +37,12 @@ export class RutasService {
     );
   }
 
-  listar(empresaId: number, estado?: EstadoRegistro): Observable<Ruta[]> {
-    let params = new HttpParams().set('empresaId', String(empresaId));
+  listar(empresaId?: number | null, estado?: EstadoRegistro): Observable<Ruta[]> {
+    let params = new HttpParams();
+    if (empresaId) {
+      params = params.set('empresaId', String(empresaId));
+    }
+
     if (estado) {
       params = params.set('estado', estado);
     }

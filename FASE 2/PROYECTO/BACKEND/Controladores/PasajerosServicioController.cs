@@ -79,6 +79,24 @@ namespace BACKEND.Controladores
         }
 
         /// <summary>
+        /// Asocia varios pasajeros a un servicio PROGRAMADO. Reactiva asociaciones CANCELADAS.
+        /// </summary>
+        [HttpPost("lote")]
+        [ProducesResponseType(typeof(IReadOnlyList<PasajeroServicioRespuestaDto>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<IReadOnlyList<PasajeroServicioRespuestaDto>>> CrearLote(
+            [FromBody] CrearPasajerosServicioLoteSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var registros = await _servicioPasajerosServicio.CrearLoteAsync(solicitud, idAdministrador);
+            return StatusCode(StatusCodes.Status201Created, registros);
+        }
+
+        /// <summary>
         /// Activa o cancela la asociación. No elimina el registro.
         /// </summary>
         [HttpPut("{id:int}/estado")]

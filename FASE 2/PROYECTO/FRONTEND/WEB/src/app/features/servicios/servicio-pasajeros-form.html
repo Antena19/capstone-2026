@@ -1,0 +1,224 @@
+<div class="panel" [attr.aria-busy]="ocupado()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+    <div class="acciones-error">
+      <app-action-button label="Reintentar" variant="secondary" [disabled]="ocupado()" (clicked)="reintentar()" />
+    </div>
+  }
+
+  @if (servicio(); as actual) {
+    <div class="contexto">
+      <div class="dato">
+        <span>Servicio</span>
+        <strong class="mono">#{{ actual.idServicio }}</strong>
+      </div>
+      <div class="dato">
+        <span>Empresa</span>
+        <strong>{{ nombreEmpresa() }}</strong>
+      </div>
+      <div class="dato">
+        <span>Ruta</span>
+        <strong>{{ nombreRuta() }}</strong>
+      </div>
+    </div>
+
+    @if (esRecurrente()) {
+      <p class="nota">Los cambios de pasajeros se aplicarán solo a este servicio.</p>
+    }
+
+    @if (notaAsociar(); as texto) {
+      <p class="nota">{{ texto }}</p>
+    }
+
+    @if (errorAccion(); as texto) {
+      <p class="banner">{{ texto }}</p>
+    }
+
+    <div class="busqueda">
+      <app-search-input
+        placeholder="Buscar por nombre o RUT"
+        [value]="busqueda()"
+        (valueChange)="busqueda.set($event)"
+      />
+    </div>
+
+    @if (cargando()) {
+      <div class="skeleton-list">
+        @for (item of esqueletos; track item) {
+          <div class="skeleton-row"></div>
+        }
+      </div>
+    } @else {
+      <section class="bloque" aria-labelledby="asociados-titulo">
+        <div class="bloque-head">
+          <div>
+            <h3 id="asociados-titulo">Pasajeros del servicio</h3>
+            <p class="contador">{{ asociados().length }} asociados</p>
+          </div>
+        </div>
+
+        @if (pendienteQuitar(); as baja) {
+          <div class="confirmar">
+            <p>¿Quitar a {{ baja.nombre }} de este servicio?</p>
+            <p class="nota">Se quitará solo de este servicio. No se modifica la ruta habitual.</p>
+            <div class="confirmar-acciones">
+              <app-action-button
+                label="Volver"
+                variant="secondary"
+                [disabled]="idQuitando() != null"
+                (clicked)="cancelarQuitar()"
+              />
+              <app-action-button
+                [label]="idQuitando() != null ? 'Quitando...' : 'Quitar'"
+                variant="danger"
+                [disabled]="idQuitando() != null"
+                (clicked)="confirmarQuitar()"
+              />
+            </div>
+          </div>
+        }
+
+        @if (asociadosVisibles().length === 0) {
+          <p class="vacio">
+            {{ busqueda() ? 'Ningún pasajero del servicio coincide con la búsqueda.' : 'No hay pasajeros activos en este servicio.' }}
+          </p>
+        } @else {
+          <div class="lista">
+            @for (fila of asociadosVisibles(); track fila.idPasajeroServicio) {
+              <article
+                class="fila"
+                [class.is-invalido]="fila.puntoInvalido || fila.sinPunto"
+                [class.is-busy]="idGuardandoPunto() === fila.idPasajeroServicio"
+              >
+                <div class="identidad">
+                  <div class="nombre-row">
+                    <strong>{{ fila.nombre }}</strong>
+                    @if (fila.habitual) {
+                      <app-status-badge label="Habitual" tone="blue" />
+                    }
+                  </div>
+                  <span class="meta">{{ fila.rut }}</span>
+                  <div class="badges">
+                    <app-status-badge
+                      [label]="fila.estadoConfirmacion"
+                      [tone]="tonoConfirmacion(fila.estadoConfirmacion)"
+                    />
+                    <app-status-badge [label]="fila.estado" tone="green" />
+                  </div>
+                  @if (fila.puntoInvalido) {
+                    <p class="alerta">Punto de recogida no válido para la ruta actual.</p>
+                  } @else if (fila.sinPunto) {
+                    <p class="alerta">Sin punto de recogida.</p>
+                  }
+                </div>
+                <label class="punto">
+                  <span class="sr-only">Punto de recogida de {{ fila.nombre }}</span>
+                  <select
+                    [value]="puntoEdicion(fila.idPasajeroServicio)"
+                    [disabled]="ocupado()"
+                    (change)="cambiarPuntoAsociado(fila.idPasajeroServicio, puntoDesdeEvento($event))"
+                  >
+                    <option value="">Selecciona un punto</option>
+                    @for (punto of puntosRuta(); track punto.idPunto) {
+                      <option [value]="punto.idPunto">{{ etiquetaPunto(punto) }}</option>
+                    }
+                  </select>
+                </label>
+                <div class="fila-acciones">
+                  <button
+                    type="button"
+                    class="enlace"
+                    [disabled]="!puedeAplicarPunto(fila)"
+                    (click)="aplicarPunto(fila)"
+                  >
+                    {{ idGuardandoPunto() === fila.idPasajeroServicio ? 'Guardando...' : 'Aplicar' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="enlace is-danger"
+                    [disabled]="ocupado()"
+                    (click)="pedirQuitar(fila)"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="bloque" aria-labelledby="disponibles-titulo">
+        <div class="bloque-head">
+          <div>
+            <h3 id="disponibles-titulo">Pasajeros disponibles</h3>
+            <p class="contador">
+              {{ cantidadSeleccionados() }} seleccionados
+              @if (candidatos().length > 0) {
+                · {{ candidatos().length }} disponibles
+              }
+            </p>
+          </div>
+          @if (puedeAsociar()) {
+            <app-action-button
+              [label]="etiquetaAgregar()"
+              [disabled]="ocupado() || cantidadSeleccionados() === 0 || seleccionIncompleta() || puntosRuta().length === 0"
+              (clicked)="agregarSeleccionados()"
+            />
+          }
+        </div>
+
+        @if (!puedeAsociar()) {
+          <p class="vacio">No se pueden agregar pasajeros con el estado actual del servicio.</p>
+        } @else if (puntosRuta().length === 0) {
+          <p class="vacio">Esta ruta no tiene puntos de recogida. No es posible asociar pasajeros.</p>
+        } @else if (candidatosVisibles().length === 0) {
+          <p class="vacio">
+            {{ busqueda() ? 'Ningún pasajero disponible coincide con la búsqueda.' : 'No hay pasajeros activos de la empresa para agregar.' }}
+          </p>
+        } @else {
+          <div class="lista">
+            @for (candidato of candidatosVisibles(); track candidato.idPasajero) {
+              <article class="fila candidato" [class.is-invalido]="candidato.seleccionado && !candidato.idPuntoRecogida">
+                <label class="check">
+                  <input
+                    type="checkbox"
+                    [checked]="candidato.seleccionado"
+                    [disabled]="ocupado()"
+                    (change)="alternarCandidato(candidato.idPasajero)"
+                  />
+                  <span class="identidad">
+                    <span class="nombre-row">
+                      <span class="nombre">{{ candidato.nombre }}</span>
+                      @if (candidato.habitual) {
+                        <app-status-badge label="Habitual" tone="blue" />
+                      }
+                    </span>
+                    <span class="meta">{{ candidato.rut }}</span>
+                  </span>
+                </label>
+                <label class="punto">
+                  <span class="sr-only">Punto de recogida de {{ candidato.nombre }}</span>
+                  <select
+                    [value]="candidato.idPuntoRecogida"
+                    [disabled]="ocupado() || !candidato.seleccionado"
+                    (change)="cambiarPuntoCandidato(candidato.idPasajero, puntoDesdeEvento($event))"
+                  >
+                    <option value="">Selecciona un punto</option>
+                    @for (punto of puntosRuta(); track punto.idPunto) {
+                      <option [value]="punto.idPunto">{{ etiquetaPunto(punto) }}</option>
+                    }
+                  </select>
+                </label>
+              </article>
+            }
+          </div>
+        }
+      </section>
+    }
+  }
+
+  <div class="acciones">
+    <app-action-button label="Cerrar" variant="secondary" [disabled]="mutando()" (clicked)="cerrar()" />
+  </div>
+</div>

@@ -34,6 +34,10 @@ namespace BACKEND.Negocio.Servicios
             int idPasajeroServicio,
             int idUsuario,
             ConfirmarViajeSolicitudDto solicitud);
+
+        Task<IReadOnlyList<PasajeroServicioRespuestaDto>> CrearLoteAsync(
+            CrearPasajerosServicioLoteSolicitudDto solicitud,
+            int idAdministrador);
     }
 
     /// <summary>
@@ -113,40 +117,50 @@ namespace BACKEND.Negocio.Servicios
             CrearPasajeroServicioSolicitudDto solicitud,
             int idAdministrador)
         {
-            var servicio = await ObtenerServicioProgramableAsync(solicitud.IdServicio);
-            await AsegurarPasajeroAsignableAsync(solicitud.IdPasajero, servicio.IdEmpresa);
-            await AsegurarNoDuplicadoAsync(solicitud.IdServicio, solicitud.IdPasajero);
-            await AsegurarCapacidadDisponibleAsync(solicitud.IdServicio);
-            var idPuntoRecogida = await ResolverPuntoRecogidaAsync(servicio.IdRuta, solicitud.IdPuntoRecogida);
+            var resultados = await CrearLoteAsync(
+                new CrearPasajerosServicioLoteSolicitudDto
+                {
+                    IdServicio = solicitud.IdServicio,
+                    Pasajeros =
+                    [
+                        new PasajeroServicioInicialDto
+                        {
+                            IdPasajero = solicitud.IdPasajero,
+                            IdPuntoRecogida = solicitud.IdPuntoRecogida
+                        }
+                    ]
+                },
+                idAdministrador);
 
-            var registro = new PasajeroServicio
+            return resultados[0];
+        }
+
+        public async Task<IReadOnlyList<PasajeroServicioRespuestaDto>> CrearLoteAsync(
+            CrearPasajerosServicioLoteSolicitudDto solicitud,
+            int idAdministrador)
+        {
+            var pasajeros = solicitud.Pasajeros ?? [];
+            if (pasajeros.Count == 0)
             {
-                IdServicio = solicitud.IdServicio,
-                IdPasajero = solicitud.IdPasajero,
-                IdPuntoRecogida = idPuntoRecogida,
-                EstadoConfirmacion = EstadoConfirmacionViaje.PENDIENTE,
-                FechaConfirmacion = null,
-                Estado = EstadoPasajeroServicio.ACTIVO
-            };
-
-            _contexto.PasajerosServicio.Add(registro);
-
-            try
-            {
-                await _contexto.SaveChangesAsync();
+                throw new ExcepcionNegocio("Debe indicar al menos un pasajero.");
             }
-            catch (DbUpdateException)
+
+            var ids = pasajeros.Select(p => p.IdPasajero).ToList();
+            if (ids.Count != ids.Distinct().Count())
             {
-                throw new ExcepcionNegocio(MensajeDuplicado, StatusCodes.Status409Conflict);
+                throw new ExcepcionNegocio("El lote contiene pasajeros duplicados.");
             }
 
-            _logger.LogInformation(
-                "El administrador {IdAdministrador} asoció el pasajero {IdPasajero} al servicio {IdServicio}.",
-                idAdministrador,
-                solicitud.IdPasajero,
-                solicitud.IdServicio);
+            var transaccionPropia = _contexto.Database.CurrentTransaction is null;
+            if (transaccionPropia)
+            {
+                await using var transaccion = await _contexto.Database.BeginTransactionAsync();
+                var creados = await AplicarLoteAsync(solicitud.IdServicio, pasajeros, idAdministrador);
+                await transaccion.CommitAsync();
+                return creados;
+            }
 
-            return Mapear(registro);
+            return await AplicarLoteAsync(solicitud.IdServicio, pasajeros, idAdministrador);
         }
 
         public async Task<PasajeroServicioRespuestaDto> CambiarEstadoAsync(
@@ -267,6 +281,81 @@ namespace BACKEND.Negocio.Servicios
             return Mapear(registro);
         }
 
+        private async Task<IReadOnlyList<PasajeroServicioRespuestaDto>> AplicarLoteAsync(
+            int idServicio,
+            IReadOnlyList<PasajeroServicioInicialDto> pasajeros,
+            int idAdministrador)
+        {
+            var servicio = await ObtenerServicioProgramableAsync(idServicio);
+            var ruta = await ObtenerRutaDelServicioAsync(servicio.IdRuta);
+            var ids = pasajeros.Select(p => p.IdPasajero).ToList();
+
+            var existentes = await _contexto.PasajerosServicio
+                .Where(p => p.IdServicio == idServicio && ids.Contains(p.IdPasajero))
+                .ToListAsync();
+
+            var capacidad = await ObtenerCapacidadAsignadaAsync(idServicio);
+            var activos = await _contexto.PasajerosServicio
+                .CountAsync(p => p.IdServicio == idServicio && p.Estado == EstadoPasajeroServicio.ACTIVO);
+
+            var resultados = new List<PasajeroServicio>();
+
+            foreach (var item in pasajeros)
+            {
+                await AsegurarPasajeroAsignableAsync(item.IdPasajero, servicio.IdEmpresa);
+                var idPuntoRecogida = ResolverPuntoRecogidaEnRuta(ruta, servicio.IdRuta, item.IdPuntoRecogida);
+                var existente = existentes.FirstOrDefault(p => p.IdPasajero == item.IdPasajero);
+
+                if (existente is null)
+                {
+                    AsegurarHayCupo(capacidad, activos);
+                    var registro = new PasajeroServicio
+                    {
+                        IdServicio = idServicio,
+                        IdPasajero = item.IdPasajero,
+                        IdPuntoRecogida = idPuntoRecogida,
+                        EstadoConfirmacion = EstadoConfirmacionViaje.PENDIENTE,
+                        FechaConfirmacion = null,
+                        Estado = EstadoPasajeroServicio.ACTIVO
+                    };
+                    _contexto.PasajerosServicio.Add(registro);
+                    resultados.Add(registro);
+                    activos++;
+                    continue;
+                }
+
+                if (existente.Estado == EstadoPasajeroServicio.ACTIVO)
+                {
+                    throw new ExcepcionNegocio(MensajeDuplicado, StatusCodes.Status409Conflict);
+                }
+
+                AsegurarHayCupo(capacidad, activos);
+                existente.Estado = EstadoPasajeroServicio.ACTIVO;
+                existente.EstadoConfirmacion = EstadoConfirmacionViaje.PENDIENTE;
+                existente.FechaConfirmacion = null;
+                existente.IdPuntoRecogida = idPuntoRecogida;
+                resultados.Add(existente);
+                activos++;
+            }
+
+            try
+            {
+                await _contexto.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                throw new ExcepcionNegocio(MensajeDuplicado, StatusCodes.Status409Conflict);
+            }
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} asoció {Cantidad} pasajeros al servicio {IdServicio}.",
+                idAdministrador,
+                resultados.Count,
+                idServicio);
+
+            return resultados.Select(Mapear).ToList();
+        }
+
         private async Task<PasajeroServicio> ObtenerRegistroAsync(int idPasajeroServicio)
         {
             var registro = await _contexto.PasajerosServicio
@@ -326,33 +415,27 @@ namespace BACKEND.Negocio.Servicios
             }
         }
 
-        private async Task AsegurarNoDuplicadoAsync(int idServicio, int idPasajero)
+        private async Task AsegurarCapacidadDisponibleAsync(int idServicio)
         {
-            var existe = await _contexto.PasajerosServicio
-                .AnyAsync(p => p.IdServicio == idServicio && p.IdPasajero == idPasajero);
-
-            if (existe)
-            {
-                throw new ExcepcionNegocio(MensajeDuplicado, StatusCodes.Status409Conflict);
-            }
+            var capacidad = await ObtenerCapacidadAsignadaAsync(idServicio);
+            var pasajerosActivos = await _contexto.PasajerosServicio
+                .CountAsync(p => p.IdServicio == idServicio && p.Estado == EstadoPasajeroServicio.ACTIVO);
+            AsegurarHayCupo(capacidad, pasajerosActivos);
         }
 
-        private async Task AsegurarCapacidadDisponibleAsync(int idServicio)
+        private async Task<int?> ObtenerCapacidadAsignadaAsync(int idServicio)
         {
             var asignacion = await _contexto.AsignacionesServicio
                 .AsNoTracking()
                 .Include(a => a.Vehiculo)
                 .FirstOrDefaultAsync(a => a.IdServicio == idServicio && a.Estado == EstadoAsignacionServicio.ACTIVA);
 
-            if (asignacion is null)
-            {
-                return;
-            }
+            return asignacion?.Vehiculo.Capacidad;
+        }
 
-            var pasajerosActivos = await _contexto.PasajerosServicio
-                .CountAsync(p => p.IdServicio == idServicio && p.Estado == EstadoPasajeroServicio.ACTIVO);
-
-            if (pasajerosActivos >= asignacion.Vehiculo.Capacidad)
+        private static void AsegurarHayCupo(int? capacidad, int pasajerosActivos)
+        {
+            if (capacidad.HasValue && pasajerosActivos >= capacidad.Value)
             {
                 throw new ExcepcionNegocio(MensajeCapacidad, StatusCodes.Status409Conflict);
             }
@@ -360,12 +443,17 @@ namespace BACKEND.Negocio.Servicios
 
         private async Task<string?> ResolverPuntoRecogidaAsync(string idRuta, string? idPuntoRecogida)
         {
-            var identificador = idPuntoRecogida?.Trim();
-            if (string.IsNullOrEmpty(identificador))
+            if (string.IsNullOrWhiteSpace(idPuntoRecogida))
             {
                 return null;
             }
 
+            var ruta = await ObtenerRutaDelServicioAsync(idRuta);
+            return ResolverPuntoRecogidaEnRuta(ruta, idRuta, idPuntoRecogida);
+        }
+
+        private async Task<Ruta> ObtenerRutaDelServicioAsync(string idRuta)
+        {
             if (!ObjectId.TryParse(idRuta, out var objectId))
             {
                 throw new ExcepcionNegocio("El servicio no tiene una ruta válida para asignar un punto de recogida.");
@@ -375,6 +463,22 @@ namespace BACKEND.Negocio.Servicios
             if (ruta is null)
             {
                 throw new ExcepcionNegocio("La ruta del servicio no está disponible.");
+            }
+
+            return ruta;
+        }
+
+        private static string? ResolverPuntoRecogidaEnRuta(Ruta ruta, string idRuta, string? idPuntoRecogida)
+        {
+            var identificador = idPuntoRecogida?.Trim();
+            if (string.IsNullOrEmpty(identificador))
+            {
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(idRuta))
+            {
+                throw new ExcepcionNegocio("El servicio no tiene una ruta válida para asignar un punto de recogida.");
             }
 
             var punto = (ruta.PuntosRecogida ?? new List<PuntoRecogidaRuta>())

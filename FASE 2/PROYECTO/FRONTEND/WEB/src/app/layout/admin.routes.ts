@@ -52,7 +52,7 @@ export const adminRoutes: Routes = [
       {
         path: 'servicios',
         loadComponent: () =>
-          import('../features/placeholder/placeholder-page').then((m) => m.PlaceholderPage),
+          import('../features/servicios/servicios').then((m) => m.ServiciosPage),
         data: { title: 'Servicios' },
       },
       {

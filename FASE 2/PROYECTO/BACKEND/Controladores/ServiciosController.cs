@@ -69,6 +69,7 @@ namespace BACKEND.Controladores
         [ProducesResponseType(typeof(ServicioRespuestaDto), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<ServicioRespuestaDto>> Crear([FromBody] CrearServicioSolicitudDto solicitud)
@@ -79,12 +80,31 @@ namespace BACKEND.Controladores
         }
 
         /// <summary>
+        /// Crea una serie de servicios PROGRAMADOS que comparten el mismo idSerie.
+        /// </summary>
+        [HttpPost("recurrentes")]
+        [ProducesResponseType(typeof(CrearServiciosRecurrentesRespuestaDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<CrearServiciosRecurrentesRespuestaDto>> CrearRecurrentes(
+            [FromBody] CrearServiciosRecurrentesSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var resultado = await _servicioServicios.CrearRecurrentesAsync(solicitud, idAdministrador);
+            return StatusCode(StatusCodes.Status201Created, resultado);
+        }
+
+        /// <summary>
         /// Actualiza la programación de un servicio en estado PROGRAMADO.
         /// </summary>
         [HttpPut("{id:int}")]
         [ProducesResponseType(typeof(ServicioRespuestaDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<ActionResult<ServicioRespuestaDto>> Editar(int id, [FromBody] EditarServicioSolicitudDto solicitud)
@@ -92,6 +112,26 @@ namespace BACKEND.Controladores
             var idAdministrador = User.ObtenerIdUsuario();
             var servicio = await _servicioServicios.EditarAsync(id, solicitud, idAdministrador);
             return Ok(servicio);
+        }
+
+        /// <summary>
+        /// Actualiza ruta, horario y tipo de uno o más servicios PROGRAMADOS de la misma serie.
+        /// No regenera fechas ni propaga pasajeros.
+        /// </summary>
+        [HttpPut("{id:int}/serie")]
+        [ProducesResponseType(typeof(IReadOnlyList<ServicioRespuestaDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<IReadOnlyList<ServicioRespuestaDto>>> EditarSerie(
+            int id,
+            [FromBody] EditarSerieServiciosSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var servicios = await _servicioServicios.EditarSerieAsync(id, solicitud, idAdministrador);
+            return Ok(servicios);
         }
 
         /// <summary>
@@ -110,6 +150,25 @@ namespace BACKEND.Controladores
             var idAdministrador = User.ObtenerIdUsuario();
             var servicio = await _servicioServicios.CambiarEstadoAsync(id, solicitud, idAdministrador);
             return Ok(servicio);
+        }
+
+        /// <summary>
+        /// Cancela servicios PROGRAMADOS de una serie según el alcance.
+        /// No modifica EN_CURSO ni FINALIZADO.
+        /// </summary>
+        [HttpPut("{id:int}/serie/estado")]
+        [ProducesResponseType(typeof(IReadOnlyList<ServicioRespuestaDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<IReadOnlyList<ServicioRespuestaDto>>> CambiarEstadoSerie(
+            int id,
+            [FromBody] CambiarEstadoSerieServiciosSolicitudDto solicitud)
+        {
+            var idAdministrador = User.ObtenerIdUsuario();
+            var servicios = await _servicioServicios.CambiarEstadoSerieAsync(id, solicitud, idAdministrador);
+            return Ok(servicios);
         }
     }
 }

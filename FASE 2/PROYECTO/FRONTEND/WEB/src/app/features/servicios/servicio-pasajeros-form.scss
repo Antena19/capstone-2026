@@ -1,0 +1,278 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel[aria-busy='true'] {
+  cursor: wait;
+}
+
+.contexto {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dato {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dato span {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.dato strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.nota,
+.vacio,
+.contador {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.vacio {
+  font-size: 13px;
+}
+
+.banner,
+.confirmar,
+.alerta {
+  margin: 0;
+  font-size: 13px;
+}
+
+.banner {
+  padding: 10px 12px;
+  color: #991b1b;
+  background: #fef2f2;
+  border-radius: var(--radius-lg);
+}
+
+.alerta {
+  color: #991b1b;
+}
+
+.confirmar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-lg);
+}
+
+.confirmar p:first-child {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.confirmar-acciones,
+.acciones,
+.acciones-error {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.acciones-error {
+  justify-content: flex-start;
+}
+
+.busqueda app-search-input {
+  display: block;
+}
+
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-slate-50);
+}
+
+.bloque-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bloque h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(140px, 200px) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.fila.candidato {
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 200px);
+}
+
+.fila.is-invalido {
+  border-color: #fca5a5;
+}
+
+.fila.is-busy {
+  opacity: 0.7;
+}
+
+.identidad,
+.check .identidad {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nombre-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.nombre,
+.identidad strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.check input {
+  margin-top: 3px;
+  width: auto;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.punto select {
+  width: 100%;
+}
+
+.fila-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.enlace {
+  border: 0;
+  background: transparent;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  border-radius: var(--radius-lg);
+}
+
+.enlace.is-danger {
+  color: #dc2626;
+}
+
+.enlace:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-row {
+  height: 44px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: pulse 1.4s ease infinite;
+}
+
+@keyframes pulse {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 720px) {
+  .contexto,
+  .fila,
+  .fila.candidato {
+    grid-template-columns: 1fr;
+  }
+
+  .fila-acciones {
+    justify-content: flex-start;
+  }
+}

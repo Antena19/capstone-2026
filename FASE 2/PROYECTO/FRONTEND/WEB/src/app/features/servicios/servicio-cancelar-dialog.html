@@ -1,0 +1,72 @@
+<div class="dialogo" [attr.aria-busy]="cancelando()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  }
+
+  @if (servicio(); as actual) {
+    <p class="pregunta">¿Deseas cancelar este servicio?</p>
+
+    <div class="contexto">
+      <div class="dato">
+        <span>Fecha</span>
+        <strong class="mono">{{ formatearFecha(actual.fecha) }}</strong>
+      </div>
+      <div class="dato">
+        <span>Horario</span>
+        <strong class="mono">{{ formatearHora(actual.horaInicio) }} – {{ formatearHora(actual.horaFin) }}</strong>
+      </div>
+      <div class="dato">
+        <span>Empresa</span>
+        <strong>{{ nombreEmpresa() }}</strong>
+      </div>
+      <div class="dato">
+        <span>Ruta</span>
+        <strong>{{ nombreRuta() }}</strong>
+      </div>
+      <div class="dato">
+        <span>Estado</span>
+        <strong>{{ actual.estado === 'EN_CURSO' ? 'EN CURSO' : actual.estado }}</strong>
+      </div>
+      <div class="dato">
+        <span>Modalidad</span>
+        <strong>{{ esRecurrente() ? 'Recurrente' : 'Individual' }}</strong>
+      </div>
+    </div>
+
+    @if (esRecurrente()) {
+      <div class="alcance" role="radiogroup" aria-label="Alcance de la cancelación">
+        @for (item of alcancesDisponibles(); track item.value) {
+          <button
+            type="button"
+            role="radio"
+            [attr.aria-checked]="alcance() === item.value"
+            [class.activo]="alcance() === item.value"
+            [disabled]="cancelando()"
+            (click)="seleccionarAlcance(item.value)"
+          >
+            {{ item.label }}
+          </button>
+        }
+      </div>
+      <p class="nota">{{ textoAlcance() }}</p>
+      <p class="nota">
+        Los servicios ya cancelados, finalizados o en curso no se modificarán.
+      </p>
+    }
+  }
+
+  <div class="actions">
+    <app-action-button
+      label="Volver"
+      variant="secondary"
+      [disabled]="cancelando()"
+      (clicked)="cancelado.emit()"
+    />
+    <app-action-button
+      [label]="etiquetaConfirmar()"
+      variant="danger"
+      [disabled]="cancelando() || !servicio()"
+      (clicked)="confirmar()"
+    />
+  </div>
+</div>

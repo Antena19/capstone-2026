@@ -1,0 +1,195 @@
+<div class="detalle" [attr.aria-busy]="cargando() || cargandoPasajeros()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+    <div class="acciones-error">
+      <app-action-button label="Reintentar" variant="secondary" (clicked)="reintentar()" />
+    </div>
+  }
+
+  @if (servicio(); as actual) {
+    <section class="seccion">
+      <h3>Información del servicio</h3>
+      <div class="datos">
+        <div class="dato">
+          <span>ID</span>
+          <strong class="mono">#{{ actual.idServicio }}</strong>
+        </div>
+        <div class="dato">
+          <span>Fecha</span>
+          <strong class="mono">{{ formatearFecha(actual.fecha) }}</strong>
+        </div>
+        <div class="dato">
+          <span>Hora inicio</span>
+          <strong class="mono">{{ formatearHora(actual.horaInicio) }}</strong>
+        </div>
+        <div class="dato">
+          <span>Hora fin</span>
+          <strong class="mono">{{ formatearHora(actual.horaFin) }}</strong>
+        </div>
+        <div class="dato">
+          <span>Tipo</span>
+          <strong>{{ actual.tipoServicio }}</strong>
+        </div>
+        <div class="dato">
+          <span>Estado</span>
+          <app-status-badge [label]="etiquetaEstado(actual.estado)" [tone]="tonoEstado(actual.estado)" />
+        </div>
+        <div class="dato">
+          <span>Modalidad</span>
+          <strong>{{ etiquetaModalidad() }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion">
+      <h3>Planificación y ruta</h3>
+      <div class="datos">
+        <div class="dato">
+          <span>Empresa</span>
+          <strong>{{ nombreEmpresa() }}</strong>
+        </div>
+        <div class="dato">
+          <span>Planificación</span>
+          <strong>{{ etiquetaPlanificacion() }}</strong>
+        </div>
+        <div class="dato dato-ancho">
+          <span>Ruta</span>
+          <strong>{{ nombreRuta() }}</strong>
+        </div>
+      </div>
+    </section>
+
+    @if (!error()) {
+    <section class="seccion">
+      <div class="seccion-head">
+        <h3>Asignación operacional</h3>
+        @if (puedeCrearAsignacion()) {
+          <app-action-button
+            label="Asignar conductor y vehículo"
+            variant="secondary"
+            (clicked)="abrirAsignacion()"
+          />
+        } @else if (puedeCambiarAsignacion()) {
+          <app-action-button
+            label="Cambiar asignación"
+            variant="secondary"
+            (clicked)="abrirAsignacion()"
+          />
+        }
+      </div>
+
+      @if (cargandoPasajeros() && !errorAsignacion()) {
+        <div class="skeleton-list">
+          <div class="skeleton-row"></div>
+        </div>
+      } @else if (errorAsignacion(); as texto) {
+        <div class="pasajeros-error">
+          <p>{{ texto }}</p>
+          <app-action-button label="Reintentar" variant="secondary" (clicked)="reintentarPasajeros()" />
+        </div>
+      } @else if (!asignacion()) {
+        <p class="vacio">No hay conductor ni vehículo asignados a este servicio.</p>
+        @if (actual.estado === 'EN_CURSO') {
+          <p class="vacio">Solo se pueden crear asignaciones para un servicio PROGRAMADO.</p>
+        } @else if (actual.estado === 'FINALIZADO' || actual.estado === 'CANCELADO') {
+          <p class="vacio">No se pueden crear asignaciones sobre un servicio FINALIZADO o CANCELADO.</p>
+        }
+      } @else if (asignacion(); as actualAsignacion) {
+        @if (actual.idSerie) {
+          <p class="vacio">Esta asignación se aplica solo a este servicio.</p>
+        }
+        <div class="datos">
+          <div class="dato">
+            <span>Conductor</span>
+            <strong>{{ etiquetaConductorAsignado() }}</strong>
+            @if (conductorAsignado()?.telefono) {
+              <span>{{ conductorAsignado()?.telefono }}</span>
+            }
+          </div>
+          <div class="dato">
+            <span>Vehículo</span>
+            <strong>{{ etiquetaVehiculoAsignado() }}</strong>
+            @if (vehiculoAsignado(); as vehiculo) {
+              <span>Capacidad: {{ vehiculo.capacidad }} pasajeros</span>
+            }
+          </div>
+          <div class="dato">
+            <span>Estado de asignación</span>
+            <app-status-badge [label]="actualAsignacion.estado" [tone]="tonoAsignacion(actualAsignacion.estado)" />
+          </div>
+          <div class="dato">
+            <span>Fecha de asignación</span>
+            <strong class="mono">{{ formatearFechaHora(actualAsignacion.fechaAsignacion) }}</strong>
+          </div>
+          <div class="dato">
+            <span>Pasajeros asignados</span>
+            <strong>{{ pasajerosActivos() }}</strong>
+          </div>
+        </div>
+        @if (vehiculoAsignado(); as vehiculo) {
+          @if (pasajerosActivos() > vehiculo.capacidad) {
+            <p class="aviso">Hay más pasajeros activos en el servicio que la capacidad de este vehículo.</p>
+          }
+        }
+      }
+    </section>
+
+    <section class="seccion">
+      <div class="seccion-head">
+        <div>
+          <h3>Pasajeros del servicio</h3>
+          @if (!cargandoPasajeros() && !errorPasajeros()) {
+            <p class="contador">{{ pasajerosVisibles().length }} pasajeros</p>
+          }
+        </div>
+        <app-action-button
+          label="Gestionar pasajeros"
+          variant="secondary"
+          (clicked)="abrirGestionPasajeros()"
+        />
+      </div>
+
+      @if (cargandoPasajeros()) {
+        <div class="skeleton-list">
+          @for (item of esqueletos; track item) {
+            <div class="skeleton-row"></div>
+          }
+        </div>
+      } @else if (errorPasajeros(); as texto) {
+        <div class="pasajeros-error">
+          <p>{{ texto }}</p>
+          <app-action-button label="Reintentar" variant="secondary" (clicked)="reintentarPasajeros()" />
+        </div>
+      } @else if (pasajerosVisibles().length === 0) {
+        <p class="vacio">No hay pasajeros asignados a este servicio.</p>
+      } @else {
+        <div class="pasajeros">
+          @for (pasajero of pasajerosVisibles(); track pasajero.id) {
+            <article class="pasajero">
+              <div class="identidad">
+                <strong>{{ pasajero.nombre }}</strong>
+                <span class="meta">{{ pasajero.rut }}</span>
+                <span class="punto">{{ pasajero.punto }}</span>
+              </div>
+              <div class="badges">
+                <app-status-badge
+                  [label]="pasajero.estadoConfirmacion"
+                  [tone]="tonoConfirmacion(pasajero.estadoConfirmacion)"
+                />
+                <app-status-badge
+                  [label]="pasajero.estado"
+                  [tone]="tonoAsociacion(pasajero.estado)"
+                />
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </section>
+    }
+  }
+
+  <div class="acciones">
+    <app-action-button label="Cerrar" variant="secondary" (clicked)="cerrado.emit()" />
+  </div>
+</div>

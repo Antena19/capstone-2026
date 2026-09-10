@@ -15,6 +15,8 @@ namespace BACKEND.DTOs.Servicios
 
         public string IdRuta { get; set; } = string.Empty;
 
+        public string? IdSerie { get; set; }
+
         public DateOnly Fecha { get; set; }
 
         public TimeOnly HoraInicio { get; set; }

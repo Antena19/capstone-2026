@@ -524,6 +524,11 @@ namespace BACKEND.Datos.MySQL
                     .HasColumnName("id_ruta")
                     .HasMaxLength(24);
 
+                entity.Property(e => e.IdSerie)
+                    .HasColumnName("id_serie")
+                    .HasColumnType("varchar(36)")
+                    .HasMaxLength(36);
+
                 entity.Property(e => e.Fecha)
                     .HasColumnName("fecha")
                     .HasColumnType("date")
@@ -564,6 +569,9 @@ namespace BACKEND.Datos.MySQL
 
                 entity.HasIndex(e => e.IdRuta)
                     .HasDatabaseName("ix_servicio_id_ruta");
+
+                entity.HasIndex(e => e.IdSerie)
+                    .HasDatabaseName("idx_servicio_id_serie");
 
                 entity.HasIndex(e => e.Fecha)
                     .HasDatabaseName("ix_servicio_fecha");

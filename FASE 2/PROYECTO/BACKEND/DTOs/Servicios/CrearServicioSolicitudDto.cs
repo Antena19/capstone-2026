@@ -1,10 +1,11 @@
 using System.ComponentModel.DataAnnotations;
+using BACKEND.DTOs.PasajerosServicio;
 
 namespace BACKEND.DTOs.Servicios
 {
     /// <summary>
     /// Alta de servicio. Solo ADMINISTRADOR.
-    /// El estado inicial y las fechas reales las asigna el backend.
+    /// El estado inicial, idSerie nulo y las fechas reales las asigna el backend.
     /// </summary>
     public class CrearServicioSolicitudDto
     {
@@ -30,5 +31,7 @@ namespace BACKEND.DTOs.Servicios
         [Required(ErrorMessage = "El tipo de servicio es obligatorio.")]
         [MaxLength(50, ErrorMessage = "El tipo de servicio no puede superar los 50 caracteres.")]
         public string TipoServicio { get; set; } = string.Empty;
+
+        public List<PasajeroServicioInicialDto>? Pasajeros { get; set; }
     }
 }

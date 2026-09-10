@@ -1,0 +1,219 @@
+<app-page-header title="Servicios" [subtitle]="subtitulo">
+  <app-filter-select
+    label="Empresa"
+    blankLabel="Todas las empresas"
+    [items]="opcionesEmpresa()"
+    [value]="empresaFiltro()"
+    (valueChange)="actualizarEmpresaFiltro($event)"
+  />
+  <app-filter-select
+    label="Planificación"
+    blankLabel="Todas las planificaciones"
+    [items]="opcionesPlanificacion()"
+    [value]="planificacionFiltro()"
+    [disabled]="!empresaFiltro()"
+    (valueChange)="actualizarPlanificacionFiltro($event)"
+  />
+  <label class="filtro-fecha">
+    <span class="sr-only">Fecha</span>
+    <input
+      type="date"
+      [value]="fechaFiltro()"
+      aria-label="Fecha"
+      (change)="actualizarFechaFiltro($event)"
+    />
+  </label>
+  <app-filter-select
+    label="Estado"
+    blankLabel="Todos los estados"
+    [items]="opcionesEstado"
+    [value]="estadoFiltro()"
+    (valueChange)="actualizarEstadoFiltro($event)"
+  />
+  <app-filter-select
+    label="Tipo de servicio"
+    blankLabel="Todos los tipos"
+    [items]="opcionesTipo"
+    [value]="tipoFiltro()"
+    (valueChange)="actualizarTipoFiltro($event)"
+  />
+  @if (hayFiltros()) {
+    <app-action-button label="Limpiar filtros" variant="ghost" (clicked)="limpiarFiltros()" />
+  }
+  <app-action-button label="Nuevo servicio" icon="plus" (clicked)="abrirCrear()" />
+</app-page-header>
+
+@if (aviso(); as texto) {
+  <p class="banner">{{ texto }}</p>
+}
+
+@if (error(); as texto) {
+  <p class="banner">{{ texto }}</p>
+}
+
+<app-card>
+  @if (cargando()) {
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  } @else if (error() && servicios().length === 0) {
+    <div class="empty">
+      <p>No fue posible mostrar el listado. Intente nuevamente.</p>
+      <app-action-button label="Reintentar" variant="secondary" (clicked)="cargar()" />
+    </div>
+  } @else if (servicios().length === 0) {
+    <div class="empty">
+      @if (hayFiltros()) {
+        <p>No hay servicios con los filtros seleccionados.</p>
+        <app-action-button label="Limpiar filtros" variant="secondary" (clicked)="limpiarFiltros()" />
+      } @else {
+        <p>No hay servicios registrados.</p>
+        <app-action-button label="Registrar primer servicio" icon="plus" (clicked)="abrirCrear()" />
+      }
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Empresa</th>
+            <th>Ruta</th>
+            <th>Horario</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+            <th>Serie</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (servicio of servicios(); track servicio.idServicio) {
+            <tr>
+              <td class="mono name">{{ formatearFecha(servicio.fecha) }}</td>
+              <td>{{ nombreEmpresa(servicio.idEmpresa) }}</td>
+              <td>{{ nombreRuta(servicio.idRuta) }}</td>
+              <td class="mono">{{ formatearHorario(servicio.horaInicio, servicio.horaFin) }}</td>
+              <td>{{ servicio.tipoServicio }}</td>
+              <td>
+                <app-status-badge
+                  [label]="etiquetaEstado(servicio.estado)"
+                  [tone]="tonoEstado(servicio.estado)"
+                />
+              </td>
+              <td>{{ etiquetaSerie(servicio.idSerie) }}</td>
+              <td>
+                <div class="actions">
+                  <button type="button" class="text-btn" (click)="ver(servicio)">Ver</button>
+                  @if (servicio.estado === 'PROGRAMADO') {
+                    <button type="button" class="text-btn" (click)="abrirEditar(servicio)">Editar</button>
+                  }
+                  @if (puedeCancelar(servicio)) {
+                    <button type="button" class="text-btn is-danger" (click)="pedirCancelar(servicio)">
+                      Cancelar
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</app-card>
+
+<app-modal
+  [open]="formularioAbierto()"
+  titulo="Nuevo servicio"
+  [wide]="true"
+  (closed)="cerrarFormulario()"
+>
+  <app-servicio-form
+    [abierto]="formularioAbierto()"
+    [guardando]="guardando()"
+    [error]="errorFormulario()"
+    (guardado)="guardar($event)"
+    (cancelado)="cerrarFormulario()"
+  />
+</app-modal>
+
+<app-modal
+  [open]="detalleAbierto()"
+  [titulo]="tituloDetalle()"
+  [wide]="true"
+  (closed)="cerrarDetalle()"
+>
+  <app-servicio-detalle
+    [abierto]="detalleAbierto()"
+    [servicioInicial]="servicioDetalle()"
+    [nombreEmpresaInicial]="nombreEmpresaDetalle()"
+    [nombreRutaInicial]="nombreRutaDetalle()"
+    (cerrado)="cerrarDetalle()"
+    (gestionar)="abrirGestionPasajeros($event)"
+    (asignar)="abrirAsignacion($event)"
+  />
+</app-modal>
+
+<app-modal
+  [open]="edicionAbierta()"
+  [titulo]="tituloEdicion()"
+  [wide]="true"
+  (closed)="cerrarEdicion()"
+>
+  <app-servicio-editar-form
+    [abierto]="edicionAbierta()"
+    [servicioInicial]="servicioEdicion()"
+    [nombreEmpresaInicial]="nombreEmpresaEdicion()"
+    [nombreRutaInicial]="nombreRutaEdicion()"
+    [guardando]="guardandoEdicion()"
+    [error]="errorEdicion()"
+    (guardado)="guardarEdicion($event)"
+    (cancelado)="cerrarEdicion()"
+  />
+</app-modal>
+
+<app-modal
+  [open]="cancelacionAbierta()"
+  [titulo]="tituloCancelacion()"
+  (closed)="cerrarCancelacion()"
+>
+  <app-servicio-cancelar-dialog
+    [servicio]="servicioCancelacion()"
+    [nombreEmpresa]="nombreEmpresaCancelacion()"
+    [nombreRuta]="nombreRutaCancelacion()"
+    [cancelando]="cancelando()"
+    [error]="errorCancelacion()"
+    (confirmado)="confirmarCancelacion($event)"
+    (cancelado)="cerrarCancelacion()"
+  />
+</app-modal>
+
+<app-modal
+  [open]="gestionAbierta()"
+  [titulo]="tituloGestionPasajeros()"
+  [wide]="true"
+  (closed)="cerrarGestionPasajeros()"
+>
+  <app-servicio-pasajeros-form
+    [abierto]="gestionAbierta()"
+    [servicioInicial]="servicioGestion()"
+    [nombreEmpresaInicial]="nombreEmpresaGestion()"
+    [nombreRutaInicial]="nombreRutaGestion()"
+    (cerrado)="cerrarGestionPasajeros()"
+  />
+</app-modal>
+
+<app-modal
+  [open]="asignacionAbierta()"
+  [titulo]="tituloAsignacion()"
+  (closed)="cerrarAsignacion()"
+>
+  <app-servicio-asignacion-form
+    [abierto]="asignacionAbierta()"
+    [servicioInicial]="servicioAsignacion()"
+    (cerrado)="cerrarAsignacion()"
+    (guardado)="guardarAsignacion()"
+  />
+</app-modal>

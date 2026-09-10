@@ -1,0 +1,101 @@
+.dialogo {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dialogo[aria-busy='true'] {
+  cursor: wait;
+}
+
+.pregunta {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.contexto {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.dato {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dato span {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.dato strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.alcance {
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.alcance button {
+  flex: 1;
+  border: 0;
+  background: var(--color-card);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-slate-600);
+}
+
+.alcance button.activo {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.alcance button:disabled {
+  opacity: 0.55;
+}
+
+.nota {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.banner {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #991b1b;
+  background: #fef2f2;
+  border-radius: var(--radius-lg);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .contexto {
+    grid-template-columns: 1fr;
+  }
+
+  .alcance button {
+    flex: 1 1 100%;
+  }
+}

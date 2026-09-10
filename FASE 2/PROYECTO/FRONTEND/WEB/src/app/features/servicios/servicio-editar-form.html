@@ -1,0 +1,123 @@
+<form class="form" [formGroup]="form" (ngSubmit)="enviar()" [attr.aria-busy]="guardando() || cargando()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  } @else if (errorCarga(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  }
+
+  @if (cargando()) {
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  }
+
+  @if (servicio(); as actual) {
+    <fieldset class="cuerpo" [disabled]="guardando() || cargando() || !puedeGuardar()">
+      @if (esRecurrente()) {
+        <div class="alcance" role="radiogroup" aria-label="Alcance de la edición">
+          @for (item of alcances; track item.value) {
+            <button
+              type="button"
+              role="radio"
+              [attr.aria-checked]="alcanceActual() === item.value"
+              [class.activo]="alcanceActual() === item.value"
+              (click)="seleccionarAlcance(item.value)"
+            >
+              {{ item.label }}
+            </button>
+          }
+        </div>
+        <p class="nota">{{ textoAlcance() }}</p>
+      }
+
+      <div class="contexto">
+        <div class="dato">
+          <span>Empresa</span>
+          <strong>{{ etiquetaEmpresa() }}</strong>
+        </div>
+        <div class="dato">
+          <span>Planificación</span>
+          <strong>{{ etiquetaPlanificacion() }}</strong>
+        </div>
+        <div class="dato">
+          <span>Fecha</span>
+          <strong class="mono">{{ formatearFecha(actual.fecha) }}</strong>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Ruta <abbr title="Obligatorio">*</abbr></span>
+        <select formControlName="idRuta">
+          <option value="">Selecciona una ruta</option>
+          @for (ruta of rutas(); track ruta.idRuta) {
+            <option [value]="ruta.idRuta">{{ ruta.nombre }}</option>
+          }
+        </select>
+        @if (mensajeCampo('idRuta'); as mensaje) {
+          <p class="hint">{{ mensaje }}</p>
+        } @else if (rutas().length === 0) {
+          <p class="nota">
+            No hay rutas activas para esta empresa.
+            @if (nombreRutaInicial()) {
+              Ruta actual: {{ nombreRutaInicial() }}.
+            }
+          </p>
+        }
+      </label>
+
+      @if (cambioRuta()) {
+        <p class="aviso">
+          Cambiar la ruta no modifica automáticamente los pasajeros ni sus puntos de recogida. Revisa
+          posteriormente los pasajeros del servicio.
+        </p>
+      }
+
+      <div class="row">
+        <label class="field">
+          <span>Hora inicio <abbr title="Obligatorio">*</abbr></span>
+          <input type="time" formControlName="horaInicio" />
+          @if (mensajeCampo('horaInicio'); as mensaje) {
+            <p class="hint">{{ mensaje }}</p>
+          }
+        </label>
+        <label class="field">
+          <span>Hora fin <abbr title="Obligatorio">*</abbr></span>
+          <input type="time" formControlName="horaFin" />
+          @if (mensajeCampo('horaFin'); as mensaje) {
+            <p class="hint">{{ mensaje }}</p>
+          }
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Tipo de servicio <abbr title="Obligatorio">*</abbr></span>
+        <select formControlName="tipoServicio">
+          <option value="">Selecciona un tipo</option>
+          @for (tipo of tipos; track tipo) {
+            <option [value]="tipo">{{ tipo }}</option>
+          }
+        </select>
+        @if (mensajeCampo('tipoServicio'); as mensaje) {
+          <p class="hint">{{ mensaje }}</p>
+        }
+      </label>
+    </fieldset>
+  }
+
+  <div class="actions">
+    <app-action-button
+      label="Cancelar"
+      variant="secondary"
+      type="button"
+      [disabled]="guardando()"
+      (clicked)="cancelado.emit()"
+    />
+    <app-action-button
+      [label]="etiquetaGuardar()"
+      type="submit"
+      [disabled]="guardando() || cargando() || !puedeGuardar()"
+    />
+  </div>
+</form>

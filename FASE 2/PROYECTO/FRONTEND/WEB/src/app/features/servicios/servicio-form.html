@@ -1,0 +1,316 @@
+<form class="form" [formGroup]="form" (ngSubmit)="enviar()" [attr.aria-busy]="guardando()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  }
+
+  <fieldset class="cuerpo" [disabled]="guardando()">
+    <div class="modo" role="tablist" aria-label="Modalidad de creación">
+      <button
+        type="button"
+        role="tab"
+        [class.activo]="modalidadActual() === 'individual'"
+        (click)="seleccionarModalidad('individual')"
+      >
+        Individual
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [class.activo]="modalidadActual() === 'recurrente'"
+        (click)="seleccionarModalidad('recurrente')"
+      >
+        Recurrente
+      </button>
+    </div>
+
+    <label class="field">
+      <span>Empresa <abbr title="Obligatorio">*</abbr></span>
+      <select formControlName="idEmpresa">
+        <option value="">Selecciona una empresa</option>
+        @for (empresa of empresas(); track empresa.idEmpresa) {
+          <option [value]="empresa.idEmpresa">{{ empresa.razonSocial }}</option>
+        }
+      </select>
+      @if (mensajeCampo('idEmpresa'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+
+    <label class="field">
+      <span>Planificación <abbr title="Obligatorio">*</abbr></span>
+      <select formControlName="idPlanificacion">
+        <option value="">Selecciona una planificación</option>
+        @for (planificacion of planificaciones(); track planificacion.idPlanificacion) {
+          <option [value]="planificacion.idPlanificacion">
+            {{ planificacion.periodo }} · {{ planificacion.estado }}
+          </option>
+        }
+      </select>
+      @if (mensajeCampo('idPlanificacion'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      } @else if (idEmpresaActual() && planificaciones().length === 0) {
+        <p class="nota">No hay planificaciones BORRADOR o ACTIVA para esta empresa.</p>
+      } @else if (rangoFechasEtiqueta(); as rango) {
+        <p class="nota">{{ rango }}</p>
+      }
+    </label>
+
+    <label class="field">
+      <span>Ruta <abbr title="Obligatorio">*</abbr></span>
+      <select formControlName="idRuta">
+        <option value="">Selecciona una ruta</option>
+        @for (ruta of rutas(); track ruta.idRuta) {
+          <option [value]="ruta.idRuta">{{ ruta.nombre }}</option>
+        }
+      </select>
+      @if (mensajeCampo('idRuta'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      } @else if (idEmpresaActual() && rutas().length === 0) {
+        <p class="nota">No hay rutas activas para esta empresa.</p>
+      }
+    </label>
+
+    @if (mostrarPasajeros()) {
+      <section class="pasajeros" aria-labelledby="pasajeros-titulo">
+        <div class="pasajeros-head">
+          <div>
+            <h3 id="pasajeros-titulo">Pasajeros del servicio</h3>
+            <p class="contador">{{ cantidadSeleccionados() }} pasajeros seleccionados</p>
+          </div>
+          <div class="pasajeros-acciones">
+            <button
+              type="button"
+              class="enlace"
+              [disabled]="!hayHabituales()"
+              (click)="seleccionarHabituales()"
+            >
+              Seleccionar habituales
+            </button>
+            <button
+              type="button"
+              class="enlace"
+              [disabled]="cantidadSeleccionados() === 0"
+              (click)="quitarTodos()"
+            >
+              Quitar todos
+            </button>
+          </div>
+        </div>
+
+        <div class="busqueda" (keydown.enter)="$event.preventDefault()">
+          <app-search-input
+            placeholder="Buscar por nombre o RUT"
+            [value]="busquedaPasajeros()"
+            (valueChange)="busquedaPasajeros.set($event)"
+          />
+        </div>
+
+        @if (errorSeleccionPasajeros(); as texto) {
+          <p class="hint">{{ texto }}</p>
+        }
+
+        @if (cargandoPasajeros()) {
+          <div class="skeleton-list">
+            @for (item of esqueletosPasajeros; track item) {
+              <div class="skeleton-row"></div>
+            }
+          </div>
+        } @else if (errorPasajeros(); as texto) {
+          <div class="pasajeros-error">
+            <p>{{ texto }}</p>
+            <app-action-button label="Reintentar" variant="secondary" type="button" (clicked)="reintentarPasajeros()" />
+          </div>
+        } @else {
+          @if (puntosRuta().length === 0) {
+            <p class="nota">Esta ruta no tiene puntos de recogida. Puedes crear el servicio sin pasajeros.</p>
+          }
+
+          <div class="pasajeros-lista">
+            <section class="grupo">
+              <h4>Pasajeros habituales de la ruta</h4>
+              @if (habitualesVisibles().length === 0) {
+                <p class="nota">
+                  {{ busquedaPasajeros()
+                    ? 'Ningún pasajero habitual coincide con la búsqueda.'
+                    : 'No hay pasajeros habituales asociados a esta ruta.' }}
+                </p>
+              } @else {
+                @for (pasajero of habitualesVisibles(); track pasajero.idPasajero) {
+                  <div class="pasajero" [class.is-invalido]="filaSinPunto(pasajero)">
+                    <label class="check">
+                      <input
+                        type="checkbox"
+                        [checked]="pasajero.seleccionado"
+                        (change)="alternarPasajero(pasajero.idPasajero)"
+                      />
+                      <span class="identidad">
+                        <span class="nombre">{{ pasajero.nombre }}</span>
+                        <span class="meta">{{ pasajero.rut }}</span>
+                      </span>
+                    </label>
+                    <app-status-badge label="Habitual" tone="blue" />
+                    <select
+                      [value]="pasajero.idPuntoRecogida"
+                      [disabled]="!pasajero.seleccionado"
+                      [attr.aria-label]="'Punto de recogida de ' + pasajero.nombre"
+                      (change)="cambiarPunto(pasajero.idPasajero, puntoDesdeEvento($event))"
+                    >
+                      <option value="">Selecciona un punto</option>
+                      @for (punto of puntosRuta(); track punto.idPunto) {
+                        <option [value]="punto.idPunto">{{ etiquetaPunto(punto) }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+              }
+            </section>
+
+            <section class="grupo">
+              <h4>Otros pasajeros de la empresa</h4>
+              @if (otrosVisibles().length === 0) {
+                <p class="nota">
+                  {{ busquedaPasajeros()
+                    ? 'Ningún otro pasajero coincide con la búsqueda.'
+                    : 'No hay otros pasajeros activos para esta empresa.' }}
+                </p>
+              } @else {
+                @for (pasajero of otrosVisibles(); track pasajero.idPasajero) {
+                  <div class="pasajero es-otro" [class.is-invalido]="filaSinPunto(pasajero)">
+                    <label class="check">
+                      <input
+                        type="checkbox"
+                        [checked]="pasajero.seleccionado"
+                        (change)="alternarPasajero(pasajero.idPasajero)"
+                      />
+                      <span class="identidad">
+                        <span class="nombre">{{ pasajero.nombre }}</span>
+                        <span class="meta">{{ pasajero.rut }}</span>
+                      </span>
+                    </label>
+                    <select
+                      [value]="pasajero.idPuntoRecogida"
+                      [disabled]="!pasajero.seleccionado"
+                      [attr.aria-label]="'Punto de recogida de ' + pasajero.nombre"
+                      (change)="cambiarPunto(pasajero.idPasajero, puntoDesdeEvento($event))"
+                    >
+                      <option value="">Selecciona un punto</option>
+                      @for (punto of puntosRuta(); track punto.idPunto) {
+                        <option [value]="punto.idPunto">{{ etiquetaPunto(punto) }}</option>
+                      }
+                    </select>
+                  </div>
+                }
+              }
+            </section>
+          </div>
+        }
+      </section>
+    }
+
+    <div class="row">
+      <label class="field">
+        <span>Hora inicio <abbr title="Obligatorio">*</abbr></span>
+        <input type="time" formControlName="horaInicio" />
+        @if (mensajeCampo('horaInicio'); as mensaje) {
+          <p class="hint">{{ mensaje }}</p>
+        }
+      </label>
+      <label class="field">
+        <span>Hora fin <abbr title="Obligatorio">*</abbr></span>
+        <input type="time" formControlName="horaFin" />
+        @if (mensajeCampo('horaFin'); as mensaje) {
+          <p class="hint">{{ mensaje }}</p>
+        }
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Tipo de servicio <abbr title="Obligatorio">*</abbr></span>
+      <select formControlName="tipoServicio">
+        <option value="">Selecciona un tipo</option>
+        @for (tipo of tipos; track tipo) {
+          <option [value]="tipo">{{ tipo }}</option>
+        }
+      </select>
+      @if (mensajeCampo('tipoServicio'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+
+    @if (!esRecurrente()) {
+      <label class="field">
+        <span>Fecha <abbr title="Obligatorio">*</abbr></span>
+        <input
+          type="date"
+          formControlName="fecha"
+          [attr.min]="fechaMinima()"
+          [attr.max]="fechaMaxima() || null"
+        />
+        @if (mensajeCampo('fecha'); as mensaje) {
+          <p class="hint">{{ mensaje }}</p>
+        }
+      </label>
+    } @else {
+      <div class="row">
+        <label class="field">
+          <span>Fecha desde <abbr title="Obligatorio">*</abbr></span>
+          <input
+            type="date"
+            formControlName="fechaDesde"
+            [attr.min]="fechaMinima()"
+            [attr.max]="fechaMaxima() || null"
+          />
+          @if (mensajeCampo('fechaDesde'); as mensaje) {
+            <p class="hint">{{ mensaje }}</p>
+          }
+        </label>
+        <label class="field">
+          <span>Fecha hasta <abbr title="Obligatorio">*</abbr></span>
+          <input
+            type="date"
+            formControlName="fechaHasta"
+            [attr.min]="fechaMinima()"
+            [attr.max]="fechaMaxima() || null"
+          />
+          @if (mensajeCampo('fechaHasta'); as mensaje) {
+            <p class="hint">{{ mensaje }}</p>
+          }
+        </label>
+      </div>
+
+      <fieldset class="field dias-field">
+        <legend>Días de la semana <abbr title="Obligatorio">*</abbr></legend>
+        <div class="dias">
+          @for (dia of diasSemana; track dia.value) {
+            <button
+              type="button"
+              class="chip"
+              [class.activo]="diaSeleccionado(dia.value)"
+              (click)="alternarDia(dia.value)"
+            >
+              {{ dia.label }}
+            </button>
+          }
+        </div>
+        @if (mensajeCampo('diasSemana'); as mensaje) {
+          <p class="hint">{{ mensaje }}</p>
+        }
+      </fieldset>
+    }
+  </fieldset>
+
+  <div class="actions">
+    <app-action-button
+      label="Cancelar"
+      variant="secondary"
+      type="button"
+      [disabled]="guardando()"
+      (clicked)="cancelado.emit()"
+    />
+    <app-action-button
+      [label]="etiquetaGuardar()"
+      type="submit"
+      [disabled]="guardando()"
+    />
+  </div>
+</form>
