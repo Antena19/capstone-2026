@@ -63,9 +63,44 @@ dotnet restore
 
 ## Configuración de MySQL
 
-### 4. Crear la base de datos local
+El backend puede utilizar la base de datos MySQL compartida en Aiven o una instancia local de MySQL.
 
-Abrir MySQL Workbench y ejecutar el script:
+Las credenciales no se almacenan en `appsettings.json` ni se suben a GitHub. La cadena de conexión se configura mediante .NET User Secrets.
+
+### 4. Opción A: MySQL compartido en Aiven
+
+Esta es la opción utilizada para trabajar con una base de datos compartida entre los integrantes del proyecto.
+
+Base de datos remota:
+
+```text
+defaultdb
+```
+
+Cada integrante debe configurar la cadena de conexión de Aiven mediante User Secrets.
+
+Desde `PROYECTO\BACKEND` ejecutar:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:MySQL" "Server=HOST_AIVEN;Port=PUERTO_AIVEN;Database=defaultdb;User=USUARIO_AIVEN;Password=CONTRASEÑA_AIVEN;SslMode=Required;"
+```
+
+Reemplazar los valores:
+
+```text
+HOST_AIVEN
+PUERTO_AIVEN
+USUARIO_AIVEN
+CONTRASEÑA_AIVEN
+```
+
+por las credenciales correspondientes al servicio MySQL de Aiven.
+
+No guardar ni subir estas credenciales al repositorio.
+
+### 5. Opción B: MySQL local
+
+Para trabajar con una base de datos local, abrir MySQL Workbench y ejecutar el script:
 
 ```text
 PROYECTO/BASE_DE_DATOS/MySQL/transporte_personal.sql
@@ -79,13 +114,7 @@ transporte_personal
 
 con las tablas necesarias para el sistema.
 
-### 5. Configurar la conexión a MySQL
-
-Las credenciales no se almacenan en `appsettings.json` ni se suben a GitHub.
-
-Cada integrante debe configurar su propia conexión local mediante .NET User Secrets.
-
-Desde `PROYECTO\BACKEND` ejecutar:
+Luego configurar la conexión local mediante User Secrets:
 
 ```powershell
 dotnet user-secrets set "ConnectionStrings:MySQL" "Server=localhost;Port=3306;Database=transporte_personal;User=root;Password=TU_CONTRASEÑA;"
@@ -98,6 +127,8 @@ TU_CONTRASEÑA
 ```
 
 por la contraseña correspondiente al usuario local de MySQL.
+
+La aplicación utiliza la cadena almacenada en `ConnectionStrings:MySQL`, por lo que es posible cambiar entre MySQL Aiven y MySQL local modificando este User Secret.
 
 ---
 
@@ -193,10 +224,11 @@ con Visual Studio 2022 para ejecutar y depurar la API.
 
 ### MySQL
 
-- Base de datos: `transporte_personal`
-- Motor: MySQL
-- ORM: Entity Framework Core
-- Proveedor: Pomelo EntityFrameworkCore MySQL
+- Motor: MySQL.
+- Base compartida de desarrollo: Aiven (`defaultdb`).
+- Base local alternativa: `transporte_personal`.
+- ORM: Entity Framework Core.
+- Proveedor: Pomelo EntityFrameworkCore MySQL.
 - Estructura respaldada mediante script SQL.
 
 Script:
@@ -207,10 +239,10 @@ PROYECTO/BASE_DE_DATOS/MySQL/transporte_personal.sql
 
 ### MongoDB
 
-- Servicio: MongoDB Atlas
-- Base de datos: `transporte_personal`
-- Colección inicial: `rutas`
-- Driver: MongoDB.Driver
+- Servicio: MongoDB Atlas.
+- Base de datos: `transporte_personal`.
+- Colección inicial: `rutas`.
+- Driver: MongoDB.Driver.
 - La colección `rutas` utiliza un índice geoespacial `2dsphere` para el campo `trazado`.
 
 ---
@@ -219,7 +251,7 @@ PROYECTO/BASE_DE_DATOS/MySQL/transporte_personal.sql
 
 Las credenciales y cadenas de conexión no deben almacenarse directamente en el código fuente.
 
-Para desarrollo local se utilizan .NET User Secrets.
+Para desarrollo se utilizan .NET User Secrets.
 
 Cada integrante debe configurar sus propias credenciales después de clonar el repositorio.
 
@@ -240,6 +272,6 @@ Para MongoDB Atlas, cada integrante debe tener un usuario autorizado y acceso de
 - El backend utiliza .NET 9.
 - Mantener las versiones definidas en `BACKEND.csproj`.
 - No actualizar Entity Framework, Pomelo o MongoDB.Driver sin revisar compatibilidad.
-- No compartir credenciales entre integrantes.
 - No subir información sensible a GitHub.
 - MySQL y MongoDB deben estar configurados antes de ejecutar funcionalidades que dependan de las bases de datos.
+- MySQL puede ejecutarse mediante la base compartida de Aiven o mediante una instancia local.
