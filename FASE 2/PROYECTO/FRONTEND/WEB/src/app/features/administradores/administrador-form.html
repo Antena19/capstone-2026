@@ -1,0 +1,60 @@
+<form class="form" [formGroup]="form" (ngSubmit)="enviar()">
+  @if (error(); as texto) {
+    <p class="banner">{{ texto }}</p>
+  }
+
+  <label class="field">
+    <span>Correo electrónico <abbr title="Obligatorio">*</abbr></span>
+    <input type="email" formControlName="email" maxlength="150" autocomplete="off" />
+    @if (mensajeCampo('email'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+  </label>
+
+  <label class="field">
+    <span>Teléfono</span>
+    <input type="text" formControlName="telefono" maxlength="20" placeholder="+56912345678" />
+    @if (mensajeCampo('telefono'); as mensaje) {
+      <p class="hint">{{ mensaje }}</p>
+    }
+  </label>
+
+  @if (!esEdicion()) {
+    <label class="field">
+      <span>Contraseña <abbr title="Obligatorio">*</abbr></span>
+      <input type="password" formControlName="password" maxlength="100" autocomplete="new-password" />
+      @if (mensajeCampo('password'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+      <p class="note">Entre 8 y 100 caracteres, con al menos una letra y un número.</p>
+    </label>
+
+    <label class="field">
+      <span>Confirmar contraseña <abbr title="Obligatorio">*</abbr></span>
+      <input
+        type="password"
+        formControlName="passwordConfirm"
+        maxlength="100"
+        autocomplete="new-password"
+      />
+      @if (mensajeCampo('passwordConfirm'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+  }
+
+  <div class="actions">
+    <app-action-button
+      label="Cancelar"
+      variant="secondary"
+      type="button"
+      [disabled]="guardando()"
+      (clicked)="cancelado.emit()"
+    />
+    <app-action-button
+      [label]="esEdicion() ? 'Guardar cambios' : 'Guardar administrador'"
+      type="submit"
+      [disabled]="guardando()"
+    />
+  </div>
+</form>

@@ -61,6 +61,22 @@ export const adminRoutes: Routes = [
           import('../features/placeholder/placeholder-page').then((m) => m.PlaceholderPage),
         data: { title: 'Reportes' },
       },
+      {
+        path: 'administradores',
+        loadComponent: () =>
+          import('../features/administradores/administradores').then(
+            (m) => m.AdministradoresPage,
+          ),
+        data: { title: 'Administradores' },
+      },
+      {
+        path: 'mi-perfil',
+        loadComponent: () =>
+          import('../features/mi-perfil/mi-perfil').then(
+            (m) => m.MiPerfilPage,
+          ),
+        data: { title: 'Mi perfil' },
+      },
     ],
   },
 ];

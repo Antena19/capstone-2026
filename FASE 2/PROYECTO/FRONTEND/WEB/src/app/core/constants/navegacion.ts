@@ -8,6 +8,8 @@ export type IconName =
   | 'planificaciones'
   | 'servicios'
   | 'reportes'
+  | 'administradores'
+  | 'perfil'
   | 'bus'
   | 'bell'
   | 'logout'
@@ -59,5 +61,12 @@ export const MENU_ADMIN: NavGroup[] = [
   {
     titulo: 'Análisis',
     items: [{ path: '/reportes', label: 'Reportes', icon: 'reportes' }],
+  },
+  {
+    titulo: 'Administración',
+    items: [
+      { path: '/administradores', label: 'Administradores', icon: 'administradores' },
+      { path: '/mi-perfil', label: 'Mi perfil', icon: 'perfil' },
+    ],
   },
 ];

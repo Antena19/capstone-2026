@@ -23,3 +23,8 @@ export interface SesionUsuario {
   rol: string;
   expiracion: string;
 }
+
+export interface CambiarPasswordSolicitud {
+  passwordActual: string;
+  passwordNueva: string;
+}

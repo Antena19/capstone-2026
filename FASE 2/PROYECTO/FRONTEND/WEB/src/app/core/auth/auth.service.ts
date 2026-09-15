@@ -8,6 +8,7 @@ import {
   ROL_ADMINISTRADOR,
 } from '../constants/auth';
 import {
+  CambiarPasswordSolicitud,
   LoginRespuesta,
   LoginSolicitud,
   MensajeRespuesta,
@@ -54,6 +55,31 @@ export class AuthService {
 
   esRolAdministrador(rol: string | null | undefined): boolean {
     return (rol ?? '').trim() === ROL_ADMINISTRADOR;
+  }
+
+  cambiarPassword(solicitud: CambiarPasswordSolicitud) {
+    return this.http.post<MensajeRespuesta>(
+      urlApi('/api/autenticacion/cambiar-password'),
+      solicitud,
+    );
+  }
+
+  actualizarEmailSesion(email: string): void {
+    const actual = this.sesionSignal();
+    if (!actual) {
+      return;
+    }
+
+    const actualizada: SesionUsuario = { ...actual, email };
+    this.sesionSignal.set(actualizada);
+
+    const payload = JSON.stringify(actualizada);
+    if (localStorage.getItem(CLAVE_SESION_LOCAL) !== null) {
+      localStorage.setItem(CLAVE_SESION_LOCAL, payload);
+      return;
+    }
+
+    sessionStorage.setItem(CLAVE_SESION_TEMPORAL, payload);
   }
 
   cerrarSesion(): void {

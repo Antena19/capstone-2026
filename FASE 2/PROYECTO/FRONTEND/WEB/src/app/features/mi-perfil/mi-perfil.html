@@ -1,0 +1,111 @@
+<app-page-header title="Mi perfil" [subtitle]="subtitulo" />
+
+@if (error(); as texto) {
+  <p class="banner">{{ texto }}</p>
+  @if (!perfil()) {
+    <app-action-button label="Reintentar" variant="secondary" (clicked)="cargar()" />
+  }
+}
+
+<div class="perfil-grid">
+  <app-card>
+    <div class="card-inner">
+      <div class="seccion-head">
+        <h2>Información de la cuenta</h2>
+        <app-action-button
+          label="Editar perfil"
+          variant="secondary"
+          icon="edit"
+          [disabled]="cargando() || !perfil()"
+          (clicked)="abrirEditarPerfil()"
+        />
+      </div>
+
+      @if (cargando()) {
+        <div class="skeleton-list">
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+        </div>
+      } @else if (perfil(); as actual) {
+        <div class="datos">
+          <div class="dato">
+            <span>Correo electrónico</span>
+            <strong>{{ actual.email }}</strong>
+          </div>
+          <div class="dato">
+            <span>Teléfono</span>
+            <strong>{{ actual.telefono || '—' }}</strong>
+          </div>
+          <div class="dato">
+            <span>Rol</span>
+            <strong>{{ rolVisible() }}</strong>
+          </div>
+          <div class="dato">
+            <span>Estado</span>
+            <app-status-badge
+              [label]="actual.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'"
+              [tone]="actual.estado === 'ACTIVO' ? 'green' : 'slate'"
+            />
+          </div>
+          <div class="dato">
+            <span>Fecha de creación</span>
+            <strong class="mono">{{ actual.fechaCreacion | date: 'dd-MM-yyyy' }}</strong>
+          </div>
+          <div class="dato">
+            <span>Último acceso</span>
+            <strong class="mono">
+              {{ actual.ultimoAcceso ? (actual.ultimoAcceso | date: 'dd-MM-yyyy HH:mm') : 'Nunca' }}
+            </strong>
+          </div>
+        </div>
+      }
+    </div>
+  </app-card>
+
+  <app-card>
+    <div class="card-inner">
+      <div class="seccion-head">
+        <h2>Seguridad</h2>
+        <app-action-button
+          label="Cambiar contraseña"
+          variant="secondary"
+          [disabled]="cargando() || !perfil()"
+          (clicked)="abrirCambiarPassword()"
+        />
+      </div>
+      <p class="ayuda">
+        Actualiza tu contraseña cuando lo necesites. Deberás indicar la contraseña actual.
+      </p>
+    </div>
+  </app-card>
+</div>
+
+<app-modal
+  [open]="formularioPerfilAbierto()"
+  titulo="Editar perfil"
+  (closed)="cerrarEditarPerfil()"
+>
+  <app-perfil-form
+    [perfil]="perfil()"
+    [abierto]="formularioPerfilAbierto()"
+    [guardando]="guardandoPerfil()"
+    [error]="errorPerfil()"
+    (guardado)="guardarPerfil($event)"
+    (cancelado)="cerrarEditarPerfil()"
+  />
+</app-modal>
+
+<app-modal
+  [open]="formularioPasswordAbierto()"
+  titulo="Cambiar contraseña"
+  (closed)="cerrarCambiarPassword()"
+>
+  <app-password-form
+    [abierto]="formularioPasswordAbierto()"
+    [guardando]="guardandoPassword()"
+    [error]="errorPassword()"
+    (guardado)="guardarPassword($event)"
+    (cancelado)="cerrarCambiarPassword()"
+  />
+</app-modal>
