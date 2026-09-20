@@ -1,0 +1,38 @@
+.centro {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.lista {
+  padding: 8px 12px 24px;
+}
+
+ion-card {
+  margin: 0 0 12px;
+}
+
+ion-card-title {
+  font-size: 22px;
+}
+
+.dato {
+  margin: 10px 0 0;
+  font-size: 16px;
+}
+
+.meta {
+  margin: 4px 0 0;
+  color: var(--ion-color-medium);
+  font-size: 14px;
+}
+
+.vacio p {
+  margin: 8px 0;
+  color: var(--ion-color-medium);
+}
+
+ion-note {
+  display: block;
+  margin-bottom: 16px;
+}

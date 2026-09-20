@@ -1,4 +1,5 @@
 using BACKEND.DTOs.Comun;
+using BACKEND.DTOs.Incidentes;
 using BACKEND.DTOs.Mobile.Conductor;
 using BACKEND.DTOs.QR;
 using BACKEND.DTOs.Servicios;
@@ -13,7 +14,7 @@ namespace BACKEND.Controladores
 {
     /// <summary>
     /// Operación Mobile del conductor autenticado: consulta de sus servicios, ruta y pasajeros,
-    /// más generación de QR, inicio y fin. No modifica asistencias ni planificación.
+    /// más generación de QR, inicio, fin e incidentes. No modifica asistencias ni planificación.
     /// </summary>
     [ApiController]
     [Route("api/mis-servicios")]
@@ -23,15 +24,18 @@ namespace BACKEND.Controladores
         private readonly IServicioQr _servicioQr;
         private readonly IServicioServicios _servicioServicios;
         private readonly IServicioOperacionConductor _servicioOperacionConductor;
+        private readonly IServicioIncidentes _servicioIncidentes;
 
         public MisServiciosConductorController(
             IServicioQr servicioQr,
             IServicioServicios servicioServicios,
-            IServicioOperacionConductor servicioOperacionConductor)
+            IServicioOperacionConductor servicioOperacionConductor,
+            IServicioIncidentes servicioIncidentes)
         {
             _servicioQr = servicioQr;
             _servicioServicios = servicioServicios;
             _servicioOperacionConductor = servicioOperacionConductor;
+            _servicioIncidentes = servicioIncidentes;
         }
 
         /// <summary>
@@ -104,7 +108,24 @@ namespace BACKEND.Controladores
         }
 
         /// <summary>
-        /// Genera el QR operativo del servicio asignado al conductor autenticado.
+        /// Consulta el QR ACTIVO vigente del servicio asignado al conductor autenticado. No genera ni invalida tokens.
+        /// </summary>
+        [HttpGet("{idServicio:int}/qr")]
+        [ProducesResponseType(typeof(GenerarQrRespuestaDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<GenerarQrRespuestaDto>> ObtenerQr(int idServicio)
+        {
+            var idUsuario = User.ObtenerIdUsuario();
+            var qr = await _servicioQr.ObtenerActivoComoConductorAsync(idServicio, idUsuario);
+            return Ok(qr);
+        }
+
+        /// <summary>
+        /// Genera o regenera el QR operativo del servicio asignado al conductor autenticado.
+        /// Invalida el QR ACTIVO anterior y crea uno nuevo.
         /// </summary>
         [HttpPost("{idServicio:int}/qr")]
         [ProducesResponseType(typeof(GenerarQrRespuestaDto), StatusCodes.Status201Created)]
@@ -120,13 +141,14 @@ namespace BACKEND.Controladores
         }
 
         /// <summary>
-        /// Inicia el servicio asignado: PROGRAMADO → EN_CURSO y resuelve asistencias provisionales.
+        /// Inicia el servicio asignado: PROGRAMADO → EN_CURSO, resuelve provisionales y deja un QR ACTIVO.
         /// </summary>
         [HttpPut("{idServicio:int}/iniciar")]
         [ProducesResponseType(typeof(ServicioRespuestaDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<ActionResult<ServicioRespuestaDto>> Iniciar(int idServicio)
         {
@@ -136,7 +158,7 @@ namespace BACKEND.Controladores
         }
 
         /// <summary>
-        /// Finaliza el servicio asignado: EN_CURSO → FINALIZADO.
+        /// Finaliza el servicio asignado: EN_CURSO → FINALIZADO e invalida el QR ACTIVO.
         /// </summary>
         [HttpPut("{idServicio:int}/finalizar")]
         [ProducesResponseType(typeof(ServicioRespuestaDto), StatusCodes.Status200OK)]
@@ -149,6 +171,39 @@ namespace BACKEND.Controladores
             var idUsuario = User.ObtenerIdUsuario();
             var servicio = await _servicioServicios.FinalizarComoConductorAsync(idServicio, idUsuario);
             return Ok(servicio);
+        }
+
+        /// <summary>
+        /// Registra un incidente operacional del servicio asignado. Solo EN_CURSO.
+        /// </summary>
+        [HttpPost("{idServicio:int}/incidentes")]
+        [ProducesResponseType(typeof(IncidenteRespuestaDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<IncidenteRespuestaDto>> RegistrarIncidente(
+            int idServicio,
+            [FromBody] RegistrarIncidenteSolicitudDto solicitud)
+        {
+            var idUsuario = User.ObtenerIdUsuario();
+            var incidente = await _servicioIncidentes.RegistrarComoConductorAsync(idServicio, idUsuario, solicitud);
+            return Created($"api/mis-servicios/{idServicio}/incidentes", incidente);
+        }
+
+        /// <summary>
+        /// Lista los incidentes del servicio asignado, más recientes primero. No exige EN_CURSO.
+        /// </summary>
+        [HttpGet("{idServicio:int}/incidentes")]
+        [ProducesResponseType(typeof(IReadOnlyList<IncidenteRespuestaDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<IReadOnlyList<IncidenteRespuestaDto>>> ListarIncidentes(int idServicio)
+        {
+            var idUsuario = User.ObtenerIdUsuario();
+            var incidentes = await _servicioIncidentes.ListarComoConductorAsync(idServicio, idUsuario);
+            return Ok(incidentes);
         }
     }
 }

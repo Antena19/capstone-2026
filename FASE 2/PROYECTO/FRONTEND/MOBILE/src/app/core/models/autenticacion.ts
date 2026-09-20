@@ -24,6 +24,12 @@ export interface SesionUsuario {
   telefono: string | null;
   rol: string;
   expiracion: string;
+  debeCambiarPassword: boolean;
+}
+
+export interface CambiarPasswordSolicitud {
+  passwordActual: string;
+  passwordNueva: string;
 }
 
 export interface ActivarCuentaSolicitud {

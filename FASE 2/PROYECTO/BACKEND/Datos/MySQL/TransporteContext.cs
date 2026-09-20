@@ -42,6 +42,8 @@ namespace BACKEND.Datos.MySQL
 
         public DbSet<Asistencia> Asistencias => Set<Asistencia>();
 
+        public DbSet<Incidente> Incidentes => Set<Incidente>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Mapeo explícito a la estructura definida en transporte_personal.sql.
@@ -917,6 +919,72 @@ namespace BACKEND.Datos.MySQL
                     .HasForeignKey(e => e.IdPasajero)
                     .OnDelete(DeleteBehavior.Restrict)
                     .HasConstraintName("fk_asistencia_pasajero");
+            });
+
+            modelBuilder.Entity<Incidente>(entity =>
+            {
+                entity.ToTable("incidente");
+                entity.HasKey(e => e.IdIncidente);
+
+                entity.Property(e => e.IdIncidente)
+                    .HasColumnName("id_incidente");
+
+                entity.Property(e => e.IdServicio)
+                    .HasColumnName("id_servicio")
+                    .IsRequired();
+
+                entity.Property(e => e.IdConductor)
+                    .HasColumnName("id_conductor")
+                    .IsRequired();
+
+                entity.Property(e => e.Tipo)
+                    .HasColumnName("tipo")
+                    .HasConversion<string>()
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(e => e.Descripcion)
+                    .HasColumnName("descripcion")
+                    .HasColumnType("text")
+                    .IsRequired();
+
+                entity.Property(e => e.FechaHora)
+                    .HasColumnName("fecha_hora")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                    .IsRequired();
+
+                entity.Property(e => e.Estado)
+                    .HasColumnName("estado")
+                    .HasConversion<string>()
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.HasIndex(e => e.IdServicio)
+                    .HasDatabaseName("ix_incidente_id_servicio");
+
+                entity.HasIndex(e => e.IdConductor)
+                    .HasDatabaseName("ix_incidente_id_conductor");
+
+                entity.HasIndex(e => e.FechaHora)
+                    .HasDatabaseName("ix_incidente_fecha_hora");
+
+                entity.HasIndex(e => e.Tipo)
+                    .HasDatabaseName("ix_incidente_tipo");
+
+                entity.HasIndex(e => e.Estado)
+                    .HasDatabaseName("ix_incidente_estado");
+
+                entity.HasOne(e => e.Servicio)
+                    .WithMany()
+                    .HasForeignKey(e => e.IdServicio)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_incidente_servicio");
+
+                entity.HasOne(e => e.Conductor)
+                    .WithMany()
+                    .HasForeignKey(e => e.IdConductor)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_incidente_conductor");
             });
         }
     }

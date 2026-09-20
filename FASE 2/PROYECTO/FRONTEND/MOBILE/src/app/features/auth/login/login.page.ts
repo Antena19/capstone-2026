@@ -49,7 +49,7 @@ export class LoginPage {
 
   constructor() {
     if (this.auth.autenticado()) {
-      void this.router.navigateByUrl('/home');
+      void this.router.navigateByUrl(this.auth.rutaInicio());
     }
   }
 
@@ -65,15 +65,15 @@ export class LoginPage {
     const { identificador, password } = this.form.getRawValue();
     this.auth.iniciarSesion({ identificador: identificador.trim(), password }).subscribe({
       next: (respuesta) => {
-        if (!this.auth.esPasajero(respuesta.rol) || !this.auth.autenticado()) {
+        if (!this.auth.esRolMobile(respuesta.rol) || !this.auth.autenticado()) {
           this.auth.cerrarSesion();
           this.enviando.set(false);
-          this.error.set('Esta aplicación es para pasajeros.');
+          this.error.set('Este rol no tiene acceso a la aplicación móvil.');
           return;
         }
 
         this.enviando.set(false);
-        void this.router.navigateByUrl('/home');
+        void this.router.navigateByUrl(this.auth.rutaInicio());
       },
       error: (err: unknown) => {
         this.enviando.set(false);

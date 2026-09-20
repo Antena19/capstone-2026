@@ -1,0 +1,48 @@
+.centro {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.contenido {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px 40px;
+  text-align: center;
+}
+
+.resumen {
+  margin: 0 0 20px;
+  color: var(--ion-color-medium);
+  font-size: 15px;
+}
+
+.marco {
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.marco img {
+  display: block;
+  width: min(72vw, 320px);
+  height: auto;
+}
+
+.instruccion {
+  margin: 20px 0 0;
+  font-size: 17px;
+  max-width: 320px;
+}
+
+.expiracion {
+  margin: 8px 0 0;
+  color: var(--ion-color-medium);
+  font-size: 14px;
+}
+
+ion-note {
+  display: block;
+  margin-bottom: 16px;
+}

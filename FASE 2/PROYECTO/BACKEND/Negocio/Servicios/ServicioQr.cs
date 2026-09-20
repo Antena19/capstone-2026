@@ -3,6 +3,7 @@ using BACKEND.Datos.MySQL;
 using BACKEND.DTOs.QR;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Excepciones;
+using BACKEND.Negocio.Tiempo;
 using Microsoft.EntityFrameworkCore;
 
 namespace BACKEND.Negocio.Servicios
@@ -13,12 +14,28 @@ namespace BACKEND.Negocio.Servicios
 
         Task<GenerarQrRespuestaDto> GenerarComoConductorAsync(int idServicio, int idUsuario);
 
+        Task<GenerarQrRespuestaDto> ObtenerActivoComoAdministradorAsync(int idServicio, int idAdministrador);
+
+        Task<GenerarQrRespuestaDto> ObtenerActivoComoConductorAsync(int idServicio, int idUsuario);
+
         Task<QrServicio> ValidarParaAsistenciaAsync(string token);
+
+        /// <summary>
+        /// Genera o regenera un QR ACTIVO sobre el contexto actual, sin abrir transacción propia.
+        /// Permite participar en la transacción de inicio del conductor.
+        /// </summary>
+        Task<QrServicio> GenerarEnTransaccionActualAsync(Servicio servicio);
+
+        /// <summary>
+        /// Pasa a INVALIDADO los QR ACTIVO del servicio sobre el contexto actual, sin abrir transacción propia.
+        /// </summary>
+        Task InvalidarActivosEnTransaccionActualAsync(int idServicio);
     }
 
     /// <summary>
-    /// Generación y validación de tokens QR de servicio.
-    /// El flujo operativo es del CONDUCTOR asignado. El ADMINISTRADOR solo genera QR como soporte excepcional.
+    /// Consulta, generación y validación de tokens QR de servicio.
+    /// GET consulta el QR ACTIVO vigente; POST genera o regenera (invalida el anterior).
+    /// El flujo operativo es del CONDUCTOR asignado. El ADMINISTRADOR actúa como soporte excepcional.
     /// El token no contiene datos personales ni identificadores de usuario.
     /// No se generan imágenes QR en backend.
     /// </summary>
@@ -83,6 +100,58 @@ namespace BACKEND.Negocio.Servicios
 
             _logger.LogInformation(
                 "El conductor {IdConductor} generó el QR {IdQr} para el servicio {IdServicio}.",
+                conductor.IdConductor,
+                qr.IdQr,
+                idServicio);
+
+            return Mapear(qr);
+        }
+
+        public async Task<GenerarQrRespuestaDto> ObtenerActivoComoAdministradorAsync(int idServicio, int idAdministrador)
+        {
+            await ObtenerServicioGenerableAsync(idServicio);
+            var qr = await ObtenerQrActivoVigenteAsync(idServicio);
+
+            _logger.LogInformation(
+                "El administrador {IdAdministrador} consultó el QR {IdQr} del servicio {IdServicio}.",
+                idAdministrador,
+                qr.IdQr,
+                idServicio);
+
+            return Mapear(qr);
+        }
+
+        public async Task<GenerarQrRespuestaDto> ObtenerActivoComoConductorAsync(int idServicio, int idUsuario)
+        {
+            var conductor = await _contexto.Conductores
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.IdUsuario == idUsuario);
+
+            if (conductor is null)
+            {
+                throw new ExcepcionNegocio("No hay un conductor asociado a la cuenta autenticada.", StatusCodes.Status403Forbidden);
+            }
+
+            await ObtenerServicioGenerableAsync(idServicio);
+
+            var asignado = await _contexto.AsignacionesServicio
+                .AsNoTracking()
+                .AnyAsync(a =>
+                    a.IdServicio == idServicio
+                    && a.IdConductor == conductor.IdConductor
+                    && a.Estado == EstadoAsignacionServicio.ACTIVA);
+
+            if (!asignado)
+            {
+                throw new ExcepcionNegocio(
+                    "No tiene una asignación activa para este servicio.",
+                    StatusCodes.Status403Forbidden);
+            }
+
+            var qr = await ObtenerQrActivoVigenteAsync(idServicio);
+
+            _logger.LogInformation(
+                "El conductor {IdConductor} consultó el QR {IdQr} del servicio {IdServicio}.",
                 conductor.IdConductor,
                 qr.IdQr,
                 idServicio);
@@ -165,22 +234,54 @@ namespace BACKEND.Negocio.Servicios
             return servicio;
         }
 
-        private async Task<QrServicio> GenerarInternoAsync(Servicio servicio)
+        private async Task<QrServicio> ObtenerQrActivoVigenteAsync(int idServicio)
         {
-            await using var transaccion = await _contexto.Database.BeginTransactionAsync();
+            var qr = await _contexto.QrServicios
+                .Where(q => q.IdServicio == idServicio && q.Estado == EstadoQrServicio.ACTIVO)
+                .OrderByDescending(q => q.FechaGeneracion)
+                .ThenByDescending(q => q.IdQr)
+                .FirstOrDefaultAsync();
 
+            if (qr is null)
+            {
+                throw new ExcepcionNegocio("No hay un QR activo para este servicio.", StatusCodes.Status404NotFound);
+            }
+
+            if (DateTime.UtcNow >= qr.FechaExpiracion)
+            {
+                qr.Estado = EstadoQrServicio.EXPIRADO;
+                await _contexto.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "El QR {IdQr} del servicio {IdServicio} pasó a EXPIRADO al consultarlo vencido.",
+                    qr.IdQr,
+                    qr.IdServicio);
+
+                throw new ExcepcionNegocio("No hay un QR activo para este servicio.", StatusCodes.Status404NotFound);
+            }
+
+            return qr;
+        }
+
+        public async Task InvalidarActivosEnTransaccionActualAsync(int idServicio)
+        {
             var activos = await _contexto.QrServicios
-                .Where(q => q.IdServicio == servicio.IdServicio && q.Estado == EstadoQrServicio.ACTIVO)
+                .Where(q => q.IdServicio == idServicio && q.Estado == EstadoQrServicio.ACTIVO)
                 .ToListAsync();
 
             foreach (var anterior in activos)
             {
                 anterior.Estado = EstadoQrServicio.INVALIDADO;
                 _logger.LogInformation(
-                    "Se invalidó el QR {IdQr} del servicio {IdServicio} antes de generar uno nuevo.",
+                    "Se invalidó el QR {IdQr} del servicio {IdServicio}.",
                     anterior.IdQr,
-                    servicio.IdServicio);
+                    idServicio);
             }
+        }
+
+        public async Task<QrServicio> GenerarEnTransaccionActualAsync(Servicio servicio)
+        {
+            await InvalidarActivosEnTransaccionActualAsync(servicio.IdServicio);
 
             var fechaGeneracion = DateTime.UtcNow;
             var qr = new QrServicio
@@ -204,21 +305,28 @@ namespace BACKEND.Negocio.Servicios
                 await _contexto.SaveChangesAsync();
             }
 
+            return qr;
+        }
+
+        private async Task<QrServicio> GenerarInternoAsync(Servicio servicio)
+        {
+            await using var transaccion = await _contexto.Database.BeginTransactionAsync();
+            var qr = await GenerarEnTransaccionActualAsync(servicio);
             await transaccion.CommitAsync();
             return qr;
         }
 
-        private static DateTime CalcularExpiracion(Servicio servicio, DateTime fechaGeneracion)
+        private static DateTime CalcularExpiracion(Servicio servicio, DateTime fechaGeneracionUtc)
         {
-            var finProgramado = servicio.Fecha.ToDateTime(servicio.HoraFin);
-            var expiracion = finProgramado.Add(MargenExpiracion);
+            var finChile = servicio.Fecha.ToDateTime(servicio.HoraFin);
+            var expiracionUtc = RelojChile.AUtc(finChile.Add(MargenExpiracion));
 
-            if (expiracion < fechaGeneracion)
+            if (expiracionUtc < fechaGeneracionUtc)
             {
-                expiracion = fechaGeneracion.Add(MargenExpiracion);
+                return fechaGeneracionUtc.Add(MargenExpiracion);
             }
 
-            return expiracion;
+            return expiracionUtc;
         }
 
         private static string GenerarToken()

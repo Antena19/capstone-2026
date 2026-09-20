@@ -1,0 +1,64 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Mis servicios</ion-title>
+    <ion-button slot="end" fill="clear" (click)="cerrarSesion()">Cerrar sesión</ion-button>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-refresher slot="fixed" (ionRefresh)="refrescar($event)">
+    <ion-refresher-content />
+  </ion-refresher>
+
+  @if (cargando()) {
+    <div class="centro">
+      <ion-spinner name="crescent" />
+    </div>
+  } @else if (error()) {
+    <div class="ion-padding">
+      <ion-note color="danger">{{ error() }}</ion-note>
+      <ion-button expand="block" fill="outline" (click)="cargar()">Reintentar</ion-button>
+    </div>
+  } @else if (servicios().length === 0) {
+    <div class="ion-padding vacio">
+      <p>No tienes servicios programados.</p>
+    </div>
+  } @else {
+    <div class="lista">
+      @for (servicio of servicios(); track servicio.idServicio) {
+        <ion-card button="true" (click)="abrirDetalle(servicio.idServicio)">
+          <ion-card-header>
+            <ion-card-subtitle>{{ formatearFecha(servicio.fecha) }}</ion-card-subtitle>
+            <ion-card-title>
+              {{ formatearHora(servicio.horaInicio) }} – {{ formatearHora(servicio.horaFin) }}
+            </ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            @for (estado of [servicio.estado]; track estado) {
+              <ion-badge [color]="colorEstado(estado)">
+                {{ etiquetaEstado(estado) }}
+              </ion-badge>
+            }
+            @if (tieneTexto(servicio.tipoServicio)) {
+              <p class="dato">{{ servicio.tipoServicio }}</p>
+            }
+            @if (tieneTexto(servicio.nombreRuta)) {
+              <p class="dato">{{ servicio.nombreRuta }}</p>
+            }
+            @if (tieneTexto(servicio.sectorRuta)) {
+              <p class="meta">{{ servicio.sectorRuta }}</p>
+            }
+            @if (tieneTexto(servicio.patenteVehiculo)) {
+              <p class="meta">
+                @if (tieneTexto(servicio.tipoVehiculo)) {
+                  {{ servicio.tipoVehiculo }} ·
+                }
+                {{ servicio.patenteVehiculo }}
+              </p>
+            }
+          </ion-card-content>
+        </ion-card>
+      }
+    </div>
+  }
+</ion-content>

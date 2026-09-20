@@ -1,0 +1,63 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button [defaultHref]="'/conductor/servicios/' + idServicio" text="Detalle" />
+    </ion-buttons>
+    <ion-title>Pasajeros</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-refresher slot="fixed" (ionRefresh)="refrescar($event)">
+    <ion-refresher-content />
+  </ion-refresher>
+
+  @if (cargando()) {
+    <div class="centro">
+      <ion-spinner name="crescent" />
+    </div>
+  } @else if (error()) {
+    <div class="ion-padding">
+      <ion-note color="danger">{{ error() }}</ion-note>
+      <ion-button expand="block" fill="outline" (click)="cargar()">Reintentar</ion-button>
+    </div>
+  } @else if (pasajeros().length === 0) {
+    <div class="ion-padding vacio">
+      <p>No hay pasajeros registrados para este servicio.</p>
+    </div>
+  } @else {
+    <div class="resumen ion-padding">
+      <p>Total: {{ resumen().total }}</p>
+      <p>Con asistencia válida: {{ resumen().validas }}</p>
+      <p>Sin asistencia: {{ resumen().sinAsistencia }}</p>
+      @if (resumen().provisionales > 0) {
+        <p>Provisionales: {{ resumen().provisionales }}</p>
+      }
+      @if (resumen().anuladas > 0) {
+        <p>Anuladas: {{ resumen().anuladas }}</p>
+      }
+    </div>
+
+    <ion-list [inset]="true">
+      @for (pasajero of pasajeros(); track pasajero.idPasajero) {
+        <ion-item>
+          <ion-label>
+            <h2>{{ pasajero.nombre }}</h2>
+            <p>{{ etiquetaParticipacion(pasajero.tipoParticipacion) }}</p>
+            @if (textoPuntoRecogida(pasajero.nombrePuntoRecogida, pasajero.referenciaPuntoRecogida); as recogida) {
+              <p class="secundario">{{ recogida }}</p>
+            }
+            @if (etiquetaConfirmacion(pasajero.estadoConfirmacion); as confirmacion) {
+              <p class="secundario">{{ confirmacion }}</p>
+            }
+          </ion-label>
+          @for (estado of [pasajero.estadoAsistencia]; track estado ?? 'sin') {
+            <ion-badge slot="end" [color]="colorAsistencia(estado)">
+              {{ etiquetaAsistencia(estado) }}
+            </ion-badge>
+          }
+        </ion-item>
+      }
+    </ion-list>
+  }
+</ion-content>

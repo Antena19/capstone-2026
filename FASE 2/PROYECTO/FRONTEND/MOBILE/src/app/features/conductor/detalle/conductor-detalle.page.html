@@ -1,0 +1,153 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/conductor" text="Servicios" />
+    </ion-buttons>
+    <ion-title>Detalle del servicio</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  @if (cargando()) {
+    <div class="centro">
+      <ion-spinner name="crescent" />
+    </div>
+  } @else if (error()) {
+    <div class="ion-padding">
+      <ion-note color="danger">{{ error() }}</ion-note>
+      <ion-button expand="block" fill="outline" (click)="cargar()">Reintentar</ion-button>
+    </div>
+  } @else if (detalle(); as servicio) {
+    <div class="encabezado ion-padding">
+      <p class="fecha">{{ formatearFecha(servicio.fecha) }}</p>
+      <h1>
+        {{ formatearHora(servicio.horaInicio) }} – {{ formatearHora(servicio.horaFin) }}
+      </h1>
+      @for (estado of [servicio.estado]; track estado) {
+        <ion-badge [color]="colorEstado(estado)">
+          {{ etiquetaEstado(estado) }}
+        </ion-badge>
+      }
+      @if (servicio.estado === 'EN_CURSO') {
+        <p class="en-curso">Servicio en curso</p>
+      }
+    </div>
+
+    <ion-list [inset]="true">
+      @if (tieneTexto(servicio.tipoServicio)) {
+        <ion-item>
+          <ion-label>
+            <p>Tipo</p>
+            <h2>{{ servicio.tipoServicio }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (tieneTexto(servicio.empresa.razonSocial)) {
+        <ion-item>
+          <ion-label>
+            <p>Empresa</p>
+            <h2>{{ servicio.empresa.razonSocial }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (servicio.ruta; as ruta) {
+        @if (tieneTexto(ruta.nombre)) {
+          <ion-item>
+            <ion-label>
+              <p>Ruta</p>
+              <h2>{{ ruta.nombre }}</h2>
+            </ion-label>
+          </ion-item>
+        }
+        @if (tieneTexto(ruta.sector)) {
+          <ion-item>
+            <ion-label>
+              <p>Sector</p>
+              <h2>{{ ruta.sector }}</h2>
+            </ion-label>
+          </ion-item>
+        }
+        @if (ruta.distanciaEstimadaKm > 0) {
+          <ion-item>
+            <ion-label>
+              <p>Distancia estimada</p>
+              <h2>{{ ruta.distanciaEstimadaKm }} km</h2>
+            </ion-label>
+          </ion-item>
+        }
+        @if (ruta.duracionEstimadaMin > 0) {
+          <ion-item>
+            <ion-label>
+              <p>Duración estimada</p>
+              <h2>{{ ruta.duracionEstimadaMin }} min</h2>
+            </ion-label>
+          </ion-item>
+        }
+      }
+      @if (descripcionVehiculo(servicio); as vehiculo) {
+        <ion-item>
+          <ion-label>
+            <p>Vehículo</p>
+            <h2>{{ vehiculo }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (tieneTexto(servicio.vehiculo.patente)) {
+        <ion-item>
+          <ion-label>
+            <p>Patente</p>
+            <h2>{{ servicio.vehiculo.patente }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (servicio.vehiculo.capacidad > 0) {
+        <ion-item>
+          <ion-label>
+            <p>Capacidad</p>
+            <h2>{{ servicio.vehiculo.capacidad }} pasajeros</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (servicio.fechaHoraInicioReal) {
+        <ion-item>
+          <ion-label>
+            <p>Inicio real</p>
+            <h2>{{ formatearFechaHora(servicio.fechaHoraInicioReal) }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (servicio.fechaHoraFinReal) {
+        <ion-item>
+          <ion-label>
+            <p>Término real</p>
+            <h2>{{ formatearFechaHora(servicio.fechaHoraFinReal) }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+    </ion-list>
+
+    @if (servicio.estado !== 'CANCELADO') {
+      <div class="acciones ion-padding">
+        @if (servicio.estado === 'PROGRAMADO') {
+          @if (errorInicio()) {
+            <ion-note color="danger">{{ errorInicio() }}</ion-note>
+          }
+          <ion-button expand="block" [disabled]="iniciando()" (click)="confirmarInicio()">
+            @if (iniciando()) {
+              <ion-spinner name="crescent" />
+              Iniciando...
+            } @else {
+              Iniciar servicio
+            }
+          </ion-button>
+        }
+
+        @if (servicio.estado === 'EN_CURSO') {
+          <ion-button expand="block" (click)="abrirQr()">Mostrar QR</ion-button>
+        }
+
+        <ion-button expand="block" fill="outline" (click)="abrirPasajeros()">Ver pasajeros</ion-button>
+      </div>
+    }
+  }
+</ion-content>

@@ -4,6 +4,7 @@ using BACKEND.DTOs.Servicios;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Constantes;
 using BACKEND.Negocio.Excepciones;
+using BACKEND.Negocio.Tiempo;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -56,6 +57,11 @@ namespace BACKEND.Negocio.Servicios
     /// </summary>
     public class ServicioServicios : IServicioServicios
     {
+        /// <summary>
+        /// Ventana operacional para que el CONDUCTOR inicie: ±30 minutos respecto de horaInicio.
+        /// </summary>
+        private static readonly TimeSpan VentanaInicioConductor = TimeSpan.FromMinutes(30);
+
         private static readonly HashSet<(EstadoServicio Origen, EstadoServicio Destino)> TransicionesPermitidas =
         [
             (EstadoServicio.PROGRAMADO, EstadoServicio.EN_CURSO),
@@ -68,6 +74,7 @@ namespace BACKEND.Negocio.Servicios
         private readonly IMongoCollection<Ruta> _rutas;
         private readonly IServicioAsistencias _servicioAsistencias;
         private readonly IServicioPasajerosServicio _servicioPasajerosServicio;
+        private readonly IServicioQr _servicioQr;
         private readonly ILogger<ServicioServicios> _logger;
 
         public ServicioServicios(
@@ -75,12 +82,14 @@ namespace BACKEND.Negocio.Servicios
             IMongoCollection<Ruta> rutas,
             IServicioAsistencias servicioAsistencias,
             IServicioPasajerosServicio servicioPasajerosServicio,
+            IServicioQr servicioQr,
             ILogger<ServicioServicios> logger)
         {
             _contexto = contexto;
             _rutas = rutas;
             _servicioAsistencias = servicioAsistencias;
             _servicioPasajerosServicio = servicioPasajerosServicio;
+            _servicioQr = servicioQr;
             _logger = logger;
         }
 
@@ -416,7 +425,8 @@ namespace BACKEND.Negocio.Servicios
         {
             var conductor = await AsegurarConductorAsignadoAsync(idServicio, idUsuario);
             var servicio = await ObtenerServicioAsync(idServicio);
-            return await IniciarServicioAsync(servicio, conductor.IdConductor, "conductor");
+            await ValidarInicioOperacionalConductorAsync(servicio, conductor.IdConductor);
+            return await IniciarServicioAsync(servicio, conductor.IdConductor, "conductor", generarQr: true);
         }
 
         public async Task<ServicioRespuestaDto> FinalizarComoConductorAsync(int idServicio, int idUsuario)
@@ -426,10 +436,52 @@ namespace BACKEND.Negocio.Servicios
             return await FinalizarServicioAsync(servicio, conductor.IdConductor, "conductor");
         }
 
+        private async Task ValidarInicioOperacionalConductorAsync(Servicio servicio, int idConductor)
+        {
+            if (servicio.Estado != EstadoServicio.PROGRAMADO)
+            {
+                throw new ExcepcionNegocio(
+                    $"No está permitido cambiar el estado de {servicio.Estado} a {EstadoServicio.EN_CURSO}.");
+            }
+
+            var (ahoraChile, hoyChile, _) = RelojChile.ObtenerInstante();
+
+            if (servicio.Fecha != hoyChile)
+            {
+                throw new ExcepcionNegocio("El servicio solo puede iniciarse en su fecha programada.");
+            }
+
+            var inicioPlanificado = servicio.Fecha.ToDateTime(servicio.HoraInicio);
+            var desde = inicioPlanificado.Subtract(VentanaInicioConductor);
+            var hasta = inicioPlanificado.Add(VentanaInicioConductor);
+
+            if (ahoraChile < desde || ahoraChile > hasta)
+            {
+                throw new ExcepcionNegocio(
+                    "El servicio solo puede iniciarse entre 30 minutos antes y 30 minutos después de la hora de inicio programada.");
+            }
+
+            var otroEnCurso = await _contexto.AsignacionesServicio
+                .AsNoTracking()
+                .AnyAsync(a =>
+                    a.IdConductor == idConductor
+                    && a.Estado == EstadoAsignacionServicio.ACTIVA
+                    && a.IdServicio != servicio.IdServicio
+                    && a.Servicio.Estado == EstadoServicio.EN_CURSO);
+
+            if (otroEnCurso)
+            {
+                throw new ExcepcionNegocio(
+                    "Ya tienes otro servicio en curso.",
+                    StatusCodes.Status409Conflict);
+            }
+        }
+
         private async Task<ServicioRespuestaDto> IniciarServicioAsync(
             Servicio servicio,
             int idActor,
-            string rolActor)
+            string rolActor,
+            bool generarQr = false)
         {
             if (servicio.Estado != EstadoServicio.PROGRAMADO)
             {
@@ -442,7 +494,16 @@ namespace BACKEND.Negocio.Servicios
             await _servicioAsistencias.ResolverProvisionalesAlIniciarAsync(servicio.IdServicio);
             servicio.FechaHoraInicioReal = DateTime.UtcNow;
             servicio.Estado = EstadoServicio.EN_CURSO;
-            await _contexto.SaveChangesAsync();
+
+            if (generarQr)
+            {
+                await _servicioQr.GenerarEnTransaccionActualAsync(servicio);
+            }
+            else
+            {
+                await _contexto.SaveChangesAsync();
+            }
+
             await transaccion.CommitAsync();
 
             _logger.LogInformation(
@@ -465,9 +526,13 @@ namespace BACKEND.Negocio.Servicios
                     $"No está permitido cambiar el estado de {servicio.Estado} a {EstadoServicio.FINALIZADO}.");
             }
 
+            await using var transaccion = await _contexto.Database.BeginTransactionAsync();
+
             servicio.FechaHoraFinReal = DateTime.UtcNow;
             servicio.Estado = EstadoServicio.FINALIZADO;
+            await _servicioQr.InvalidarActivosEnTransaccionActualAsync(servicio.IdServicio);
             await _contexto.SaveChangesAsync();
+            await transaccion.CommitAsync();
 
             _logger.LogInformation(
                 "El {RolActor} {IdActor} finalizó el servicio {IdServicio}.",

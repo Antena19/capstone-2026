@@ -54,7 +54,6 @@ C:\capstone-2026\PROYECTO\BACKEND\bin\Debug\net9.0\ZstdSharp.dll
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\appsettings.Development.json
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\BACKEND.staticwebassets.endpoints.json
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\appsettings.json
-C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\BACKEND.exe
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\BACKEND.deps.json
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\BACKEND.runtimeconfig.json
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\BACKEND.dll
@@ -291,3 +290,16 @@ C:\capstone-2026\FASE 2\PROYECTO\BACKEND\obj\build-id-serie-varchar\Snappier.dll
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\obj\build-id-serie-varchar\System.IdentityModel.Tokens.Jwt.dll
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\obj\build-id-serie-varchar\System.IO.Packaging.dll
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\obj\build-id-serie-varchar\ZstdSharp.dll
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\appsettings.Development.json
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\appsettings.json
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\DatosPrueba\ImportacionPasajeros\mapeo.json
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\DatosPrueba\ImportacionPasajeros\mapeo_falta.json
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\DatosPrueba\ImportacionPasajeros\mapeo_falta_nombre.json
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\DatosPrueba\ImportacionPasajeros\mapeo_inex.json
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\BACKEND.staticwebassets.endpoints.json
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\BACKEND.exe
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\BACKEND.deps.json
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\BACKEND.runtimeconfig.json
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\BACKEND.dll
+C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\BACKEND.pdb
+C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\BACKEND.exe

@@ -1,0 +1,38 @@
+.centro {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.resumen {
+  padding-bottom: 4px;
+}
+
+.resumen p {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.vacio p {
+  margin: 8px 0;
+  color: var(--ion-color-medium);
+}
+
+ion-item h2 {
+  font-size: 17px;
+}
+
+ion-item p.secundario {
+  color: var(--ion-color-medium);
+}
+
+ion-note {
+  display: block;
+  margin-bottom: 16px;
+}
+
+ion-badge {
+  max-width: 42%;
+  white-space: normal;
+  text-align: center;
+}

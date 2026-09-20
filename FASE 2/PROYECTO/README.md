@@ -1,14 +1,14 @@
-# Sistema Integral de Gestión de Transporte de Personal
+# Trayek - Sistema Integral de Gestión de Transporte de Personal
 
 Proyecto desarrollado como parte del Proyecto APT 2026.
 
-El sistema tiene como objetivo digitalizar y centralizar la gestión de servicios de transporte de personal, permitiendo administrar empresas clientes, pasajeros, conductores, vehículos, rutas, planificación de servicios, asistencia y contingencias operacionales.
+**Trayek** es un sistema integral para la gestión de transporte de personal. Su objetivo es digitalizar y centralizar la gestión de servicios de transporte, permitiendo administrar empresas clientes, pasajeros, conductores, vehículos, rutas, planificaciones, servicios, asistencia y contingencias operacionales.
 
 La solución está compuesta por una **plataforma web administrativa**, una **aplicación móvil** y una **API backend compartida**.
 
 ---
 
-## Problema
+# Problema
 
 Actualmente, la coordinación de servicios de transporte de personal puede depender de herramientas como planillas Excel, mensajería instantánea y registros manuales.
 
@@ -21,11 +21,11 @@ Esto dificulta mantener información actualizada respecto de:
 - Uso efectivo del transporte.
 - Cambios de conductor o vehículo.
 - Incidentes durante los recorridos.
-- Consolidación mensual de información para cobro.
+- Consolidación mensual de información operacional.
 
 Además, la confirmación previa de un pasajero no necesariamente significa que utilizó efectivamente el servicio.
 
-El sistema busca centralizar estos procesos y mantener trazabilidad de la operación.
+Trayek busca centralizar estos procesos y mantener trazabilidad de la operación.
 
 ---
 
@@ -34,16 +34,16 @@ El sistema busca centralizar estos procesos y mantener trazabilidad de la operac
 La solución está dividida en tres componentes principales:
 
 ```text
-Sistema Integral de Gestión de Transporte de Personal
+Trayek
 │
 ├── Plataforma Web
 │
 ├── Aplicación Mobile
 │
 └── Backend / API
-        │
-        ├── MySQL
-        └── MongoDB
+    │
+    ├── MySQL
+    └── MongoDB
 ```
 
 La plataforma web y la aplicación móvil consumen una misma API.
@@ -52,11 +52,11 @@ La plataforma web y la aplicación móvil consumen una misma API.
 
 # Plataforma Web
 
-La plataforma web está orientada principalmente a usuarios administrativos, planificación y supervisión de la operación.
+La plataforma web está orientada principalmente a la administración, planificación y supervisión de la operación.
 
 ## Dashboard
 
-Permitirá visualizar indicadores generales del sistema, por ejemplo:
+Permite visualizar indicadores generales de la operación, incluyendo información relacionada con:
 
 - Servicios programados.
 - Servicios en curso.
@@ -64,18 +64,17 @@ Permitirá visualizar indicadores generales del sistema, por ejemplo:
 - Servicios cancelados.
 - Pasajeros transportados.
 - Asistencia registrada.
-- Incidentes.
 - Estado general de la operación.
 
 ---
 
 ## Empresas clientes
 
-Administración de las empresas que utilizan el servicio de transporte.
+Permite administrar las empresas que utilizan el servicio de transporte.
 
 Funciones principales:
 
-- Registrar empresa.
+- Registrar empresas.
 - Editar información.
 - Consultar empresas.
 - Activar o inactivar empresas.
@@ -85,7 +84,7 @@ Funciones principales:
 
 ## Pasajeros
 
-Administración de trabajadores que utilizan los servicios.
+Permite administrar los trabajadores que utilizan los servicios.
 
 Funciones principales:
 
@@ -94,17 +93,21 @@ Funciones principales:
 - Editar información.
 - Consultar pasajeros.
 - Activar o inactivar pasajeros.
+- Importar pasajeros desde archivos Excel.
 - Gestionar información necesaria para los servicios de transporte.
+
+Los pasajeros pueden disponer de una cuenta de usuario asociada para acceder a las funcionalidades correspondientes de la aplicación móvil.
 
 ---
 
 ## Conductores
 
-Administración de conductores.
+Permite administrar los conductores responsables de realizar los servicios.
 
 Funciones principales:
 
-- Registrar conductor.
+- Registrar conductores.
+- Crear su cuenta de usuario asociada.
 - Editar información.
 - Consultar conductores.
 - Activar o inactivar conductores.
@@ -114,7 +117,7 @@ Funciones principales:
 
 ## Vehículos
 
-Administración de la flota utilizada para los servicios.
+Permite administrar la flota utilizada para los servicios.
 
 Funciones principales:
 
@@ -130,9 +133,9 @@ Funciones principales:
 
 ## Rutas
 
-Administración de rutas utilizadas para los servicios de transporte.
+Permite administrar y planificar las rutas utilizadas para los servicios de transporte.
 
-Las rutas podrán considerar:
+Las rutas pueden considerar:
 
 - Nombre.
 - Empresa asociada.
@@ -140,6 +143,7 @@ Las rutas podrán considerar:
 - Origen.
 - Destino.
 - Puntos de recogida.
+- Pasajeros asociados a puntos de recogida.
 - Trazado.
 - Distancia estimada.
 - Duración estimada.
@@ -147,29 +151,29 @@ Las rutas podrán considerar:
 
 La información geográfica de las rutas se almacena en MongoDB.
 
+El sistema utiliza información geográfica para representar los puntos y trazados de las rutas sobre un mapa.
+
 ---
 
 ## Planificación
 
 Permite organizar los servicios de transporte correspondientes a una empresa y período determinado.
 
-La planificación podrá considerar:
+La planificación considera principalmente:
 
 - Empresa.
 - Período.
-- Rutas.
-- Fechas.
-- Horarios.
-- Pasajeros.
-- Conductores.
-- Vehículos.
+- Servicios asociados.
+- Estado.
 
-Estados considerados:
+Estados:
 
-- BORRADOR
-- ACTIVA
-- CERRADA
-- CANCELADA
+```text
+BORRADOR
+ACTIVA
+CERRADA
+CANCELADA
+```
 
 ---
 
@@ -185,19 +189,27 @@ Cada servicio puede contener:
 - Fecha.
 - Hora de inicio.
 - Hora de término.
+- Tipo de servicio.
 - Conductor.
 - Vehículo.
 - Pasajeros.
+- Puntos de recogida.
 - Estado.
 
-Estados considerados:
+Estados:
 
-- PROGRAMADO
-- EN_CURSO
-- FINALIZADO
-- CANCELADO
+```text
+PROGRAMADO
+EN_CURSO
+FINALIZADO
+CANCELADO
+```
 
-El sistema también podrá registrar el horario real de inicio y finalización del servicio.
+El sistema permite crear servicios individuales y recurrentes.
+
+Los servicios recurrentes pueden formar parte de una misma serie, manteniendo cada viaje como un servicio independiente.
+
+También es posible editar y cancelar servicios según su estado y gestionar los pasajeros asociados a cada viaje.
 
 ---
 
@@ -205,34 +217,27 @@ El sistema también podrá registrar el horario real de inicio y finalización d
 
 Cada servicio puede tener un conductor y vehículo asignados.
 
-Ante contingencias será posible realizar reemplazos manteniendo la trazabilidad de:
-
-- Conductor anterior.
-- Conductor nuevo.
-- Vehículo anterior.
-- Vehículo nuevo.
-- Fecha y hora del cambio.
+Ante contingencias es posible realizar reemplazos manteniendo la información necesaria para la trazabilidad de la operación.
 
 ---
 
 ## Asistencia
 
-El sistema permitirá consultar la asistencia efectiva de pasajeros.
+El sistema contempla el registro de asistencia efectiva de pasajeros.
 
 La confirmación previa de un pasajero no representa automáticamente asistencia.
 
-La asistencia se registra cuando el pasajero utiliza efectivamente el servicio.
+El mecanismo principal considerado para registrar asistencia es el escaneo de un código QR asociado al servicio.
 
-Métodos considerados:
+Cada pasajero puede registrar una sola asistencia por servicio.
 
-- QR.
-- Registro manual autorizado.
+La información de asistencia se mantiene separada de la planificación de pasajeros, permitiendo distinguir entre pasajeros planificados y pasajeros que utilizaron efectivamente el transporte.
 
 ---
 
 ## Incidentes
 
-Permitirá registrar contingencias asociadas a los servicios.
+El sistema contempla el registro de contingencias asociadas a los servicios.
 
 Ejemplos:
 
@@ -246,7 +251,7 @@ Ejemplos:
 
 ## Reportes
 
-La plataforma web permitirá generar información consolidada de la operación.
+La plataforma contempla la generación de información consolidada de la operación.
 
 Entre los reportes considerados se encuentran:
 
@@ -255,9 +260,38 @@ Entre los reportes considerados se encuentran:
 - Servicios por empresa.
 - Incidentes.
 - Utilización del transporte.
-- Información mensual para cobro.
+- Información mensual de la operación.
 
 Se contempla la generación y exportación de información a Excel.
+
+---
+
+## Administradores
+
+La plataforma permite gestionar las cuentas administrativas del sistema.
+
+Funciones principales:
+
+- Crear administradores.
+- Editar correo y teléfono.
+- Consultar administradores.
+- Filtrar cuentas por estado.
+- Activar o inactivar cuentas administrativas.
+- Proteger la cuenta administrativa actualmente autenticada.
+
+---
+
+## Mi perfil
+
+Los usuarios administrativos pueden consultar y administrar información de su propia cuenta.
+
+Funciones principales:
+
+- Consultar datos de la cuenta.
+- Editar correo electrónico.
+- Editar teléfono.
+- Consultar rol y estado.
+- Cambiar contraseña.
 
 ---
 
@@ -265,7 +299,7 @@ Se contempla la generación y exportación de información a Excel.
 
 La aplicación móvil está orientada principalmente a la operación diaria del transporte.
 
-Será desarrollada utilizando Ionic + Angular.
+Será desarrollada utilizando Ionic + Angular y consumirá la misma API utilizada por la plataforma web.
 
 ---
 
@@ -308,9 +342,7 @@ El flujo general considerado es:
 ```text
 Servicio programado
         ↓
-Conductor inicia servicio
-        ↓
-Generación / activación de QR
+Conductor dispone del QR del servicio
         ↓
 Pasajero escanea QR
         ↓
@@ -318,10 +350,12 @@ Backend valida servicio y pasajero
         ↓
 Registro de asistencia
         ↓
-Información disponible para reportes
+Información disponible para seguimiento y reportes
 ```
 
-Cada pasajero podrá registrar una sola asistencia válida por servicio.
+Cada pasajero puede registrar una sola asistencia por servicio.
+
+El backend contempla además el tratamiento de pasajeros planificados y no planificados, considerando la capacidad disponible del vehículo.
 
 ---
 
@@ -358,6 +392,7 @@ El backend centraliza:
 - Servicios utilizados por Web y Mobile.
 - Integración con MySQL.
 - Integración con MongoDB.
+- Integración con servicios geográficos.
 
 ---
 
@@ -369,10 +404,16 @@ El proyecto utiliza una arquitectura de persistencia híbrida.
 
 MySQL almacena principalmente información estructurada y transaccional.
 
-Base:
+Para el trabajo colaborativo se dispone de una base MySQL compartida alojada en Aiven.
 
 ```text
-transporte_personal
+Base compartida de desarrollo: defaultdb
+```
+
+El proyecto conserva además la posibilidad de utilizar una instancia local:
+
+```text
+Base local: transporte_personal
 ```
 
 Entre las entidades consideradas se encuentran:
@@ -392,11 +433,14 @@ Entre las entidades consideradas se encuentran:
 - Incidente.
 - Historial de asignaciones.
 - Auditoría.
+- Activación de usuario.
 
 La integración con .NET se realiza mediante:
 
 - Entity Framework Core.
 - Pomelo EntityFrameworkCore MySQL.
+
+La configuración de la conexión se realiza mediante .NET User Secrets.
 
 ---
 
@@ -404,13 +448,19 @@ La integración con .NET se realiza mediante:
 
 MongoDB se utiliza principalmente para información flexible y geográfica relacionada con rutas.
 
+Servicio:
+
+```text
+MongoDB Atlas
+```
+
 Base:
 
 ```text
 transporte_personal
 ```
 
-Colección inicial:
+Colección:
 
 ```text
 rutas
@@ -423,12 +473,13 @@ Una ruta puede almacenar:
 - Origen.
 - Destino.
 - Puntos de recogida.
+- Pasajeros asociados a puntos de recogida.
 - Trazado.
 - Distancia estimada.
 - Duración estimada.
 - Estado.
 
-Se utiliza GeoJSON para representar información geográfica y un índice `2dsphere` para el trazado.
+Se utiliza GeoJSON para representar información geográfica y un índice `2dsphere` para la información geoespacial.
 
 ---
 
@@ -462,15 +513,14 @@ El sistema contempla medidas de seguridad y protección de datos desde su diseñ
 Entre ellas:
 
 - Contraseñas almacenadas mediante hash.
-- Autenticación de usuarios.
+- Autenticación mediante JWT.
 - Autorización según roles.
 - Restricción de acceso según perfil.
-- Auditoría de operaciones relevantes.
+- Validación de reglas de negocio en el backend.
 - Protección de cadenas de conexión.
 - Uso de User Secrets durante desarrollo.
 - No almacenar credenciales en GitHub.
-- Uso de HTTPS.
-- Trazabilidad de modificaciones.
+- Trazabilidad de operaciones relevantes.
 - Activación e inactivación de registros maestros.
 - Acceso restringido a información personal.
 
@@ -515,7 +565,7 @@ CANCELADO
 
 El proyecto cuenta con mockups desarrollados durante la etapa de análisis y diseño.
 
-Estos mockups se utilizarán como **referencia funcional y visual durante el desarrollo** de la plataforma web y la aplicación móvil.
+Estos mockups se utilizan como **referencia funcional y visual durante el desarrollo** de la plataforma web y la aplicación móvil.
 
 Permiten orientar:
 
@@ -528,7 +578,7 @@ Permiten orientar:
 - Aplicación móvil.
 - Experiencia de conductor y pasajero.
 
-Los mockups representan una referencia inicial y podrán recibir ajustes durante el desarrollo cuando existan necesidades técnicas o funcionales justificadas.
+Los mockups representan una referencia inicial y pueden recibir ajustes durante el desarrollo cuando existan necesidades técnicas o funcionales justificadas.
 
 ---
 
@@ -561,38 +611,47 @@ En el backend, el trabajo se organiza preferentemente por funcionalidad o módul
 
 ## Web
 
-- Angular 20
+- Angular 20.
+- MapLibre GL.
+- Chart.js.
 
 ## Mobile
 
-- Ionic 9
-- Angular 22
-- Capacitor 8
-- Barcode Scanner
+- Ionic 9.
+- Angular 22.
+- Capacitor 8.
+- Barcode Scanner.
 
 ## Backend
 
-- ASP.NET Core Web API
-- .NET 9
-- Entity Framework Core
-- Pomelo EntityFrameworkCore MySQL
-- MongoDB.Driver
+- ASP.NET Core Web API.
+- .NET 9.
+- Entity Framework Core.
+- Pomelo EntityFrameworkCore MySQL.
+- MongoDB.Driver.
 
 ## Bases de datos
 
-- MySQL
-- MongoDB Atlas
+- MySQL.
+- Aiven.
+- MongoDB Atlas.
+
+## Servicios geográficos
+
+- Geoapify.
+- GeoJSON.
 
 ## Herramientas de desarrollo
 
-- Cursor
-- Visual Studio 2022
-- Visual Studio Code
-- MySQL Workbench
-- Android Studio
-- Git
-- GitHub
-- GitHub Desktop
+- Cursor.
+- Visual Studio 2022.
+- Visual Studio Code.
+- MySQL Workbench.
+- Android Studio.
+- Git.
+- GitHub.
+- GitHub Desktop.
+- Postman.
 
 ---
 
@@ -615,19 +674,53 @@ La planificación y seguimiento del proyecto se mantiene mediante Notion y la Ca
 
 # Estado del proyecto
 
-Actualmente se encuentra configurada la estructura técnica inicial:
+Actualmente se encuentran implementados y configurados los principales componentes base de Trayek.
 
-- Proyecto Web creado.
-- Proyecto Mobile creado.
-- Proyecto Backend creado.
-- Proyecto Android configurado mediante Capacitor.
-- Lector QR incorporado al proyecto Mobile.
-- Base de datos MySQL creada.
+## Plataforma Web
+
+- Autenticación y control de acceso.
+- Dashboard operacional.
+- Gestión de empresas clientes.
+- Gestión de pasajeros.
+- Importación de pasajeros desde Excel.
+- Gestión de conductores.
+- Gestión de vehículos.
+- Gestión y planificación de rutas.
+- Gestión de planificaciones mensuales.
+- Gestión de servicios individuales y recurrentes.
+- Asociación de pasajeros a servicios.
+- Asignación de conductores y vehículos.
+- Gestión de administradores.
+- Gestión de perfil del usuario administrativo.
+
+## Backend
+
+- API ASP.NET Core configurada.
+- Autenticación mediante JWT.
+- Autorización mediante roles.
+- Integración con MySQL.
+- Integración con MongoDB Atlas.
+- Gestión de usuarios y activación de pasajeros.
+- Gestión de entidades operacionales.
+- Gestión de rutas.
+- Gestión de planificaciones y servicios.
+- Gestión de asignaciones.
+- Gestión de QR y asistencia.
+- Integración con servicios geográficos.
+
+## Bases de datos
+
+- MySQL configurado.
+- Base MySQL compartida para desarrollo.
+- Alternativa de ejecución con MySQL local.
 - MongoDB Atlas configurado.
-- Colección de rutas creada.
-- Índice geoespacial configurado.
-- Backend conectado y validado con MySQL.
-- Backend conectado y validado con MongoDB Atlas.
-- Credenciales de desarrollo protegidas mediante User Secrets.
+- Colección de rutas configurada.
+- Información geoespacial mediante GeoJSON.
 
-A partir de esta base se continuará con la implementación de modelos, lógica de negocio, API, módulos Web y funcionalidades Mobile.
+## Mobile
+
+- Proyecto Ionic + Angular configurado.
+- Proyecto Android configurado mediante Capacitor.
+- Integración del lector QR preparada.
+
+El desarrollo continúa con las funcionalidades operacionales de la aplicación Mobile, el flujo de asistencia mediante QR, reportes, pruebas e integración final.ok. subore cambios agithub+

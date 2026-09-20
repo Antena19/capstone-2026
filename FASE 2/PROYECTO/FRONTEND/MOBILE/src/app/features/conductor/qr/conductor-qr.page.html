@@ -1,0 +1,34 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button [defaultHref]="'/conductor/servicios/' + idServicio" text="Detalle" />
+    </ion-buttons>
+    <ion-title>Código QR</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  @if (cargando()) {
+    <div class="centro">
+      <ion-spinner name="crescent" />
+    </div>
+  } @else if (error()) {
+    <div class="ion-padding">
+      <ion-note color="danger">{{ error() }}</ion-note>
+      <ion-button expand="block" fill="outline" (click)="cargar()">Reintentar</ion-button>
+    </div>
+  } @else if (imagenQr(); as imagen) {
+    <div class="contenido">
+      @if (resumenServicio(); as resumen) {
+        <p class="resumen">{{ resumen }}</p>
+      }
+      <div class="marco">
+        <img [src]="imagen" alt="Código QR del servicio" />
+      </div>
+      <p class="instruccion">Solicita a los pasajeros que escaneen este código.</p>
+      @if (horaExpiracion(); as hora) {
+        <p class="expiracion">Válido hasta {{ hora }}</p>
+      }
+    </div>
+  }
+</ion-content>

@@ -263,6 +263,7 @@ builder.Services.AddScoped<IServicioAsignaciones, ServicioAsignaciones>();
 builder.Services.AddScoped<IServicioPasajerosServicio, ServicioPasajerosServicio>();
 builder.Services.AddScoped<IServicioQr, ServicioQr>();
 builder.Services.AddScoped<IServicioAsistencias, ServicioAsistencias>();
+builder.Services.AddScoped<IServicioIncidentes, ServicioIncidentes>();
 builder.Services.AddScoped<IServicioOperacionConductor, ServicioOperacionConductor>();
 builder.Services.AddScoped<IServicioOperacionPasajero, ServicioOperacionPasajero>();
 builder.Services.AddScoped<IServicioMetricasOperacionales, ServicioMetricasOperacionales>();
