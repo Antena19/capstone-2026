@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   AlertController,
@@ -16,6 +16,7 @@ import {
   IonTitle,
   IonToolbar,
   ToastController,
+  ViewWillEnter,
 } from '@ionic/angular';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ServicioConductorDetalle } from '../../../core/models/conductor';
@@ -49,18 +50,21 @@ import {
     IonLabel,
   ],
 })
-export class ConductorDetallePage implements OnInit {
+export class ConductorDetallePage implements ViewWillEnter {
   private readonly api = inject(MisServiciosService);
   private readonly auth = inject(AuthService);
   private readonly ruta = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly alertas = inject(AlertController);
   private readonly avisos = inject(ToastController);
+  private pedidoDetalle = 0;
 
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
   readonly errorInicio = signal<string | null>(null);
+  readonly errorFin = signal<string | null>(null);
   readonly iniciando = signal(false);
+  readonly finalizando = signal(false);
   readonly detalle = signal<ServicioConductorDetalle | null>(null);
 
   readonly formatearFecha = formatearFechaChile;
@@ -70,7 +74,7 @@ export class ConductorDetallePage implements OnInit {
   readonly colorEstado = colorEstadoServicio;
   readonly tieneTexto = tieneTexto;
 
-  ngOnInit(): void {
+  ionViewWillEnter(): void {
     this.cargar();
   }
 
@@ -83,15 +87,34 @@ export class ConductorDetallePage implements OnInit {
       return;
     }
 
-    this.cargando.set(true);
+    const pedido = ++this.pedidoDetalle;
+    const silencioso = this.detalle() != null;
+    if (!silencioso) {
+      this.cargando.set(true);
+    }
+
     this.error.set(null);
     this.api.obtenerDetalleConductor(idServicio).subscribe({
       next: (detalle) => {
+        if (pedido !== this.pedidoDetalle) {
+          return;
+        }
+
         this.detalle.set(detalle);
         this.cargando.set(false);
+        this.iniciando.set(false);
+        this.finalizando.set(false);
       },
       error: (err: unknown) => {
+        if (pedido !== this.pedidoDetalle) {
+          return;
+        }
+
         this.cargando.set(false);
+        if (this.detalle() != null) {
+          return;
+        }
+
         this.detalle.set(null);
         this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar el detalle del servicio.'));
       },
@@ -116,6 +139,27 @@ export class ConductorDetallePage implements OnInit {
     const { role } = await alerta.onDidDismiss();
     if (role === 'confirm') {
       this.iniciar();
+    }
+  }
+
+  async confirmarFinalizacion(): Promise<void> {
+    if (this.finalizando() || this.detalle()?.estado !== 'EN_CURSO') {
+      return;
+    }
+
+    const alerta = await this.alertas.create({
+      header: 'Finalizar servicio',
+      message: '¿Confirmas que deseas finalizar este servicio?',
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Finalizar', role: 'confirm' },
+      ],
+    });
+    await alerta.present();
+
+    const { role } = await alerta.onDidDismiss();
+    if (role === 'confirm') {
+      this.finalizar();
     }
   }
 
@@ -167,14 +211,68 @@ export class ConductorDetallePage implements OnInit {
   }
 
   private recargarTrasInicio(idServicio: number): void {
+    const pedido = ++this.pedidoDetalle;
     this.api.obtenerDetalleConductor(idServicio).subscribe({
       next: (detalle) => {
+        if (pedido !== this.pedidoDetalle) {
+          return;
+        }
+
         this.detalle.set(detalle);
         this.iniciando.set(false);
         this.errorInicio.set(null);
       },
       error: (err: unknown) => {
+        if (pedido !== this.pedidoDetalle) {
+          return;
+        }
+
         this.iniciando.set(false);
+        this.detalle.set(null);
+        this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar el detalle del servicio.'));
+      },
+    });
+  }
+
+  private finalizar(): void {
+    const servicio = this.detalle();
+    if (!servicio || this.finalizando() || servicio.estado !== 'EN_CURSO') {
+      return;
+    }
+
+    this.finalizando.set(true);
+    this.errorFin.set(null);
+
+    this.api.finalizarServicioConductor(servicio.idServicio).subscribe({
+      next: () => {
+        void this.avisarFinalizacionExitosa();
+        this.recargarTrasFinalizacion(servicio.idServicio);
+      },
+      error: (err: unknown) => {
+        this.finalizando.set(false);
+        this.errorFin.set(this.auth.mensajeErrorHttp(err, 'No fue posible finalizar el servicio.'));
+      },
+    });
+  }
+
+  private recargarTrasFinalizacion(idServicio: number): void {
+    const pedido = ++this.pedidoDetalle;
+    this.api.obtenerDetalleConductor(idServicio).subscribe({
+      next: (detalle) => {
+        if (pedido !== this.pedidoDetalle) {
+          return;
+        }
+
+        this.detalle.set(detalle);
+        this.finalizando.set(false);
+        this.errorFin.set(null);
+      },
+      error: (err: unknown) => {
+        if (pedido !== this.pedidoDetalle) {
+          return;
+        }
+
+        this.finalizando.set(false);
         this.detalle.set(null);
         this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar el detalle del servicio.'));
       },
@@ -184,6 +282,15 @@ export class ConductorDetallePage implements OnInit {
   private async avisarInicioExitoso(): Promise<void> {
     const aviso = await this.avisos.create({
       message: 'Servicio iniciado correctamente.',
+      duration: 2500,
+      position: 'bottom',
+    });
+    await aviso.present();
+  }
+
+  private async avisarFinalizacionExitosa(): Promise<void> {
+    const aviso = await this.avisos.create({
+      message: 'Servicio finalizado correctamente.',
       duration: 2500,
       position: 'bottom',
     });

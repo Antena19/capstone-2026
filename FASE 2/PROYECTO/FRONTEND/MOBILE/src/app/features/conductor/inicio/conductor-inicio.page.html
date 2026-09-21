@@ -19,46 +19,127 @@
       <ion-note color="danger">{{ error() }}</ion-note>
       <ion-button expand="block" fill="outline" (click)="cargar()">Reintentar</ion-button>
     </div>
-  } @else if (servicios().length === 0) {
-    <div class="ion-padding vacio">
-      <p>No tienes servicios programados.</p>
-    </div>
   } @else {
-    <div class="lista">
-      @for (servicio of servicios(); track servicio.idServicio) {
-        <ion-card button="true" (click)="abrirDetalle(servicio.idServicio)">
-          <ion-card-header>
-            <ion-card-subtitle>{{ formatearFecha(servicio.fecha) }}</ion-card-subtitle>
-            <ion-card-title>
-              {{ formatearHora(servicio.horaInicio) }} – {{ formatearHora(servicio.horaFin) }}
-            </ion-card-title>
-          </ion-card-header>
-          <ion-card-content>
-            @for (estado of [servicio.estado]; track estado) {
-              <ion-badge [color]="colorEstado(estado)">
-                {{ etiquetaEstado(estado) }}
-              </ion-badge>
-            }
-            @if (tieneTexto(servicio.tipoServicio)) {
-              <p class="dato">{{ servicio.tipoServicio }}</p>
-            }
-            @if (tieneTexto(servicio.nombreRuta)) {
-              <p class="dato">{{ servicio.nombreRuta }}</p>
-            }
-            @if (tieneTexto(servicio.sectorRuta)) {
-              <p class="meta">{{ servicio.sectorRuta }}</p>
-            }
-            @if (tieneTexto(servicio.patenteVehiculo)) {
-              <p class="meta">
-                @if (tieneTexto(servicio.tipoVehiculo)) {
-                  {{ servicio.tipoVehiculo }} ·
-                }
-                {{ servicio.patenteVehiculo }}
-              </p>
-            }
-          </ion-card-content>
-        </ion-card>
+    @if (pendientesAnteriores().length > 0) {
+      <section class="seccion">
+        <div class="seccion-head">
+          <h2>Pendientes de días anteriores</h2>
+          <p>Quedaron en curso. Ábrelos para finalizarlos.</p>
+        </div>
+        <div class="lista">
+          @for (servicio of pendientesAnteriores(); track servicio.idServicio) {
+            <ng-container
+              [ngTemplateOutlet]="tarjetaServicio"
+              [ngTemplateOutletContext]="{ $implicit: servicio, pendiente: true }"
+            />
+          }
+        </div>
+      </section>
+    }
+
+    <section class="seccion">
+      @if (pendientesAnteriores().length > 0) {
+        <div class="seccion-head">
+          <h2>Servicios actuales</h2>
+        </div>
+      }
+      @if (actuales().length === 0) {
+        <div class="ion-padding vacio">
+          <p>No tienes servicios programados para hoy.</p>
+        </div>
+      } @else {
+        <div class="lista">
+          @for (servicio of actuales(); track servicio.idServicio) {
+            <ng-container
+              [ngTemplateOutlet]="tarjetaServicio"
+              [ngTemplateOutletContext]="{ $implicit: servicio, pendiente: false }"
+            />
+          }
+        </div>
+      }
+    </section>
+
+    <div class="historial-acciones ion-padding">
+      @if (historialVisible()) {
+        <ion-button expand="block" fill="clear" (click)="ocultarHistorial()">
+          Ocultar servicios anteriores
+        </ion-button>
+      } @else {
+        <ion-button expand="block" fill="outline" (click)="verHistorial()">
+          Ver servicios anteriores
+        </ion-button>
       }
     </div>
+
+    @if (historialVisible()) {
+      <section class="seccion">
+        <div class="seccion-head">
+          <h2>Servicios anteriores</h2>
+          <p>Últimos {{ diasHistorial }} días, sin incluir hoy.</p>
+        </div>
+        @if (cargandoHistorial()) {
+          <div class="centro">
+            <ion-spinner name="crescent" />
+          </div>
+        } @else if (errorHistorial()) {
+          <div class="ion-padding">
+            <ion-note color="danger">{{ errorHistorial() }}</ion-note>
+            <ion-button expand="block" fill="outline" (click)="reintentarHistorial()">Reintentar</ion-button>
+          </div>
+        } @else if (historial().length === 0) {
+          <div class="ion-padding vacio">
+            <p>No hay servicios anteriores en este período.</p>
+          </div>
+        } @else {
+          <div class="lista">
+            @for (servicio of historial(); track servicio.idServicio) {
+              <ng-container
+                [ngTemplateOutlet]="tarjetaServicio"
+                [ngTemplateOutletContext]="{ $implicit: servicio, pendiente: servicio.estado === 'EN_CURSO' }"
+              />
+            }
+          </div>
+        }
+      </section>
+    }
   }
+
+  <ng-template #tarjetaServicio let-servicio let-pendiente="pendiente">
+    <ion-card button="true" (click)="abrirDetalle(servicio.idServicio)">
+      <ion-card-header>
+        <p class="id-servicio">Servicio #{{ servicio.idServicio }}</p>
+        <ion-card-title>
+          {{ formatearHora(servicio.horaInicio) }} – {{ formatearHora(servicio.horaFin) }}
+        </ion-card-title>
+        <ion-card-subtitle>{{ formatearFecha(servicio.fecha) }}</ion-card-subtitle>
+      </ion-card-header>
+      <ion-card-content>
+        @for (estado of [servicio.estado]; track estado) {
+          <ion-badge [color]="colorEstado(estado)">
+            {{ etiquetaEstado(estado) }}
+          </ion-badge>
+        }
+        @if (pendiente) {
+          <p class="alerta">Fecha anterior · pendiente de finalizar</p>
+        }
+        @if (tieneTexto(servicio.tipoServicio)) {
+          <p class="dato">{{ servicio.tipoServicio }}</p>
+        }
+        @if (tieneTexto(servicio.nombreRuta)) {
+          <p class="dato">{{ servicio.nombreRuta }}</p>
+        }
+        @if (tieneTexto(servicio.sectorRuta)) {
+          <p class="meta">{{ servicio.sectorRuta }}</p>
+        }
+        @if (tieneTexto(servicio.patenteVehiculo)) {
+          <p class="meta">
+            @if (tieneTexto(servicio.tipoVehiculo)) {
+              {{ servicio.tipoVehiculo }} ·
+            }
+            {{ servicio.patenteVehiculo }}
+          </p>
+        }
+      </ion-card-content>
+    </ion-card>
+  </ng-template>
 </ion-content>

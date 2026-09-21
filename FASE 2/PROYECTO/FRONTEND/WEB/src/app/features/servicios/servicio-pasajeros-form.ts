@@ -253,7 +253,7 @@ export class ServicioPasajerosForm {
       return false;
     }
 
-    return elegido !== (fila.idPuntoRecogida ?? '');
+    return elegido !== coincidirPuntoRuta(fila.idPuntoRecogida, this.puntosRuta());
   }
 
   aplicarPunto(fila: AsociadoVista): void {
@@ -409,7 +409,6 @@ export class ServicioPasajerosForm {
     const puntos = [...(ruta.puntosRecogida ?? [])]
       .filter((punto) => !!punto.idPunto)
       .sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre, 'es'));
-    const idsPuntos = new Set(puntos.map((punto) => punto.idPunto));
     const habitualPorId = new Map<number, string>();
     for (const punto of puntos) {
       for (const idPasajero of punto.pasajerosIds ?? []) {
@@ -426,7 +425,9 @@ export class ServicioPasajerosForm {
     const asociados = activos
       .map((asociacion) => {
         const persona = personas.get(asociacion.idPasajero);
-        const puntoInvalido = !!asociacion.idPuntoRecogida && !idsPuntos.has(asociacion.idPuntoRecogida);
+        const idPuntoPersistido = coincidirPuntoRuta(asociacion.idPuntoRecogida, puntos);
+        const tienePunto = !!asociacion.idPuntoRecogida?.trim();
+        const puntoInvalido = tienePunto && !idPuntoPersistido;
         return {
           idPasajeroServicio: asociacion.idPasajeroServicio,
           idPasajero: asociacion.idPasajero,
@@ -437,7 +438,7 @@ export class ServicioPasajerosForm {
           estado: asociacion.estado,
           habitual: habitualPorId.has(asociacion.idPasajero),
           puntoInvalido,
-          sinPunto: !asociacion.idPuntoRecogida,
+          sinPunto: !tienePunto,
         };
       })
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
@@ -466,7 +467,7 @@ export class ServicioPasajerosForm {
 
     const edicion: Record<number, string> = {};
     for (const fila of asociados) {
-      edicion[fila.idPasajeroServicio] = fila.puntoInvalido ? '' : (fila.idPuntoRecogida ?? '');
+      edicion[fila.idPasajeroServicio] = coincidirPuntoRuta(fila.idPuntoRecogida, puntos);
     }
 
     this.asociados.set(asociados);
@@ -489,6 +490,24 @@ export class ServicioPasajerosForm {
     this.idQuitando.set(null);
     this.pendienteQuitar.set(null);
   }
+}
+
+function coincidirPuntoRuta(
+  idPuntoRecogida: string | null | undefined,
+  puntos: readonly PuntoRecogida[],
+): string {
+  const crudo = idPuntoRecogida?.trim() ?? '';
+  if (!crudo) {
+    return '';
+  }
+
+  const exacto = puntos.find((punto) => punto.idPunto === crudo);
+  if (exacto) {
+    return exacto.idPunto;
+  }
+
+  const insensible = puntos.find((punto) => punto.idPunto.toLowerCase() === crudo.toLowerCase());
+  return insensible?.idPunto ?? '';
 }
 
 function coincideTexto(nombre: string, rut: string, termino: string): boolean {

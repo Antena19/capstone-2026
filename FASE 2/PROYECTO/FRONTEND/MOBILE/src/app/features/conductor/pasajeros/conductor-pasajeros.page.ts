@@ -56,9 +56,11 @@ export class ConductorPasajerosPage implements ViewWillEnter {
   private readonly api = inject(MisServiciosService);
   private readonly auth = inject(AuthService);
   private readonly ruta = inject(ActivatedRoute);
+  private pedidoPasajeros = 0;
 
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
+  readonly listo = signal(false);
   readonly pasajeros = signal<PasajeroServicioConductor[]>([]);
 
   readonly idServicio = Number(this.ruta.snapshot.paramMap.get('idServicio'));
@@ -93,20 +95,35 @@ export class ConductorPasajerosPage implements ViewWillEnter {
       return;
     }
 
-    if (!alTerminar) {
+    const pedido = ++this.pedidoPasajeros;
+    const silencioso = this.listo();
+    if (!silencioso && !alTerminar) {
       this.cargando.set(true);
     }
 
     this.error.set(null);
     this.api.listarPasajerosConductor(this.idServicio).subscribe({
       next: (pasajeros) => {
+        if (pedido !== this.pedidoPasajeros) {
+          alTerminar?.();
+          return;
+        }
+
         this.pasajeros.set(pasajeros);
+        this.listo.set(true);
         this.cargando.set(false);
         alTerminar?.();
       },
       error: (err: unknown) => {
+        if (pedido !== this.pedidoPasajeros) {
+          alTerminar?.();
+          return;
+        }
+
         this.cargando.set(false);
-        this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar los pasajeros.'));
+        if (!this.listo()) {
+          this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar los pasajeros.'));
+        }
         alTerminar?.();
       },
     });

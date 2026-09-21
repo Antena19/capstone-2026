@@ -118,9 +118,14 @@
                     [disabled]="ocupado()"
                     (change)="cambiarPuntoAsociado(fila.idPasajeroServicio, puntoDesdeEvento($event))"
                   >
-                    <option value="">Selecciona un punto</option>
+                    <option value="" [selected]="puntoEdicion(fila.idPasajeroServicio) === ''">
+                      Selecciona un punto
+                    </option>
                     @for (punto of puntosRuta(); track punto.idPunto) {
-                      <option [value]="punto.idPunto">{{ etiquetaPunto(punto) }}</option>
+                      <option
+                        [value]="punto.idPunto"
+                        [selected]="puntoEdicion(fila.idPasajeroServicio) === punto.idPunto"
+                      >{{ etiquetaPunto(punto) }}</option>
                     }
                   </select>
                 </label>

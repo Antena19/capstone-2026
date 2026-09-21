@@ -21,6 +21,12 @@ export function fechaLocalHoy(fecha = new Date()): string {
   return `${anio}-${mes}-${dia}`;
 }
 
+export function fechaLocalDesplazada(dias: number, fecha = new Date()): string {
+  const copia = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+  copia.setDate(copia.getDate() + dias);
+  return fechaLocalHoy(copia);
+}
+
 export function formatearFechaChile(fecha: string): string {
   const [anio, mes, dia] = fecha.split('-').map(Number);
   if (!anio || !mes || !dia) {

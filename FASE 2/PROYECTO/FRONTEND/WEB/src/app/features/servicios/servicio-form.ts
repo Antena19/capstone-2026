@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
-import { catchError, EMPTY, forkJoin, Subject, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, forkJoin, of, Subject, switchMap, tap } from 'rxjs';
 import { Empresa } from '../../core/models/empresa';
 import { Pasajero } from '../../core/models/pasajero';
 import { Planificacion } from '../../core/models/planificacion';
@@ -73,6 +73,8 @@ export class ServicioForm {
   readonly empresas = signal<Empresa[]>([]);
   readonly planificaciones = signal<Planificacion[]>([]);
   readonly rutas = signal<Ruta[]>([]);
+  readonly cargandoPlanificaciones = signal(false);
+  readonly cargandoRutas = signal(false);
   readonly idEmpresaActual = signal('');
   readonly idPlanificacionActual = signal('');
   readonly idRutaActual = signal('');
@@ -176,46 +178,72 @@ export class ServicioForm {
         takeUntilDestroyed(this.destroyRef),
         tap((idEmpresa) => {
           this.idEmpresaActual.set(idEmpresa);
-          this.form.patchValue({ idPlanificacion: '' }, { emitEvent: false });
+          this.form.controls.idPlanificacion.setValue('', { emitEvent: false });
+          this.form.controls.idRuta.setValue('', { emitEvent: false });
           this.idPlanificacionActual.set('');
           this.idRutaActual.set('');
-          this.form.controls.idRuta.setValue('');
+          this.planificaciones.set([]);
+          this.rutas.set([]);
+          this.cargandoRutas.set(false);
           this.recargaPasajeros.next('');
         }),
         switchMap((idEmpresa) => {
           const id = Number(idEmpresa);
           if (!Number.isInteger(id) || id <= 0) {
-            this.planificaciones.set([]);
-            this.rutas.set([]);
+            this.cargandoPlanificaciones.set(false);
             this.form.controls.idPlanificacion.disable({ emitEvent: false });
             this.form.controls.idRuta.disable({ emitEvent: false });
             return EMPTY;
           }
 
           this.form.controls.idPlanificacion.enable({ emitEvent: false });
-          this.form.controls.idRuta.enable({ emitEvent: false });
-          return forkJoin({
-            planificaciones: this.planificacionesApi.listar({ idEmpresa: id }),
-            rutas: this.rutasApi.listar(id, 'ACTIVO'),
-          });
+          this.form.controls.idRuta.disable({ emitEvent: false });
+          this.cargandoPlanificaciones.set(true);
+          return this.planificacionesApi.listar({ idEmpresa: id }).pipe(
+            catchError(() => of([] as Planificacion[])),
+          );
         }),
       )
-      .subscribe({
-        next: ({ planificaciones, rutas }) => {
-          this.planificaciones.set(
-            planificaciones.filter((item) => item.estado === 'BORRADOR' || item.estado === 'ACTIVA'),
-          );
-          this.rutas.set(rutas);
-        },
-        error: () => {
-          this.planificaciones.set([]);
-          this.rutas.set([]);
-        },
+      .subscribe((planificaciones) => {
+        this.planificaciones.set(
+          planificaciones.filter((item) => item.estado === 'BORRADOR' || item.estado === 'ACTIVA'),
+        );
+        this.cargandoPlanificaciones.set(false);
       });
 
-    this.form.controls.idPlanificacion.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((id) => {
-      this.idPlanificacionActual.set(id);
-    });
+    this.form.controls.idPlanificacion.valueChanges
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        tap((id) => {
+          this.idPlanificacionActual.set(id);
+          this.form.controls.idRuta.setValue('', { emitEvent: false });
+          this.idRutaActual.set('');
+          this.rutas.set([]);
+          this.recargaPasajeros.next('');
+        }),
+        switchMap((id) => {
+          const idPlanificacion = Number(id);
+          const idEmpresa = Number(this.form.controls.idEmpresa.value);
+          if (
+            !Number.isInteger(idPlanificacion)
+            || idPlanificacion <= 0
+            || !Number.isInteger(idEmpresa)
+            || idEmpresa <= 0
+          ) {
+            this.cargandoRutas.set(false);
+            this.form.controls.idRuta.disable({ emitEvent: false });
+            return EMPTY;
+          }
+
+          this.form.controls.idRuta.enable({ emitEvent: false });
+          this.cargandoRutas.set(true);
+          return this.rutasApi.listar(idEmpresa, 'ACTIVO').pipe(catchError(() => of([] as Ruta[])));
+        }),
+      )
+      .subscribe((rutas) => {
+        this.rutas.set(rutas);
+        this.cargandoRutas.set(false);
+      });
 
     this.form.controls.idRuta.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((idRuta) => {
       this.idRutaActual.set(idRuta);
@@ -433,19 +461,22 @@ export class ServicioForm {
   }
 
   private reiniciar(): void {
-    this.form.reset({
-      modalidad: 'individual',
-      idEmpresa: '',
-      idPlanificacion: '',
-      idRuta: '',
-      horaInicio: '',
-      horaFin: '',
-      tipoServicio: '',
-      fecha: '',
-      fechaDesde: '',
-      fechaHasta: '',
-      diasSemana: [],
-    });
+    this.form.reset(
+      {
+        modalidad: 'individual',
+        idEmpresa: '',
+        idPlanificacion: '',
+        idRuta: '',
+        horaInicio: '',
+        horaFin: '',
+        tipoServicio: '',
+        fecha: '',
+        fechaDesde: '',
+        fechaHasta: '',
+        diasSemana: [],
+      },
+      { emitEvent: false },
+    );
     this.idEmpresaActual.set('');
     this.idPlanificacionActual.set('');
     this.idRutaActual.set('');
@@ -453,6 +484,8 @@ export class ServicioForm {
     this.diasSeleccionados.set([]);
     this.planificaciones.set([]);
     this.rutas.set([]);
+    this.cargandoPlanificaciones.set(false);
+    this.cargandoRutas.set(false);
     this.form.controls.idPlanificacion.disable({ emitEvent: false });
     this.form.controls.idRuta.disable({ emitEvent: false });
     this.reiniciarPasajeros();

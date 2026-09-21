@@ -303,3 +303,14 @@ C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\BACKEND.runtimeconfig.json
 C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\BACKEND.dll
 C:\Users\angel\AppData\Local\Temp\trayek-reloj-build\BACKEND.pdb
 C:\capstone-2026\FASE 2\PROYECTO\BACKEND\bin\Debug\net9.0\BACKEND.exe
+C:\Users\angel\AppData\Local\Temp\backend-a2-build\appsettings.Development.json
+C:\Users\angel\AppData\Local\Temp\backend-a2-build\appsettings.json
+C:\Users\angel\AppData\Local\Temp\backend-a2-build\DatosPrueba\ImportacionPasajeros\mapeo.json
+C:\Users\angel\AppData\Local\Temp\backend-a2-build\DatosPrueba\ImportacionPasajeros\mapeo_falta.json
+C:\Users\angel\AppData\Local\Temp\backend-a2-build\DatosPrueba\ImportacionPasajeros\mapeo_falta_nombre.json
+C:\Users\angel\AppData\Local\Temp\backend-a2-build\DatosPrueba\ImportacionPasajeros\mapeo_inex.json
+C:\Users\angel\AppData\Local\Temp\backend-a2-build\BACKEND.staticwebassets.endpoints.json
+C:\Users\angel\AppData\Local\Temp\backend-a2-build\BACKEND.deps.json
+C:\Users\angel\AppData\Local\Temp\backend-a2-build\BACKEND.runtimeconfig.json
+C:\Users\angel\AppData\Local\Temp\backend-a2-build\BACKEND.dll
+C:\Users\angel\AppData\Local\Temp\backend-a2-build\BACKEND.pdb

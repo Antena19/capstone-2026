@@ -6,6 +6,17 @@
 </ion-header>
 
 <ion-content [fullscreen]="true">
+  <div class="acciones ion-padding">
+    <ion-button expand="block" [disabled]="escaneando()" (click)="escanearQr()">
+      @if (escaneando()) {
+        <ion-spinner name="crescent" />
+        Registrando...
+      } @else {
+        ESCANEAR QR
+      }
+    </ion-button>
+  </div>
+
   @if (cargando()) {
     <div class="centro">
       <ion-spinner name="crescent" />

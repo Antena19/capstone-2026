@@ -19,6 +19,7 @@
     </div>
   } @else if (detalle(); as servicio) {
     <div class="encabezado ion-padding">
+      <p class="id-servicio">Servicio #{{ servicio.idServicio }}</p>
       <p class="fecha">{{ formatearFecha(servicio.fecha) }}</p>
       <h1>
         {{ formatearHora(servicio.horaInicio) }} – {{ formatearHora(servicio.horaFin) }}
@@ -143,7 +144,18 @@
         }
 
         @if (servicio.estado === 'EN_CURSO') {
+          @if (errorFin()) {
+            <ion-note color="danger">{{ errorFin() }}</ion-note>
+          }
           <ion-button expand="block" (click)="abrirQr()">Mostrar QR</ion-button>
+          <ion-button expand="block" [disabled]="finalizando()" (click)="confirmarFinalizacion()">
+            @if (finalizando()) {
+              <ion-spinner name="crescent" />
+              Finalizando...
+            } @else {
+              FINALIZAR SERVICIO
+            }
+          </ion-button>
         }
 
         <ion-button expand="block" fill="outline" (click)="abrirPasajeros()">Ver pasajeros</ion-button>

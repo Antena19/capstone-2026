@@ -48,7 +48,7 @@
       </select>
       @if (mensajeCampo('idPlanificacion'); as mensaje) {
         <p class="hint">{{ mensaje }}</p>
-      } @else if (idEmpresaActual() && planificaciones().length === 0) {
+      } @else if (idEmpresaActual() && !cargandoPlanificaciones() && planificaciones().length === 0) {
         <p class="nota">No hay planificaciones BORRADOR o ACTIVA para esta empresa.</p>
       } @else if (rangoFechasEtiqueta(); as rango) {
         <p class="nota">{{ rango }}</p>
@@ -65,7 +65,7 @@
       </select>
       @if (mensajeCampo('idRuta'); as mensaje) {
         <p class="hint">{{ mensaje }}</p>
-      } @else if (idEmpresaActual() && rutas().length === 0) {
+      } @else if (idPlanificacionActual() && !cargandoRutas() && rutas().length === 0) {
         <p class="nota">No hay rutas activas para esta empresa.</p>
       }
     </label>

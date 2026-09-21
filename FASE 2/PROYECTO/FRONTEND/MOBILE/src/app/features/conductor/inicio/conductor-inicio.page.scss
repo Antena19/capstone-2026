@@ -4,12 +4,39 @@
   padding: 48px 0;
 }
 
+.seccion-head {
+  padding: 16px 16px 0;
+}
+
+.seccion-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.seccion-head p {
+  margin: 4px 0 0;
+  color: var(--ion-color-medium);
+  font-size: 14px;
+}
+
 .lista {
   padding: 8px 12px 24px;
 }
 
+.historial-acciones {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
 ion-card {
   margin: 0 0 12px;
+}
+
+.id-servicio {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 ion-card-title {
@@ -25,6 +52,13 @@ ion-card-title {
   margin: 4px 0 0;
   color: var(--ion-color-medium);
   font-size: 14px;
+}
+
+.alerta {
+  margin: 10px 0 0;
+  color: var(--ion-color-warning-shade);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .vacio p {

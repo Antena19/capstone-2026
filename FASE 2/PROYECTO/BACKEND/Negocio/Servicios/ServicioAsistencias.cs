@@ -3,6 +3,7 @@ using BACKEND.DTOs.Asistencias;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Excepciones;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace BACKEND.Negocio.Servicios
 {
@@ -32,12 +33,16 @@ namespace BACKEND.Negocio.Servicios
 
     /// <summary>
     /// Registro de asistencia. Distinto de la planificación en pasajero_servicio
-    /// y de la confirmación de viaje. Los planificados tienen prioridad de asiento;
-    /// los no planificados quedan PROVISIONAL hasta que el servicio inicia.
+    /// y de la confirmación de viaje. Los planificados ACTIVO reservan asiento;
+    /// los no planificados en PROGRAMADO quedan PROVISIONAL y en EN_CURSO
+    /// ingresan VALIDA solo si hay cupo.
     /// </summary>
     public class ServicioAsistencias : IServicioAsistencias
     {
         private const string MensajeDuplicado = "Ya existe una asistencia para este pasajero en el servicio.";
+        private const string MensajeSinCupo = "El servicio no tiene cupos disponibles.";
+        private const string MensajeSinCapacidad =
+            "No es posible determinar la capacidad del servicio porque no tiene un vehículo asignado.";
 
         private readonly TransporteContext _contexto;
         private readonly IServicioQr _servicioQr;
@@ -152,15 +157,15 @@ namespace BACKEND.Negocio.Servicios
                 Estado = estado
             };
 
-            await GuardarAsistenciaAsync(asistencia);
+            await PersistirAsistenciaAsync(asistencia, servicio.Estado);
 
             _logger.LogInformation(
                 "El pasajero {IdPasajero} registró asistencia QR {IdAsistencia} en el servicio {IdServicio} (tipo {Tipo}, estado {Estado}).",
                 pasajero.IdPasajero,
                 asistencia.IdAsistencia,
                 servicio.IdServicio,
-                tipo,
-                estado);
+                asistencia.TipoAsistencia,
+                asistencia.Estado);
 
             return Mapear(asistencia);
         }
@@ -211,7 +216,7 @@ namespace BACKEND.Negocio.Servicios
                 Estado = estado
             };
 
-            await GuardarAsistenciaAsync(asistencia);
+            await PersistirAsistenciaAsync(asistencia, servicio.Estado);
 
             _logger.LogInformation(
                 "El administrador {IdAdministrador} registró asistencia MANUAL {IdAsistencia} del pasajero {IdPasajero} en el servicio {IdServicio} (tipo {Tipo}, estado {Estado}).",
@@ -219,8 +224,8 @@ namespace BACKEND.Negocio.Servicios
                 asistencia.IdAsistencia,
                 pasajero.IdPasajero,
                 servicio.IdServicio,
-                tipo,
-                estado);
+                asistencia.TipoAsistencia,
+                asistencia.Estado);
 
             return Mapear(asistencia);
         }
@@ -239,13 +244,10 @@ namespace BACKEND.Negocio.Servicios
             }
 
             var capacidad = asignacion.Vehiculo.Capacidad;
-            var planificadasValidas = await _contexto.Asistencias
-                .CountAsync(a =>
-                    a.IdServicio == idServicio
-                    && a.Estado == EstadoAsistencia.VALIDA
-                    && a.TipoAsistencia == TipoAsistencia.PLANIFICADA);
-
-            var cuposDisponibles = Math.Max(0, capacidad - planificadasValidas);
+            var (planificadosActivos, validasNoPlanificadas) = await ContarOcupacionNoPlanificadaAsync(idServicio);
+            var cuposDisponibles = Math.Max(
+                0,
+                CalcularCuposDisponiblesNoPlanificados(capacidad, planificadosActivos, validasNoPlanificadas));
 
             var provisionales = await _contexto.Asistencias
                 .Where(a =>
@@ -259,26 +261,28 @@ namespace BACKEND.Negocio.Servicios
             var confirmadas = 0;
             var anuladas = 0;
 
-            for (var i = 0; i < provisionales.Count; i++)
+            foreach (var provisional in provisionales)
             {
-                if (i < cuposDisponibles)
+                if (cuposDisponibles > 0)
                 {
-                    provisionales[i].Estado = EstadoAsistencia.VALIDA;
+                    provisional.Estado = EstadoAsistencia.VALIDA;
+                    provisional.ExcedeCapacidad = false;
+                    cuposDisponibles--;
                     confirmadas++;
                 }
                 else
                 {
-                    provisionales[i].Estado = EstadoAsistencia.ANULADA;
+                    provisional.Estado = EstadoAsistencia.ANULADA;
                     anuladas++;
                 }
             }
 
             _logger.LogInformation(
-                "Se resolvieron asistencias provisionales del servicio {IdServicio}: capacidad {Capacidad}, planificadas válidas {Planificadas}, cupos {Cupos}, confirmadas {Confirmadas}, anuladas {Anuladas}.",
+                "Se resolvieron asistencias provisionales del servicio {IdServicio}: capacidad {Capacidad}, planificados activos {Planificados}, válidas no planificadas {ValidasNoPlanificadas}, confirmadas {Confirmadas}, anuladas {Anuladas}.",
                 idServicio,
                 capacidad,
-                planificadasValidas,
-                cuposDisponibles,
+                planificadosActivos,
+                validasNoPlanificadas,
                 confirmadas,
                 anuladas);
         }
@@ -315,6 +319,109 @@ namespace BACKEND.Negocio.Servicios
                 idAsistencia);
 
             return Mapear(registro);
+        }
+
+        private async Task PersistirAsistenciaAsync(Asistencia asistencia, EstadoServicio estadoServicio)
+        {
+            var requiereCupoNoPlanificado = asistencia.TipoAsistencia == TipoAsistencia.NO_PLANIFICADA
+                && estadoServicio == EstadoServicio.EN_CURSO;
+
+            if (!requiereCupoNoPlanificado)
+            {
+                await GuardarAsistenciaAsync(asistencia);
+                return;
+            }
+
+            await using var transaccion = await _contexto.Database.BeginTransactionAsync();
+
+            await BloquearFilaServicioAsync(asistencia.IdServicio);
+
+            var estadoActual = await _contexto.Servicios
+                .AsNoTracking()
+                .Where(s => s.IdServicio == asistencia.IdServicio)
+                .Select(s => s.Estado)
+                .SingleAsync();
+
+            if (estadoActual != EstadoServicio.EN_CURSO)
+            {
+                asistencia.Estado = DeterminarEstadoInicial(asistencia.TipoAsistencia, estadoActual);
+                await GuardarAsistenciaAsync(asistencia);
+                await transaccion.CommitAsync();
+                return;
+            }
+
+            await AsegurarCupoNoPlanificadoEnCursoAsync(asistencia.IdServicio);
+            asistencia.Estado = EstadoAsistencia.VALIDA;
+            await GuardarAsistenciaAsync(asistencia);
+            await transaccion.CommitAsync();
+        }
+
+        private async Task BloquearFilaServicioAsync(int idServicio)
+        {
+            var transaccion = _contexto.Database.CurrentTransaction
+                ?? throw new InvalidOperationException("Se requiere una transacción para bloquear el servicio.");
+
+            var conexion = _contexto.Database.GetDbConnection();
+            await using var comando = conexion.CreateCommand();
+            comando.Transaction = transaccion.GetDbTransaction();
+            comando.CommandText = "SELECT `id_servicio` FROM `servicio` WHERE `id_servicio` = @idServicio FOR UPDATE";
+            var parametro = comando.CreateParameter();
+            parametro.ParameterName = "@idServicio";
+            parametro.Value = idServicio;
+            comando.Parameters.Add(parametro);
+
+            var id = await comando.ExecuteScalarAsync();
+            if (id is null || id is DBNull)
+            {
+                throw new ExcepcionNegocio("El servicio indicado no existe.", StatusCodes.Status404NotFound);
+            }
+        }
+
+        private async Task AsegurarCupoNoPlanificadoEnCursoAsync(int idServicio)
+        {
+            var asignacion = await _contexto.AsignacionesServicio
+                .AsNoTracking()
+                .Include(a => a.Vehiculo)
+                .FirstOrDefaultAsync(a => a.IdServicio == idServicio && a.Estado == EstadoAsignacionServicio.ACTIVA);
+
+            if (asignacion?.Vehiculo is null)
+            {
+                throw new ExcepcionNegocio(MensajeSinCapacidad, StatusCodes.Status409Conflict);
+            }
+
+            var (planificadosActivos, validasNoPlanificadas) = await ContarOcupacionNoPlanificadaAsync(idServicio);
+            var disponibles = CalcularCuposDisponiblesNoPlanificados(
+                asignacion.Vehiculo.Capacidad,
+                planificadosActivos,
+                validasNoPlanificadas);
+
+            if (disponibles <= 0)
+            {
+                throw new ExcepcionNegocio(MensajeSinCupo, StatusCodes.Status409Conflict);
+            }
+        }
+
+        private async Task<(int PlanificadosActivos, int ValidasNoPlanificadas)> ContarOcupacionNoPlanificadaAsync(
+            int idServicio)
+        {
+            var planificadosActivos = await _contexto.PasajerosServicio
+                .CountAsync(p => p.IdServicio == idServicio && p.Estado == EstadoPasajeroServicio.ACTIVO);
+
+            var validasNoPlanificadas = await _contexto.Asistencias
+                .CountAsync(a =>
+                    a.IdServicio == idServicio
+                    && a.TipoAsistencia == TipoAsistencia.NO_PLANIFICADA
+                    && a.Estado == EstadoAsistencia.VALIDA);
+
+            return (planificadosActivos, validasNoPlanificadas);
+        }
+
+        private static int CalcularCuposDisponiblesNoPlanificados(
+            int capacidad,
+            int planificadosActivos,
+            int validasNoPlanificadas)
+        {
+            return capacidad - planificadosActivos - validasNoPlanificadas;
         }
 
         private async Task GuardarAsistenciaAsync(Asistencia asistencia)
@@ -365,9 +472,7 @@ namespace BACKEND.Negocio.Servicios
 
             if (estadoServicio == EstadoServicio.EN_CURSO)
             {
-                throw new ExcepcionNegocio(
-                    "El servicio ya inició y no admite nuevos pasajeros no planificados.",
-                    StatusCodes.Status409Conflict);
+                return EstadoAsistencia.VALIDA;
             }
 
             if (estadoServicio != EstadoServicio.PROGRAMADO)
