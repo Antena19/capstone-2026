@@ -233,6 +233,7 @@ namespace BACKEND.Negocio.Servicios
                 : await _contexto.AsignacionesServicio
                     .AsNoTracking()
                     .Include(a => a.Vehiculo)
+                    .Include(a => a.Conductor)
                     .Where(a => ids.Contains(a.IdServicio) && a.Estado == EstadoAsignacionServicio.ACTIVA)
                     .ToListAsync();
 
@@ -404,6 +405,8 @@ namespace BACKEND.Negocio.Servicios
                     NombreRuta = ruta?.Nombre,
                     SectorRuta = ruta?.Sector,
                     PatenteVehiculo = asignacion?.Vehiculo.Patente,
+                    NombreConductor = asignacion?.Conductor?.Nombre,
+                    CapacidadVehiculo = asignacion?.Vehiculo?.Capacidad,
                     PersonasPlanificadas = metricas.PersonasPlanificadas,
                     PlanificadosTransportados = metricas.PlanificadosTransportados,
                     PlanificadosNoTransportados = metricas.PlanificadosNoTransportados,

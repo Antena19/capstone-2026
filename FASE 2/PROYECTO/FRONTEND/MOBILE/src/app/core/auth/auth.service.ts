@@ -143,6 +143,15 @@ export class AuthService {
     this.guardarSesion({ ...actual, debeCambiarPassword: false });
   }
 
+  marcarDebeCambiarPassword(): void {
+    const actual = this.sesionSignal();
+    if (!actual || actual.debeCambiarPassword) {
+      return;
+    }
+
+    this.guardarSesion({ ...actual, debeCambiarPassword: true });
+  }
+
   private aSesion(respuesta: LoginRespuesta): SesionUsuario {
     return {
       token: respuesta.token,

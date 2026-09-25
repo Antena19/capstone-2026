@@ -22,6 +22,7 @@ export interface SesionUsuario {
   email: string;
   rol: string;
   expiracion: string;
+  debeCambiarPassword: boolean;
 }
 
 export interface CambiarPasswordSolicitud {

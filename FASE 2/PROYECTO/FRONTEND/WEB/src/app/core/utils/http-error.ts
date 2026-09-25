@@ -1,6 +1,16 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { MensajeRespuesta } from '../models/autenticacion';
 
+export function esCambioPasswordObligatorio(error: unknown): boolean {
+  if (!(error instanceof HttpErrorResponse) || error.status !== 403) {
+    return false;
+  }
+
+  const cuerpo = error.error as MensajeRespuesta | string | undefined;
+  const mensaje = typeof cuerpo === 'string' ? cuerpo : (cuerpo?.mensaje ?? '');
+  return mensaje.toLowerCase().includes('cambiar su contraseña');
+}
+
 export function mensajeErrorHttp(
   error: unknown,
   fallback = 'Ocurrió un error. Intente nuevamente.',

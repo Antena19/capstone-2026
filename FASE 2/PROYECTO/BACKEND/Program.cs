@@ -192,7 +192,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:4200", "http://localhost:8100")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .WithExposedHeaders("Content-Disposition");
     });
 });
 

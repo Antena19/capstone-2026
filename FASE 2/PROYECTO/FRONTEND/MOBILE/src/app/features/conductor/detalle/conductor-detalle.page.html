@@ -8,6 +8,10 @@
 </ion-header>
 
 <ion-content [fullscreen]="true">
+  <ion-refresher slot="fixed" (ionRefresh)="refrescar($event)">
+    <ion-refresher-content />
+  </ion-refresher>
+
   @if (cargando()) {
     <div class="centro">
       <ion-spinner name="crescent" />
@@ -125,6 +129,17 @@
           </ion-label>
         </ion-item>
       }
+    </ion-list>
+
+    <ion-list [inset]="true">
+      <ion-item>
+        <ion-label>
+          <p>Pasajeros</p>
+          <h2>Planificados: {{ servicio.resumenPasajeros.totalPlanificados }}</h2>
+          <p>Confirmados: {{ servicio.resumenPasajeros.totalConfirmados }}</p>
+          <p>Asistencias registradas: {{ servicio.resumenPasajeros.totalAsistenciasValidas }}</p>
+        </ion-label>
+      </ion-item>
     </ion-list>
 
     @if (servicio.estado !== 'CANCELADO') {

@@ -81,6 +81,15 @@
                     <app-icon name="edit" [size]="15" />
                   </button>
                   @if (administrador.estado === 'ACTIVO') {
+                    <button
+                      type="button"
+                      class="text-btn"
+                      title="Restablecer contraseña"
+                      [disabled]="estaRestableciendo(administrador.idUsuario)"
+                      (click)="pedirRestablecer(administrador)"
+                    >
+                      Restablecer
+                    </button>
                     @if (!esCuentaPropia(administrador)) {
                       <button
                         type="button"
@@ -142,3 +151,61 @@
   (confirmed)="confirmarInactivar()"
   (cancelled)="cancelarInactivar()"
 />
+
+<app-confirm-dialog
+  [open]="confirmacionResetAbierta()"
+  titulo="Restablecer contraseña"
+  [mensaje]="mensajeReset()"
+  confirmLabel="Restablecer"
+  cancelLabel="Cancelar"
+  [danger]="true"
+  [confirmDisabled]="idUsuarioRestableciendo() !== null"
+  (confirmed)="confirmarRestablecer()"
+  (cancelled)="cancelarRestablecer()"
+/>
+
+<app-modal
+  [open]="credencialesReset() !== null"
+  titulo="Contraseña restablecida"
+  (closed)="cerrarCredencialesReset()"
+>
+  @if (credencialesReset(); as cuenta) {
+    <div class="credenciales">
+      <p class="credenciales-intro">Entrega estas credenciales de forma segura. No se volverán a mostrar.</p>
+      <div class="credencial">
+        <span>Correo</span>
+        <p class="mono">{{ cuenta.email }}</p>
+      </div>
+      @if (cuenta.passwordTemporal) {
+        <div class="credencial">
+          <span>Contraseña temporal</span>
+          <p class="mono">{{ cuenta.passwordTemporal }}</p>
+        </div>
+      } @else {
+        <p class="aviso">La contraseña se restableció. El servidor no devolvió una clave temporal para mostrar.</p>
+      }
+      @if (resetEsCuentaPropia()) {
+        <p class="aviso">
+          Restableciste tu propia cuenta. Usa la clave temporal como contraseña actual en la siguiente pantalla.
+        </p>
+      } @else {
+        <p class="aviso">
+          El usuario deberá cambiar esta contraseña al iniciar sesión.
+        </p>
+      }
+      @if (avisoCopia(); as aviso) {
+        <p class="copia-ok">{{ aviso }}</p>
+      }
+      <div class="credenciales-acciones">
+        @if (cuenta.passwordTemporal) {
+          <app-action-button
+            [label]="copiado() ? 'Contraseña copiada' : 'Copiar contraseña'"
+            variant="secondary"
+            (clicked)="copiarPasswordTemporal()"
+          />
+        }
+        <app-action-button label="Entendido" (clicked)="cerrarCredencialesReset()" />
+      </div>
+    </div>
+  }
+</app-modal>

@@ -50,6 +50,9 @@
             @if (etiquetaConfirmacion(pasajero.estadoConfirmacion); as confirmacion) {
               <p class="secundario">{{ confirmacion }}</p>
             }
+            @if (pasajero.fechaHoraAsistencia) {
+              <p class="secundario">{{ formatearHoraAsistencia(pasajero.fechaHoraAsistencia) }}</p>
+            }
           </ion-label>
           @for (estado of [pasajero.estadoAsistencia]; track estado ?? 'sin') {
             <ion-badge slot="end" [color]="colorAsistencia(estado)">

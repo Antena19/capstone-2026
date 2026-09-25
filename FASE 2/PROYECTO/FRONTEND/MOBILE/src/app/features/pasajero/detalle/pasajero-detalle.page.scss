@@ -1,0 +1,52 @@
+.centro {
+  display: flex;
+  justify-content: center;
+  padding: 48px 0;
+}
+
+.encabezado {
+  padding-bottom: 8px;
+}
+
+.id-servicio {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.fecha {
+  margin: 0 0 4px;
+  color: var(--ion-color-medium);
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-size: 28px;
+}
+
+ion-badge + ion-badge {
+  margin-left: 6px;
+}
+
+ion-note {
+  display: block;
+  margin-bottom: 16px;
+}
+
+ion-item h2 {
+  font-size: 17px;
+}
+
+.acciones {
+  padding-top: 8px;
+}
+
+.acciones ion-button + ion-button {
+  margin-top: 8px;
+}
+
+.acciones ion-spinner {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+}

@@ -27,6 +27,7 @@ import {
   etiquetaConfirmacion,
   etiquetaEstadoAsistencia,
   etiquetaParticipacion,
+  formatearHoraChile,
   textoPuntoRecogida,
 } from '../../../core/utils/formato-servicio';
 
@@ -70,6 +71,7 @@ export class ConductorPasajerosPage implements ViewWillEnter {
   readonly etiquetaParticipacion = etiquetaParticipacion;
   readonly etiquetaConfirmacion = etiquetaConfirmacion;
   readonly textoPuntoRecogida = textoPuntoRecogida;
+  readonly formatearHoraAsistencia = formatearHoraChile;
 
   readonly resumen = computed(() => {
     const lista = this.pasajeros();

@@ -32,6 +32,30 @@ namespace BACKEND.Controladores
         }
 
         /// <summary>
+        /// Resumen operacional y detalle de servicios para una empresa en un rango de fechas.
+        /// Reutiliza las mismas métricas que el dashboard y el reporte mensual.
+        /// </summary>
+        [HttpGet("resumen")]
+        [ProducesResponseType(typeof(ReporteServiciosRangoDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<ReporteServiciosRangoDto>> ObtenerResumen(
+            [FromQuery] int idEmpresa,
+            [FromQuery] DateOnly desde,
+            [FromQuery] DateOnly hasta)
+        {
+            if (idEmpresa <= 0)
+            {
+                return BadRequest(new MensajeRespuestaDto { Mensaje = "Debe indicar una empresa válida." });
+            }
+
+            var reporte = await _servicioReportes.ObtenerServiciosRangoAsync(idEmpresa, desde, hasta, null);
+            return Ok(reporte);
+        }
+
+        /// <summary>
         /// Detalle operacional por servicio. Fechas inclusivas; sin fechas, día actual (UTC).
         /// </summary>
         [HttpGet("servicios")]
@@ -65,7 +89,8 @@ namespace BACKEND.Controladores
             [FromQuery] DateOnly? hasta)
         {
             var reporte = await _servicioReportes.ObtenerServiciosRangoAsync(idEmpresa, desde, hasta, null);
-            var archivo = _servicioExportacionExcel.GenerarServicios(reporte);
+            var pasajeros = await _servicioReportes.ListarPasajerosDeServiciosAsync(reporte.Servicios);
+            var archivo = _servicioExportacionExcel.GenerarServicios(reporte, pasajeros);
             return File(archivo.Contenido, TipoExcel, archivo.NombreArchivo);
         }
 
@@ -114,7 +139,8 @@ namespace BACKEND.Controladores
             [FromQuery] string periodo)
         {
             var reporte = await _servicioReportes.ObtenerMensualAsync(idEmpresa, periodo);
-            var archivo = _servicioExportacionExcel.GenerarMensual(reporte);
+            var pasajeros = await _servicioReportes.ListarPasajerosDeServiciosAsync(reporte.Servicios);
+            var archivo = _servicioExportacionExcel.GenerarMensual(reporte, pasajeros);
             return File(archivo.Contenido, TipoExcel, archivo.NombreArchivo);
         }
     }

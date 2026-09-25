@@ -44,5 +44,20 @@
 
 ion-note {
   display: block;
-  margin-bottom: 16px;
+  margin: 16px 0;
+}
+
+.vacio p {
+  margin: 8px 0;
+  color: var(--ion-color-medium);
+}
+
+.contenido ion-button {
+  margin-top: 16px;
+}
+
+.contenido ion-spinner {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
 }

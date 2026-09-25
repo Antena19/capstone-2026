@@ -1,10 +1,12 @@
 import { Routes } from '@angular/router';
+import { passwordObligatorioGuard } from '../core/guards/auth.guard';
 import { MainLayout } from './main-layout/main-layout';
 
 export const adminRoutes: Routes = [
   {
     path: '',
     component: MainLayout,
+    canActivateChild: [passwordObligatorioGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: '/dashboard' },
       {
@@ -58,7 +60,7 @@ export const adminRoutes: Routes = [
       {
         path: 'reportes',
         loadComponent: () =>
-          import('../features/placeholder/placeholder-page').then((m) => m.PlaceholderPage),
+          import('../features/reportes/reportes').then((m) => m.ReportesPage),
         data: { title: 'Reportes' },
       },
       {

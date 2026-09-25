@@ -27,3 +27,9 @@ export interface EditarAdministradorSolicitud {
 export interface CambiarEstadoUsuarioSolicitud {
   estado: EstadoRegistro;
 }
+
+export interface RestablecerPasswordRespuesta {
+  idUsuario: number;
+  email: string;
+  passwordTemporal: string;
+}

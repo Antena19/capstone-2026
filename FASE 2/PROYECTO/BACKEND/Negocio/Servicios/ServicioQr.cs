@@ -203,7 +203,13 @@ namespace BACKEND.Negocio.Servicios
                 throw new ExcepcionNegocio("No se puede registrar asistencia en un servicio CANCELADO o FINALIZADO.");
             }
 
-            if (qr.Servicio.Estado is not (EstadoServicio.PROGRAMADO or EstadoServicio.EN_CURSO))
+            if (qr.Servicio.Estado == EstadoServicio.PROGRAMADO)
+            {
+                throw new ExcepcionNegocio(
+                    "El servicio aún no ha iniciado. La asistencia podrá registrarse cuando comience el recorrido.");
+            }
+
+            if (qr.Servicio.Estado != EstadoServicio.EN_CURSO)
             {
                 throw new ExcepcionNegocio("El servicio no admite registro de asistencia en su estado actual.");
             }

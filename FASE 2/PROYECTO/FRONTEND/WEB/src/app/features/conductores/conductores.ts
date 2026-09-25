@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ConductoresService } from '../../core/services/conductores.service';
 import { FeedbackService } from '../../core/services/feedback.service';
+import { UsuariosService } from '../../core/services/usuarios.service';
 import { Conductor, ConductorConCuentaSolicitud, ConductorSolicitud } from '../../core/models/conductor';
 import { EstadoRegistro } from '../../core/models/empresa';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
@@ -37,6 +38,7 @@ type ModoFormulario = 'crear' | 'editar';
 })
 export class ConductoresPage {
   private readonly api = inject(ConductoresService);
+  private readonly usuariosApi = inject(UsuariosService);
   private readonly feedback = inject(FeedbackService);
 
   readonly opcionesEstado: FilterOption[] = [
@@ -63,8 +65,13 @@ export class ConductoresPage {
   readonly idConductorCambiandoEstado = signal<number | null>(null);
 
   readonly credenciales = signal<{ email: string; passwordTemporal: string } | null>(null);
+  readonly tituloCredenciales = signal('Conductor creado correctamente');
   readonly copiado = signal(false);
   readonly avisoCopia = signal<string | null>(null);
+
+  readonly confirmacionResetAbierta = signal(false);
+  readonly conductorReset = signal<Conductor | null>(null);
+  readonly idUsuarioRestableciendo = signal<number | null>(null);
 
   readonly visibles = computed(() => {
     const texto = this.busqueda().trim().toLowerCase();
@@ -93,6 +100,15 @@ export class ConductoresPage {
     }
 
     return `¿Desea desactivar al conductor ${conductor.nombre}? No se eliminará el registro; podrá activarlo nuevamente.`;
+  });
+
+  readonly mensajeReset = computed(() => {
+    const conductor = this.conductorReset();
+    if (!conductor) {
+      return '';
+    }
+
+    return `Se generará una contraseña temporal para ${conductor.nombre}. La anterior dejará de funcionar. El conductor deberá cambiarla al iniciar sesión.`;
   });
 
   constructor() {
@@ -167,6 +183,7 @@ export class ConductoresPage {
         this.guardando.set(false);
         this.formularioAbierto.set(false);
         this.conductorEdicion.set(null);
+        this.tituloCredenciales.set('Conductor creado correctamente');
         this.credenciales.set({
           email: respuesta.email,
           passwordTemporal: respuesta.passwordTemporal,
@@ -260,6 +277,58 @@ export class ConductoresPage {
 
   activar(conductor: Conductor): void {
     this.cambiarEstado(conductor, 'ACTIVO', 'Conductor activado correctamente.');
+  }
+
+  pedirRestablecer(conductor: Conductor): void {
+    if (this.estaRestableciendo(conductor.idUsuario)) {
+      return;
+    }
+
+    this.conductorReset.set(conductor);
+    this.confirmacionResetAbierta.set(true);
+  }
+
+  cancelarRestablecer(): void {
+    if (this.idUsuarioRestableciendo() !== null) {
+      return;
+    }
+
+    this.confirmacionResetAbierta.set(false);
+    this.conductorReset.set(null);
+  }
+
+  confirmarRestablecer(): void {
+    const conductor = this.conductorReset();
+    if (!conductor || this.estaRestableciendo(conductor.idUsuario)) {
+      return;
+    }
+
+    this.confirmacionResetAbierta.set(false);
+    this.idUsuarioRestableciendo.set(conductor.idUsuario);
+
+    this.usuariosApi.restablecerPassword(conductor.idUsuario).subscribe({
+      next: (respuesta) => {
+        this.idUsuarioRestableciendo.set(null);
+        this.conductorReset.set(null);
+        this.tituloCredenciales.set('Contraseña restablecida');
+        this.credenciales.set({
+          email: respuesta.email,
+          passwordTemporal: respuesta.passwordTemporal,
+        });
+        this.copiado.set(false);
+        this.avisoCopia.set(null);
+        this.feedback.mostrar('Contraseña restablecida correctamente.');
+      },
+      error: (err: unknown) => {
+        this.idUsuarioRestableciendo.set(null);
+        this.conductorReset.set(null);
+        this.error.set(mensajeErrorHttp(err, 'No fue posible restablecer la contraseña.'));
+      },
+    });
+  }
+
+  estaRestableciendo(idUsuario: number): boolean {
+    return this.idUsuarioRestableciendo() === idUsuario;
   }
 
   estaCambiandoEstado(idConductor: number): boolean {

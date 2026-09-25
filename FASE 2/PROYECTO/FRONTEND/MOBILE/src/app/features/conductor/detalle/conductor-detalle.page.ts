@@ -12,9 +12,12 @@ import {
   IonLabel,
   IonList,
   IonNote,
+  IonRefresher,
+  IonRefresherContent,
   IonSpinner,
   IonTitle,
   IonToolbar,
+  RefresherCustomEvent,
   ToastController,
   ViewWillEnter,
 } from '@ionic/angular';
@@ -48,6 +51,8 @@ import {
     IonList,
     IonItem,
     IonLabel,
+    IonRefresher,
+    IonRefresherContent,
   ],
 })
 export class ConductorDetallePage implements ViewWillEnter {
@@ -78,12 +83,13 @@ export class ConductorDetallePage implements ViewWillEnter {
     this.cargar();
   }
 
-  cargar(): void {
+  cargar(alTerminar?: () => void): void {
     const idServicio = Number(this.ruta.snapshot.paramMap.get('idServicio'));
     if (!Number.isInteger(idServicio) || idServicio <= 0) {
       this.cargando.set(false);
       this.detalle.set(null);
       this.error.set('El servicio indicado no es válido.');
+      alTerminar?.();
       return;
     }
 
@@ -97,6 +103,7 @@ export class ConductorDetallePage implements ViewWillEnter {
     this.api.obtenerDetalleConductor(idServicio).subscribe({
       next: (detalle) => {
         if (pedido !== this.pedidoDetalle) {
+          alTerminar?.();
           return;
         }
 
@@ -104,21 +111,29 @@ export class ConductorDetallePage implements ViewWillEnter {
         this.cargando.set(false);
         this.iniciando.set(false);
         this.finalizando.set(false);
+        alTerminar?.();
       },
       error: (err: unknown) => {
         if (pedido !== this.pedidoDetalle) {
+          alTerminar?.();
           return;
         }
 
         this.cargando.set(false);
         if (this.detalle() != null) {
+          alTerminar?.();
           return;
         }
 
         this.detalle.set(null);
         this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar el detalle del servicio.'));
+        alTerminar?.();
       },
     });
+  }
+
+  refrescar(evento: RefresherCustomEvent): void {
+    this.cargar(() => evento.target.complete());
   }
 
   async confirmarInicio(): Promise<void> {

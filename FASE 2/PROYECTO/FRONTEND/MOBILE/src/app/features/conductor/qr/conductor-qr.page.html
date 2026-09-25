@@ -8,6 +8,10 @@
 </ion-header>
 
 <ion-content [fullscreen]="true">
+  <ion-refresher slot="fixed" (ionRefresh)="refrescar($event)">
+    <ion-refresher-content />
+  </ion-refresher>
+
   @if (cargando()) {
     <div class="centro">
       <ion-spinner name="crescent" />
@@ -29,6 +33,56 @@
       @if (horaExpiracion(); as hora) {
         <p class="expiracion">Válido hasta {{ hora }}</p>
       }
+      @if (errorGeneracion()) {
+        <ion-note color="danger">{{ errorGeneracion() }}</ion-note>
+      }
+      @if (puedeGestionarQr()) {
+        <ion-button
+          fill="clear"
+          [disabled]="generando()"
+          (click)="pedirGeneracion(true)"
+        >
+          @if (generando()) {
+            <ion-spinner name="crescent" />
+            Generando...
+          } @else {
+            Renovar QR
+          }
+        </ion-button>
+      }
+    </div>
+  } @else if (puedeGestionarQr()) {
+    <div class="contenido">
+      @if (resumenServicio(); as resumen) {
+        <p class="resumen">{{ resumen }}</p>
+      }
+      <p class="instruccion">No hay un código QR activo para este servicio.</p>
+      @if (errorGeneracion()) {
+        <ion-note color="danger">{{ errorGeneracion() }}</ion-note>
+      }
+      <ion-button expand="block" [disabled]="generando()" (click)="pedirGeneracion(false)">
+        @if (generando()) {
+          <ion-spinner name="crescent" />
+          Generando...
+        } @else {
+          Generar nuevo QR
+        }
+      </ion-button>
+    </div>
+  } @else if (estadoServicio()) {
+    <div class="ion-padding vacio">
+      @if (resumenServicio(); as resumen) {
+        <p class="resumen">{{ resumen }}</p>
+      }
+      @if (etiquetaEstado(); as estado) {
+        <p>El servicio está {{ estado.toLowerCase() }}.</p>
+      }
+      <p>El código QR no está disponible porque el servicio no está en curso.</p>
+    </div>
+  } @else {
+    <div class="ion-padding">
+      <ion-note color="danger">No fue posible comprobar el estado del servicio.</ion-note>
+      <ion-button expand="block" fill="outline" (click)="cargar()">Reintentar</ion-button>
     </div>
   }
 </ion-content>

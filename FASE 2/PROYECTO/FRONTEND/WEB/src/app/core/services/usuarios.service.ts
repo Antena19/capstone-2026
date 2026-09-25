@@ -7,6 +7,7 @@ import {
   CambiarEstadoUsuarioSolicitud,
   CrearAdministradorSolicitud,
   EditarAdministradorSolicitud,
+  RestablecerPasswordRespuesta,
   Usuario,
 } from '../models/usuario';
 
@@ -41,5 +42,12 @@ export class UsuariosService {
 
   actualizarMiPerfil(solicitud: EditarAdministradorSolicitud): Observable<Usuario> {
     return this.http.put<Usuario>(urlApi('/api/usuarios/me'), solicitud);
+  }
+
+  restablecerPassword(idUsuario: number): Observable<RestablecerPasswordRespuesta> {
+    return this.http.post<RestablecerPasswordRespuesta>(
+      urlApi(`/api/usuarios/${idUsuario}/restablecer-password`),
+      {},
+    );
   }
 }

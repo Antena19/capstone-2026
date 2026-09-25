@@ -84,6 +84,85 @@ td.name {
   background: #ecfdf5;
 }
 
+.text-btn {
+  border: 0;
+  background: transparent;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  border-radius: var(--radius-lg);
+}
+
+.text-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.text-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.text-btn:hover:not(:disabled) {
+  background: #eff6ff;
+}
+
+.credenciales {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.credenciales-intro {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.credencial {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.credencial > span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-slate-600);
+}
+
+.credencial > p {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 14px;
+  background: var(--color-slate-50);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  user-select: all;
+}
+
+.aviso {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+}
+
+.copia-ok {
+  margin: 0;
+  font-size: 13px;
+  color: #047857;
+}
+
+.credenciales-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .empty {
   display: flex;
   flex-direction: column;

@@ -1,0 +1,262 @@
+<app-page-header title="Reportes Operacionales" [subtitle]="subtitulo()">
+  <app-action-button
+    label="Exportar Excel"
+    variant="secondary"
+    icon="download"
+    [disabled]="!reporte() || descargando() || consultando()"
+    (clicked)="exportarExcel()"
+  />
+</app-page-header>
+
+<div class="filters">
+  <label class="filter-field">
+    <span>Empresa</span>
+    <app-filter-select
+      label="Empresa"
+      blankLabel="Seleccione empresa"
+      [items]="opcionesEmpresa()"
+      [value]="idEmpresa()"
+      [disabled]="cargandoEmpresas()"
+      (valueChange)="idEmpresa.set($event)"
+    />
+  </label>
+
+  <label class="filter-field">
+    <span>Período</span>
+    <app-filter-select
+      label="Período"
+      [includeBlank]="false"
+      [items]="opcionesPeriodo"
+      [value]="periodo()"
+      (valueChange)="actualizarPeriodo($event)"
+    />
+  </label>
+
+  @if (periodo() === 'MES') {
+    <label class="filter-field">
+      <span>Mes</span>
+      <input type="month" [value]="mes()" (change)="actualizarMes($event)" />
+    </label>
+  }
+
+  @if (periodo() === 'SEMANA') {
+    <label class="filter-field">
+      <span>Fecha de la semana</span>
+      <input type="date" [value]="fechaSemana()" (change)="actualizarFechaSemana($event)" />
+    </label>
+    @if (rangoSemana()) {
+      <p class="rango-semana">{{ rangoSemana() }}</p>
+    }
+  }
+
+  @if (periodo() === 'DIA') {
+    <label class="filter-field">
+      <span>Fecha</span>
+      <input type="date" [value]="fechaDia()" (change)="actualizarFechaDia($event)" />
+    </label>
+  }
+
+  <app-action-button
+    label="Consultar"
+    [disabled]="consultando() || cargandoEmpresas()"
+    (clicked)="consultar()"
+  />
+</div>
+
+@if (errorEmpresas(); as texto) {
+  <p class="banner banner-error">{{ texto }}</p>
+}
+
+@if (errorValidacion(); as texto) {
+  <p class="banner banner-warn">{{ texto }}</p>
+}
+
+@if (errorConsulta(); as texto) {
+  <p class="banner banner-error">{{ texto }}</p>
+}
+
+@if (errorDescarga(); as texto) {
+  <p class="banner banner-error">{{ texto }}</p>
+}
+
+@if (consultando() && reporte()) {
+  <p class="banner banner-info">Consultando el período seleccionado…</p>
+}
+
+@if (descargando()) {
+  <p class="banner banner-info">Descargando Excel…</p>
+}
+
+@if (consultando() && !reporte()) {
+  <div class="kpi-grid">
+    @for (item of esqueletos; track item) {
+      <div class="skeleton-card"></div>
+    }
+  </div>
+  <app-card>
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  </app-card>
+} @else if (reporte(); as actual) {
+  <div class="kpi-grid">
+    <app-kpi-card
+      label="Servicios planificados"
+      [value]="formatoEntero(actual.resumen.serviciosPlanificados)"
+      icon="servicios"
+      tone="blue"
+    />
+    <app-kpi-card
+      label="Servicios realizados"
+      [value]="formatoEntero(actual.resumen.serviciosRealizados)"
+      icon="bus"
+      tone="green"
+    />
+    <app-kpi-card
+      label="Servicios cancelados"
+      [value]="formatoEntero(actual.resumen.serviciosCancelados)"
+      icon="servicios"
+      tone="red"
+    />
+    <app-kpi-card
+      label="Personas planificadas"
+      [value]="formatoEntero(actual.resumen.personasPlanificadas)"
+      icon="pasajeros"
+      tone="blue"
+    />
+    <app-kpi-card
+      label="Total transportados"
+      [value]="formatoEntero(actual.resumen.totalTransportados)"
+      icon="pasajeros"
+      tone="teal"
+    />
+    <app-kpi-card
+      label="Ausencias"
+      [value]="formatoEntero(actual.resumen.planificadosNoTransportados)"
+      icon="alert"
+      tone="amber"
+    />
+    <app-kpi-card
+      label="No planificados transportados"
+      [value]="formatoEntero(actual.resumen.noPlanificadosTransportados)"
+      icon="pasajeros"
+      tone="sky"
+    />
+  </div>
+
+  <app-card>
+    <div class="card-head">
+      <h2>Detalle de servicios</h2>
+    </div>
+    @if (sinResultados()) {
+      <p class="empty">No hay servicios para el período consultado.</p>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Servicio #</th>
+              <th>Ruta</th>
+              <th>Horario</th>
+              <th>Conductor</th>
+              <th>Vehículo</th>
+              <th>Capacidad</th>
+              <th>Planificados</th>
+              <th>Transportados</th>
+              <th>Ausentes</th>
+              <th>No planificados</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (servicio of actual.servicios; track servicio.idServicio) {
+              <tr>
+                <td class="mono name">{{ formatearFecha(servicio.fecha) }}</td>
+                <td class="mono">{{ servicio.idServicio }}</td>
+                <td>{{ textoOpcional(servicio.nombreRuta) }}</td>
+                <td class="mono">{{ formatearHorario(servicio.horaInicio, servicio.horaFin) }}</td>
+                <td>{{ textoOpcional(servicio.nombreConductor) }}</td>
+                <td class="mono">{{ textoOpcional(servicio.patenteVehiculo) }}</td>
+                <td class="mono">{{ servicio.capacidadVehiculo ?? '-' }}</td>
+                <td>{{ formatoEntero(servicio.personasPlanificadas) }}</td>
+                <td>{{ formatoEntero(servicio.totalTransportados) }}</td>
+                <td>{{ formatoEntero(servicio.planificadosNoTransportados) }}</td>
+                <td>{{ formatoEntero(servicio.noPlanificadosTransportados) }}</td>
+                <td>
+                  <app-status-badge
+                    [label]="etiquetaEstado(servicio.estado)"
+                    [tone]="tonoEstado(servicio.estado)"
+                  />
+                </td>
+                <td>
+                  <button type="button" class="text-btn" (click)="verPasajeros(servicio)">
+                    Ver pasajeros
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </app-card>
+}
+
+<app-modal
+  [open]="pasajerosAbiertos()"
+  [titulo]="tituloPasajeros()"
+  [wide]="true"
+  (closed)="cerrarPasajeros()"
+>
+  @if (cargandoPasajeros()) {
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  } @else if (errorPasajeros(); as texto) {
+    <p class="banner banner-error">{{ texto }}</p>
+  } @else if (pasajeros().length === 0) {
+    <p class="empty">No hay pasajeros para este servicio.</p>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>RUT</th>
+            <th>Punto de recogida</th>
+            <th>Planificado</th>
+            <th>Confirmación</th>
+            <th>Resultado</th>
+            <th>Tipo de asistencia</th>
+            <th>Hora asistencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (pasajero of pasajeros(); track pasajero.idPasajero) {
+            <tr>
+              <td class="name">{{ pasajero.nombre }}</td>
+              <td class="mono">{{ pasajero.rut }}</td>
+              <td>{{ textoOpcional(pasajero.nombrePuntoRecogida) }}</td>
+              <td>{{ pasajero.estabaPlanificado ? 'Sí' : 'No' }}</td>
+              <td>{{ textoOpcional(pasajero.estadoConfirmacion) }}</td>
+              <td>
+                <app-status-badge
+                  [label]="pasajero.resultado"
+                  [tone]="tonoResultado(pasajero.resultado)"
+                />
+              </td>
+              <td>{{ textoOpcional(pasajero.tipoAsistencia) }}</td>
+              <td class="mono">{{ formatearFechaHora(pasajero.fechaHoraAsistencia) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</app-modal>

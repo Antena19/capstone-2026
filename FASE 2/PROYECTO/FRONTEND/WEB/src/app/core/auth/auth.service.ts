@@ -24,6 +24,9 @@ export class AuthService {
   readonly autenticado = computed(() => this.sesionSignal() !== null);
   readonly esAdministrador = computed(() => this.esRolAdministrador(this.sesionSignal()?.rol));
   readonly token = computed(() => this.sesionSignal()?.token ?? null);
+  readonly debeCambiarPassword = computed(
+    () => this.sesionSignal()?.debeCambiarPassword === true,
+  );
 
   constructor() {
     this.restaurarSesion();
@@ -37,16 +40,7 @@ export class AuthService {
           return normalizada;
         }
 
-        this.guardarSesion(
-          {
-            token: normalizada.token,
-            idUsuario: normalizada.idUsuario,
-            email: normalizada.email,
-            rol: normalizada.rol,
-            expiracion: normalizada.expiracion,
-          },
-          recordar,
-        );
+        this.guardarSesion(this.aSesion(normalizada), recordar);
 
         return normalizada;
       }),
@@ -57,11 +51,41 @@ export class AuthService {
     return (rol ?? '').trim() === ROL_ADMINISTRADOR;
   }
 
+  rutaInicio(): string {
+    if (this.debeCambiarPassword()) {
+      return '/cambiar-password';
+    }
+
+    return '/dashboard';
+  }
+
   cambiarPassword(solicitud: CambiarPasswordSolicitud) {
-    return this.http.post<MensajeRespuesta>(
-      urlApi('/api/autenticacion/cambiar-password'),
-      solicitud,
-    );
+    return this.http
+      .post<MensajeRespuesta>(urlApi('/api/autenticacion/cambiar-password'), solicitud)
+      .pipe(
+        map((respuesta) => {
+          this.marcarPasswordActualizada();
+          return respuesta;
+        }),
+      );
+  }
+
+  marcarPasswordActualizada(): void {
+    const actual = this.sesionSignal();
+    if (!actual) {
+      return;
+    }
+
+    this.persistirSesion({ ...actual, debeCambiarPassword: false });
+  }
+
+  marcarDebeCambiarPassword(): void {
+    const actual = this.sesionSignal();
+    if (!actual || actual.debeCambiarPassword) {
+      return;
+    }
+
+    this.persistirSesion({ ...actual, debeCambiarPassword: true });
   }
 
   actualizarEmailSesion(email: string): void {
@@ -70,16 +94,7 @@ export class AuthService {
       return;
     }
 
-    const actualizada: SesionUsuario = { ...actual, email };
-    this.sesionSignal.set(actualizada);
-
-    const payload = JSON.stringify(actualizada);
-    if (localStorage.getItem(CLAVE_SESION_LOCAL) !== null) {
-      localStorage.setItem(CLAVE_SESION_LOCAL, payload);
-      return;
-    }
-
-    sessionStorage.setItem(CLAVE_SESION_TEMPORAL, payload);
+    this.persistirSesion({ ...actual, email });
   }
 
   cerrarSesion(): void {
@@ -114,6 +129,17 @@ export class AuthService {
     };
   }
 
+  private aSesion(respuesta: LoginRespuesta): SesionUsuario {
+    return {
+      token: respuesta.token,
+      idUsuario: respuesta.idUsuario,
+      email: respuesta.email,
+      rol: respuesta.rol,
+      expiracion: respuesta.expiracion,
+      debeCambiarPassword: respuesta.debeCambiarPassword,
+    };
+  }
+
   private guardarSesion(sesion: SesionUsuario, recordar: boolean): void {
     this.sesionSignal.set(sesion);
     const payload = JSON.stringify(sesion);
@@ -121,6 +147,17 @@ export class AuthService {
     sessionStorage.removeItem(CLAVE_SESION_TEMPORAL);
 
     if (recordar) {
+      localStorage.setItem(CLAVE_SESION_LOCAL, payload);
+      return;
+    }
+
+    sessionStorage.setItem(CLAVE_SESION_TEMPORAL, payload);
+  }
+
+  private persistirSesion(sesion: SesionUsuario): void {
+    this.sesionSignal.set(sesion);
+    const payload = JSON.stringify(sesion);
+    if (localStorage.getItem(CLAVE_SESION_LOCAL) !== null) {
       localStorage.setItem(CLAVE_SESION_LOCAL, payload);
       return;
     }
@@ -148,7 +185,7 @@ export class AuthService {
         return;
       }
 
-      this.sesionSignal.set(sesion);
+      this.sesionSignal.set(this.aSesion(sesion));
     } catch {
       this.cerrarSesion();
     }

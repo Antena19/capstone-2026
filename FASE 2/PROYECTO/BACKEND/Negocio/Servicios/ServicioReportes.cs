@@ -25,6 +25,9 @@ namespace BACKEND.Negocio.Servicios
         Task<ReporteMensualDto> ObtenerMensualAsync(int idEmpresa, string periodo);
 
         Task<IReadOnlyList<ReportePasajeroServicioDto>> ListarPasajerosServicioAsync(int idServicio);
+
+        Task<IReadOnlyList<ReportePasajeroServicioDto>> ListarPasajerosDeServiciosAsync(
+            IReadOnlyList<ReporteServicioDto> servicios);
     }
 
     /// <summary>
@@ -143,19 +146,15 @@ namespace BACKEND.Negocio.Servicios
                 asistenciaPorPasajero.TryGetValue(planificado.IdPasajero, out var asistencia);
                 var punto = ResolverPunto(ruta, planificado.IdPuntoRecogida);
 
-                filas[planificado.IdPasajero] = new ReportePasajeroServicioDto
-                {
-                    IdPasajero = planificado.IdPasajero,
-                    Nombre = planificado.Pasajero.Nombre,
-                    EstabaPlanificado = true,
-                    EstadoConfirmacion = planificado.EstadoConfirmacion,
-                    TieneAsistencia = asistencia is not null,
-                    TipoAsistencia = asistencia?.TipoAsistencia,
-                    EstadoAsistencia = asistencia?.Estado,
-                    FechaHoraAsistencia = asistencia?.FechaHora,
-                    IdPuntoRecogida = planificado.IdPuntoRecogida,
-                    NombrePuntoRecogida = punto?.Nombre
-                };
+                filas[planificado.IdPasajero] = MapearPasajero(
+                    planificado.Pasajero,
+                    estabaPlanificado: true,
+                    planificado.EstadoConfirmacion,
+                    asistencia,
+                    planificado.IdPuntoRecogida,
+                    punto?.Nombre,
+                    servicio,
+                    ruta?.Nombre);
             }
 
             foreach (var asistencia in asistencias.OrderBy(a => a.Pasajero.Nombre).ThenBy(a => a.IdPasajero))
@@ -165,19 +164,15 @@ namespace BACKEND.Negocio.Servicios
                     continue;
                 }
 
-                filas[asistencia.IdPasajero] = new ReportePasajeroServicioDto
-                {
-                    IdPasajero = asistencia.IdPasajero,
-                    Nombre = asistencia.Pasajero.Nombre,
-                    EstabaPlanificado = false,
-                    EstadoConfirmacion = null,
-                    TieneAsistencia = true,
-                    TipoAsistencia = asistencia.TipoAsistencia,
-                    EstadoAsistencia = asistencia.Estado,
-                    FechaHoraAsistencia = asistencia.FechaHora,
-                    IdPuntoRecogida = null,
-                    NombrePuntoRecogida = null
-                };
+                filas[asistencia.IdPasajero] = MapearPasajero(
+                    asistencia.Pasajero,
+                    estabaPlanificado: false,
+                    null,
+                    asistencia,
+                    null,
+                    null,
+                    servicio,
+                    ruta?.Nombre);
             }
 
             return filas.Values
@@ -185,6 +180,23 @@ namespace BACKEND.Negocio.Servicios
                 .ThenBy(f => f.Nombre)
                 .ThenBy(f => f.IdPasajero)
                 .ToList();
+        }
+
+        public async Task<IReadOnlyList<ReportePasajeroServicioDto>> ListarPasajerosDeServiciosAsync(
+            IReadOnlyList<ReporteServicioDto> servicios)
+        {
+            var filas = new List<ReportePasajeroServicioDto>();
+            foreach (var servicio in servicios)
+            {
+                var pasajeros = await ListarPasajerosServicioAsync(servicio.IdServicio);
+                foreach (var pasajero in pasajeros)
+                {
+                    pasajero.NombreRuta = servicio.NombreRuta ?? pasajero.NombreRuta;
+                    filas.Add(pasajero);
+                }
+            }
+
+            return filas;
         }
 
         internal static ReporteMensualResumenDto MapearResumen(KpisOperacionales kpis)
@@ -201,6 +213,47 @@ namespace BACKEND.Negocio.Servicios
                 NoPlanificadosTransportados = kpis.NoPlanificadosTransportados,
                 TotalTransportados = kpis.TotalTransportados,
                 PorcentajePlanificadosTransportados = kpis.PorcentajePlanificadosTransportados
+            };
+        }
+
+        private static ReportePasajeroServicioDto MapearPasajero(
+            Pasajero persona,
+            bool estabaPlanificado,
+            EstadoConfirmacionViaje? estadoConfirmacion,
+            Asistencia? asistencia,
+            string? idPuntoRecogida,
+            string? nombrePuntoRecogida,
+            Servicio servicio,
+            string? nombreRuta)
+        {
+            return new ReportePasajeroServicioDto
+            {
+                IdPasajero = persona.IdPasajero,
+                Nombre = persona.Nombre,
+                Rut = persona.Rut,
+                EstabaPlanificado = estabaPlanificado,
+                EstadoConfirmacion = estadoConfirmacion,
+                TieneAsistencia = asistencia is not null,
+                TipoAsistencia = asistencia?.TipoAsistencia,
+                EstadoAsistencia = asistencia?.Estado,
+                Resultado = DeterminarResultado(asistencia?.Estado),
+                FechaHoraAsistencia = asistencia?.FechaHora,
+                IdPuntoRecogida = idPuntoRecogida,
+                NombrePuntoRecogida = nombrePuntoRecogida,
+                IdServicio = servicio.IdServicio,
+                Fecha = servicio.Fecha,
+                NombreRuta = nombreRuta
+            };
+        }
+
+        private static ResultadoAsistenciaReporte DeterminarResultado(EstadoAsistencia? estado)
+        {
+            return estado switch
+            {
+                EstadoAsistencia.VALIDA => ResultadoAsistenciaReporte.PRESENTE,
+                EstadoAsistencia.ANULADA => ResultadoAsistenciaReporte.ANULADA,
+                EstadoAsistencia.PROVISIONAL => ResultadoAsistenciaReporte.PROVISIONAL,
+                _ => ResultadoAsistenciaReporte.AUSENTE
             };
         }
 

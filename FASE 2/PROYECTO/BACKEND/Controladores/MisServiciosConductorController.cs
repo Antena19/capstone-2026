@@ -158,7 +158,7 @@ namespace BACKEND.Controladores
         }
 
         /// <summary>
-        /// Finaliza el servicio asignado: EN_CURSO → FINALIZADO e invalida el QR ACTIVO.
+        /// Finaliza el servicio asignado: anula PROVISIONAL restantes, EN_CURSO → FINALIZADO e invalida el QR ACTIVO.
         /// </summary>
         [HttpPut("{idServicio:int}/finalizar")]
         [ProducesResponseType(typeof(ServicioRespuestaDto), StatusCodes.Status200OK)]

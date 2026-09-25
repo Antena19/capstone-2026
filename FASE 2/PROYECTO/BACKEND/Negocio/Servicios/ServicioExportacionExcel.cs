@@ -6,9 +6,13 @@ namespace BACKEND.Negocio.Servicios
 {
     public interface IServicioExportacionExcel
     {
-        ArchivoExcelDto GenerarMensual(ReporteMensualDto reporte);
+        ArchivoExcelDto GenerarMensual(
+            ReporteMensualDto reporte,
+            IReadOnlyList<ReportePasajeroServicioDto> pasajeros);
 
-        ArchivoExcelDto GenerarServicios(ReporteServiciosRangoDto reporte);
+        ArchivoExcelDto GenerarServicios(
+            ReporteServiciosRangoDto reporte,
+            IReadOnlyList<ReportePasajeroServicioDto> pasajeros);
     }
 
     /// <summary>
@@ -22,7 +26,9 @@ namespace BACKEND.Negocio.Servicios
         private const string FormatoEntero = "0";
         private const string FormatoPorcentaje = "0.00";
 
-        public ArchivoExcelDto GenerarMensual(ReporteMensualDto reporte)
+        public ArchivoExcelDto GenerarMensual(
+            ReporteMensualDto reporte,
+            IReadOnlyList<ReportePasajeroServicioDto> pasajeros)
         {
             using var libro = new XLWorkbook();
             EscribirHojaResumen(
@@ -33,15 +39,18 @@ namespace BACKEND.Negocio.Servicios
                 null,
                 reporte.Resumen);
             EscribirHojaDetalle(libro, reporte.Servicios, incluirEmpresa: false);
+            EscribirHojaPasajeros(libro, pasajeros);
 
             return new ArchivoExcelDto
             {
                 Contenido = Guardar(libro),
-                NombreArchivo = $"Reporte_Operacional_{SanitizarNombreArchivo(reporte.RazonSocial)}_{reporte.Periodo}.xlsx"
+                NombreArchivo = $"reporte_{SanitizarNombreArchivo(reporte.RazonSocial)}_{reporte.Periodo}.xlsx"
             };
         }
 
-        public ArchivoExcelDto GenerarServicios(ReporteServiciosRangoDto reporte)
+        public ArchivoExcelDto GenerarServicios(
+            ReporteServiciosRangoDto reporte,
+            IReadOnlyList<ReportePasajeroServicioDto> pasajeros)
         {
             var etiquetaEmpresa = reporte.RazonSocial ?? "Todas";
             var periodo = $"{reporte.Desde:yyyy-MM-dd}_{reporte.Hasta:yyyy-MM-dd}";
@@ -55,11 +64,12 @@ namespace BACKEND.Negocio.Servicios
                 reporte.Hasta,
                 reporte.Resumen);
             EscribirHojaDetalle(libro, reporte.Servicios, incluirEmpresa: !reporte.IdEmpresa.HasValue);
+            EscribirHojaPasajeros(libro, pasajeros);
 
             return new ArchivoExcelDto
             {
                 Contenido = Guardar(libro),
-                NombreArchivo = $"Reporte_Operacional_{SanitizarNombreArchivo(etiquetaEmpresa)}_{periodo}.xlsx"
+                NombreArchivo = $"reporte_{SanitizarNombreArchivo(etiquetaEmpresa)}_{periodo}.xlsx"
             };
         }
 
@@ -71,7 +81,7 @@ namespace BACKEND.Negocio.Servicios
             DateOnly? hasta,
             ReporteMensualResumenDto resumen)
         {
-            var hoja = libro.Worksheets.Add("Resumen mensual");
+            var hoja = libro.Worksheets.Add("Resumen");
             var fila = 1;
 
             hoja.Cell(fila, 1).Value = "Empresa";
@@ -130,13 +140,15 @@ namespace BACKEND.Negocio.Servicios
             var encabezados = incluirEmpresa
                 ? new[]
                 {
-                    "Fecha", "Hora inicio", "Hora fin", "Empresa", "Ruta", "Sector", "Vehículo", "Estado",
+                    "Fecha", "Servicio #", "Hora inicio", "Hora fin", "Empresa", "Ruta", "Sector",
+                    "Conductor", "Vehículo", "Capacidad", "Estado",
                     "Personas planificadas", "Planificados transportados", "Planificados no transportados",
                     "No planificados transportados", "Total transportados"
                 }
                 : new[]
                 {
-                    "Fecha", "Hora inicio", "Hora fin", "Ruta", "Sector", "Vehículo", "Estado",
+                    "Fecha", "Servicio #", "Hora inicio", "Hora fin", "Ruta", "Sector",
+                    "Conductor", "Vehículo", "Capacidad", "Estado",
                     "Personas planificadas", "Planificados transportados", "Planificados no transportados",
                     "No planificados transportados", "Total transportados"
                 };
@@ -154,6 +166,9 @@ namespace BACKEND.Negocio.Servicios
                 var columna = 1;
                 hoja.Cell(fila, columna).Value = servicio.Fecha.ToDateTime(TimeOnly.MinValue);
                 hoja.Cell(fila, columna).Style.DateFormat.Format = FormatoFecha;
+                columna++;
+
+                EscribirEntero(hoja.Cell(fila, columna), servicio.IdServicio);
                 columna++;
 
                 hoja.Cell(fila, columna).Value = servicio.HoraInicio.ToTimeSpan();
@@ -174,7 +189,18 @@ namespace BACKEND.Negocio.Servicios
                 columna++;
                 hoja.Cell(fila, columna).Value = servicio.SectorRuta ?? string.Empty;
                 columna++;
+                hoja.Cell(fila, columna).Value = servicio.NombreConductor ?? string.Empty;
+                columna++;
                 hoja.Cell(fila, columna).Value = servicio.PatenteVehiculo ?? string.Empty;
+                columna++;
+                if (servicio.CapacidadVehiculo.HasValue)
+                {
+                    EscribirEntero(hoja.Cell(fila, columna), servicio.CapacidadVehiculo.Value);
+                }
+                else
+                {
+                    hoja.Cell(fila, columna).Value = string.Empty;
+                }
                 columna++;
                 hoja.Cell(fila, columna).Value = servicio.Estado.ToString();
                 columna++;
@@ -188,6 +214,60 @@ namespace BACKEND.Negocio.Servicios
                 EscribirEntero(hoja.Cell(fila, columna), servicio.NoPlanificadosTransportados);
                 columna++;
                 EscribirEntero(hoja.Cell(fila, columna), servicio.TotalTransportados);
+
+                fila++;
+            }
+
+            hoja.SheetView.FreezeRows(1);
+            hoja.Columns().AdjustToContents();
+        }
+
+        private static void EscribirHojaPasajeros(
+            XLWorkbook libro,
+            IReadOnlyList<ReportePasajeroServicioDto> pasajeros)
+        {
+            var hoja = libro.Worksheets.Add("Detalle pasajeros");
+            var encabezados = new[]
+            {
+                "Fecha", "Servicio #", "Pasajero", "RUT", "Ruta", "Punto de recogida",
+                "Planificado", "Confirmación", "Resultado", "Tipo asistencia", "Hora asistencia"
+            };
+
+            for (var i = 0; i < encabezados.Length; i++)
+            {
+                hoja.Cell(1, i + 1).Value = encabezados[i];
+            }
+
+            EstiloEncabezado(hoja.Range(1, 1, 1, encabezados.Length));
+
+            var fila = 2;
+            foreach (var pasajero in pasajeros)
+            {
+                if (pasajero.Fecha.HasValue)
+                {
+                    hoja.Cell(fila, 1).Value = pasajero.Fecha.Value.ToDateTime(TimeOnly.MinValue);
+                    hoja.Cell(fila, 1).Style.DateFormat.Format = FormatoFecha;
+                }
+
+                if (pasajero.IdServicio.HasValue)
+                {
+                    EscribirEntero(hoja.Cell(fila, 2), pasajero.IdServicio.Value);
+                }
+
+                hoja.Cell(fila, 3).Value = pasajero.Nombre;
+                hoja.Cell(fila, 4).Value = pasajero.Rut;
+                hoja.Cell(fila, 5).Value = pasajero.NombreRuta ?? string.Empty;
+                hoja.Cell(fila, 6).Value = pasajero.NombrePuntoRecogida ?? string.Empty;
+                hoja.Cell(fila, 7).Value = pasajero.EstabaPlanificado ? "Sí" : "No";
+                hoja.Cell(fila, 8).Value = pasajero.EstadoConfirmacion?.ToString() ?? string.Empty;
+                hoja.Cell(fila, 9).Value = pasajero.Resultado.ToString();
+                hoja.Cell(fila, 10).Value = pasajero.TipoAsistencia?.ToString() ?? string.Empty;
+
+                if (pasajero.FechaHoraAsistencia.HasValue)
+                {
+                    hoja.Cell(fila, 11).Value = pasajero.FechaHoraAsistencia.Value;
+                    hoja.Cell(fila, 11).Style.DateFormat.Format = "yyyy-mm-dd hh:mm";
+                }
 
                 fila++;
             }

@@ -79,6 +79,15 @@
                   @if (conductor.estado === 'ACTIVO') {
                     <button
                       type="button"
+                      class="text-btn"
+                      title="Restablecer contraseña"
+                      [disabled]="estaRestableciendo(conductor.idUsuario)"
+                      (click)="pedirRestablecer(conductor)"
+                    >
+                      Restablecer
+                    </button>
+                    <button
+                      type="button"
                       class="icon-btn is-danger"
                       title="Desactivar conductor"
                       aria-label="Desactivar conductor"
@@ -127,7 +136,7 @@
 
 <app-modal
   [open]="credenciales() !== null"
-  titulo="Conductor creado correctamente"
+  [titulo]="tituloCredenciales()"
   (closed)="cerrarCredenciales()"
 >
   @if (credenciales(); as cuenta) {
@@ -137,23 +146,31 @@
         <span>Correo</span>
         <p class="mono">{{ cuenta.email }}</p>
       </div>
-      <div class="credencial">
-        <span>Contraseña temporal</span>
-        <p class="mono">{{ cuenta.passwordTemporal }}</p>
-      </div>
-      <p class="aviso">
-        Esta contraseña se mostrará una sola vez. Entrégala al conductor de forma segura. Deberá
-        cambiarla al iniciar sesión.
-      </p>
+      @if (cuenta.passwordTemporal) {
+        <div class="credencial">
+          <span>Contraseña temporal</span>
+          <p class="mono">{{ cuenta.passwordTemporal }}</p>
+        </div>
+        <p class="aviso">
+          Esta contraseña se mostrará una sola vez. Entrégala al conductor de forma segura. Deberá
+          cambiarla al iniciar sesión.
+        </p>
+      } @else {
+        <p class="aviso">
+          La operación se completó. El servidor no devolvió una clave temporal para mostrar.
+        </p>
+      }
       @if (avisoCopia(); as aviso) {
         <p class="copia-ok">{{ aviso }}</p>
       }
       <div class="credenciales-acciones">
-        <app-action-button
-          [label]="copiado() ? 'Contraseña copiada' : 'Copiar contraseña'"
-          variant="secondary"
-          (clicked)="copiarPasswordTemporal()"
-        />
+        @if (cuenta.passwordTemporal) {
+          <app-action-button
+            [label]="copiado() ? 'Contraseña copiada' : 'Copiar contraseña'"
+            variant="secondary"
+            (clicked)="copiarPasswordTemporal()"
+          />
+        }
         <app-action-button label="Entendido" (clicked)="cerrarCredenciales()" />
       </div>
     </div>
@@ -169,4 +186,15 @@
   [confirmDisabled]="idConductorCambiandoEstado() !== null"
   (confirmed)="confirmarDesactivar()"
   (cancelled)="cancelarDesactivar()"
+/>
+
+<app-confirm-dialog
+  [open]="confirmacionResetAbierta()"
+  titulo="Restablecer contraseña"
+  [mensaje]="mensajeReset()"
+  confirmLabel="Restablecer"
+  [danger]="true"
+  [confirmDisabled]="idUsuarioRestableciendo() !== null"
+  (confirmed)="confirmarRestablecer()"
+  (cancelled)="cancelarRestablecer()"
 />

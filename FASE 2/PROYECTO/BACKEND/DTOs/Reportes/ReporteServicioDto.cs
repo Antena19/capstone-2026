@@ -28,6 +28,10 @@ namespace BACKEND.DTOs.Reportes
 
         public string? PatenteVehiculo { get; set; }
 
+        public string? NombreConductor { get; set; }
+
+        public int? CapacidadVehiculo { get; set; }
+
         public int PersonasPlanificadas { get; set; }
 
         public int PlanificadosTransportados { get; set; }
@@ -75,11 +79,21 @@ namespace BACKEND.DTOs.Reportes
         public IReadOnlyList<ReporteServicioDto> Servicios { get; set; } = Array.Empty<ReporteServicioDto>();
     }
 
+    public enum ResultadoAsistenciaReporte
+    {
+        PRESENTE,
+        AUSENTE,
+        ANULADA,
+        PROVISIONAL
+    }
+
     public class ReportePasajeroServicioDto
     {
         public int IdPasajero { get; set; }
 
         public string Nombre { get; set; } = string.Empty;
+
+        public string Rut { get; set; } = string.Empty;
 
         public bool EstabaPlanificado { get; set; }
 
@@ -91,11 +105,19 @@ namespace BACKEND.DTOs.Reportes
 
         public EstadoAsistencia? EstadoAsistencia { get; set; }
 
+        public ResultadoAsistenciaReporte Resultado { get; set; }
+
         public DateTime? FechaHoraAsistencia { get; set; }
 
         public string? IdPuntoRecogida { get; set; }
 
         public string? NombrePuntoRecogida { get; set; }
+
+        public int? IdServicio { get; set; }
+
+        public DateOnly? Fecha { get; set; }
+
+        public string? NombreRuta { get; set; }
     }
 
     public class ReporteServiciosRangoDto

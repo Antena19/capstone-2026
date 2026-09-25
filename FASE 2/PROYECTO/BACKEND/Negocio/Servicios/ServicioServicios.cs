@@ -528,6 +528,7 @@ namespace BACKEND.Negocio.Servicios
 
             await using var transaccion = await _contexto.Database.BeginTransactionAsync();
 
+            await _servicioAsistencias.AnularProvisionalesAlFinalizarAsync(servicio.IdServicio);
             servicio.FechaHoraFinReal = DateTime.UtcNow;
             servicio.Estado = EstadoServicio.FINALIZADO;
             await _servicioQr.InvalidarActivosEnTransaccionActualAsync(servicio.IdServicio);

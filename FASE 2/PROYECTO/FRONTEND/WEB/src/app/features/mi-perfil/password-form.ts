@@ -50,6 +50,8 @@ export class PasswordForm {
   readonly abierto = input(false);
   readonly guardando = input(false);
   readonly error = input<string | null>(null);
+  readonly mostrarCancelar = input(true);
+  readonly etiquetaCancelar = input('Cancelar');
   readonly guardado = output<CambiarPasswordSolicitud>();
   readonly cancelado = output<void>();
 

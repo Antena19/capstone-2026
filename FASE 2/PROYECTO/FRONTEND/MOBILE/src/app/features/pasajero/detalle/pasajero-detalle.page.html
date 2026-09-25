@@ -1,0 +1,204 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/pasajero" text="Servicios" />
+    </ion-buttons>
+    <ion-title>Detalle del servicio</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-refresher slot="fixed" (ionRefresh)="refrescar($event)">
+    <ion-refresher-content />
+  </ion-refresher>
+
+  @if (cargando()) {
+    <div class="centro">
+      <ion-spinner name="crescent" />
+    </div>
+  } @else if (error()) {
+    <div class="ion-padding">
+      <ion-note color="danger">{{ error() }}</ion-note>
+      <ion-button expand="block" fill="outline" (click)="cargar()">Reintentar</ion-button>
+    </div>
+  } @else if (detalle(); as servicio) {
+    <div class="encabezado ion-padding">
+      <p class="id-servicio">Servicio #{{ servicio.idServicio }}</p>
+      <p class="fecha">{{ formatearFecha(servicio.fecha) }}</p>
+      <h1>{{ formatearHora(servicio.horaInicio) }} – {{ formatearHora(servicio.horaFin) }}</h1>
+      @for (estado of [servicio.estado]; track estado) {
+        <ion-badge [color]="colorEstado(estado)">
+          {{ etiquetaEstado(estado) }}
+        </ion-badge>
+      }
+      @if (etiquetaConfirmacion(servicio.estadoConfirmacion); as confirmacion) {
+        <ion-badge [color]="colorConfirmacion(servicio.estadoConfirmacion)">
+          {{ confirmacion }}
+        </ion-badge>
+      }
+    </div>
+
+    <ion-list [inset]="true">
+      @if (tieneTexto(servicio.tipoServicio)) {
+        <ion-item>
+          <ion-label>
+            <p>Tipo</p>
+            <h2>{{ servicio.tipoServicio }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (tieneTexto(servicio.empresa.razonSocial)) {
+        <ion-item>
+          <ion-label>
+            <p>Empresa</p>
+            <h2>{{ servicio.empresa.razonSocial }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (servicio.ruta; as ruta) {
+        @if (tieneTexto(ruta.nombre)) {
+          <ion-item>
+            <ion-label>
+              <p>Ruta</p>
+              <h2>{{ ruta.nombre }}</h2>
+            </ion-label>
+          </ion-item>
+        }
+        @if (tieneTexto(ruta.sector)) {
+          <ion-item>
+            <ion-label>
+              <p>Sector</p>
+              <h2>{{ ruta.sector }}</h2>
+            </ion-label>
+          </ion-item>
+        }
+      }
+      @if (servicio.puntoRecogida; as punto) {
+        @if (tieneTexto(punto.nombre)) {
+          <ion-item>
+            <ion-label>
+              <p>Punto de recogida</p>
+              <h2>{{ punto.nombre }}</h2>
+            </ion-label>
+          </ion-item>
+        }
+        @if (tieneTexto(punto.referencia)) {
+          <ion-item>
+            <ion-label>
+              <p>Referencia</p>
+              <h2>{{ punto.referencia }}</h2>
+            </ion-label>
+          </ion-item>
+        }
+      }
+      @if (descripcionVehiculo(servicio); as vehiculo) {
+        <ion-item>
+          <ion-label>
+            <p>Vehículo</p>
+            <h2>{{ vehiculo }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (tieneTexto(servicio.vehiculo?.patente)) {
+        <ion-item>
+          <ion-label>
+            <p>Patente</p>
+            <h2>{{ servicio.vehiculo?.patente }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (servicio.fechaConfirmacion) {
+        <ion-item>
+          <ion-label>
+            <p>Confirmación</p>
+            <h2>{{ formatearFechaHora(servicio.fechaConfirmacion) }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (servicio.fechaHoraInicioReal) {
+        <ion-item>
+          <ion-label>
+            <p>Inicio real</p>
+            <h2>{{ formatearFechaHora(servicio.fechaHoraInicioReal) }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+      @if (servicio.fechaHoraFinReal) {
+        <ion-item>
+          <ion-label>
+            <p>Término real</p>
+            <h2>{{ formatearFechaHora(servicio.fechaHoraFinReal) }}</h2>
+          </ion-label>
+        </ion-item>
+      }
+    </ion-list>
+
+    <ion-list [inset]="true">
+      <ion-item>
+        <ion-label>
+          <p>Asistencia</p>
+          @if (servicio.asistencia.estadoAsistencia) {
+            <h2>{{ etiquetaAsistencia(servicio.asistencia.estadoAsistencia) }}</h2>
+          } @else {
+            <h2>No hay asistencia registrada.</h2>
+          }
+        </ion-label>
+      </ion-item>
+      @if (servicio.asistencia.estadoAsistencia) {
+        @if (etiquetaTipoAsistencia(servicio.asistencia.tipoAsistencia); as tipo) {
+          <ion-item>
+            <ion-label>
+              <p>Tipo</p>
+              <h2>{{ tipo }}</h2>
+            </ion-label>
+          </ion-item>
+        }
+        @if (servicio.asistencia.fechaHora) {
+          <ion-item>
+            <ion-label>
+              <p>Fecha y hora</p>
+              <h2>{{ formatearFechaHora(servicio.asistencia.fechaHora) }}</h2>
+            </ion-label>
+          </ion-item>
+        }
+        @if (etiquetaMetodoAsistencia(servicio.asistencia.metodo); as metodo) {
+          <ion-item>
+            <ion-label>
+              <p>Método</p>
+              <h2>{{ metodo }}</h2>
+            </ion-label>
+          </ion-item>
+        }
+      }
+    </ion-list>
+
+    @if (servicio.estado === 'PROGRAMADO' || servicio.estado === 'EN_CURSO') {
+      <div class="acciones ion-padding">
+        @if (errorConfirmacion()) {
+          <ion-note color="danger">{{ errorConfirmacion() }}</ion-note>
+        }
+        @if (puedeConfirmar('CONFIRMADO')) {
+          <ion-button expand="block" [disabled]="confirmando()" (click)="pedirConfirmacion('CONFIRMADO')">
+            @if (confirmando()) {
+              <ion-spinner name="crescent" />
+              Guardando...
+            } @else {
+              Confirmar viaje
+            }
+          </ion-button>
+        }
+        @if (puedeConfirmar('RECHAZADO')) {
+          <ion-button
+            expand="block"
+            fill="outline"
+            color="danger"
+            [disabled]="confirmando()"
+            (click)="pedirConfirmacion('RECHAZADO')"
+          >
+            Rechazar viaje
+          </ion-button>
+        }
+      </div>
+    }
+  }
+</ion-content>

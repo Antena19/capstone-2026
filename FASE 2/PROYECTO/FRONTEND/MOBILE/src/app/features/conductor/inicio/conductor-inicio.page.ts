@@ -18,6 +18,7 @@ import {
   IonTitle,
   IonToolbar,
   RefresherCustomEvent,
+  ToastController,
   ViewWillEnter,
 } from '@ionic/angular';
 import { forkJoin } from 'rxjs';
@@ -63,8 +64,11 @@ export class ConductorInicioPage implements ViewWillEnter {
   private readonly api = inject(MisServiciosService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly avisos = inject(ToastController);
   private pedidoListado = 0;
   private pedidoHistorial = 0;
+  private cicloCarga = 0;
+  private cicloConAviso = 0;
 
   readonly cargando = signal(true);
   readonly error = signal<string | null>(null);
@@ -90,6 +94,7 @@ export class ConductorInicioPage implements ViewWillEnter {
 
   cargar(alTerminar?: () => void): void {
     const pedido = ++this.pedidoListado;
+    this.cicloCarga += 1;
     const silencioso = this.listadoListo();
     if (!silencioso && !alTerminar) {
       this.cargando.set(true);
@@ -99,15 +104,15 @@ export class ConductorInicioPage implements ViewWillEnter {
     const hoy = fechaLocalHoy();
     forkJoin({
       actuales: this.api.listarConductor({ desde: hoy }),
-      enCurso: this.api.listarConductor({ estado: 'EN_CURSO' }),
+      anteriores: this.api.listarConductor({ hasta: fechaLocalDesplazada(-1) }),
     }).subscribe({
-      next: ({ actuales, enCurso }) => {
+      next: ({ actuales, anteriores }) => {
         if (pedido !== this.pedidoListado) {
           alTerminar?.();
           return;
         }
 
-        this.aplicarOperativos(actuales, enCurso, hoy);
+        this.aplicarOperativos(actuales, anteriores, hoy);
         this.listadoListo.set(true);
         this.cargando.set(false);
         if (this.historialVisible()) {
@@ -126,6 +131,8 @@ export class ConductorInicioPage implements ViewWillEnter {
         this.cargando.set(false);
         if (!this.listadoListo()) {
           this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar tus servicios.'));
+        } else {
+          this.avisarRefreshFallido();
         }
         alTerminar?.();
       },
@@ -195,20 +202,39 @@ export class ConductorInicioPage implements ViewWillEnter {
             this.errorHistorial.set(
               this.auth.mensajeErrorHttp(err, 'No fue posible cargar los servicios anteriores.'),
             );
+          } else if (silencioso) {
+            this.avisarRefreshFallido();
           }
           alTerminar?.();
         },
       });
   }
 
+  avisoPendiente(servicio: ServicioConductorResumen): string | null {
+    if (servicio.estado === 'EN_CURSO') {
+      return 'Fecha anterior · pendiente de finalizar';
+    }
+
+    if (servicio.estado === 'PROGRAMADO') {
+      return 'Fecha anterior · pendiente de iniciar';
+    }
+
+    return null;
+  }
+
   private aplicarOperativos(
     actuales: ServicioConductorResumen[],
-    enCurso: ServicioConductorResumen[],
+    anteriores: ServicioConductorResumen[],
     hoy: string,
   ): void {
     const idsActuales = new Set(actuales.map((servicio) => servicio.idServicio));
-    const pendientes = enCurso
-      .filter((servicio) => servicio.fecha < hoy && !idsActuales.has(servicio.idServicio))
+    const pendientes = anteriores
+      .filter(
+        (servicio) =>
+          servicio.fecha < hoy &&
+          !idsActuales.has(servicio.idServicio) &&
+          (servicio.estado === 'EN_CURSO' || servicio.estado === 'PROGRAMADO'),
+      )
       .sort(compararMasAntiguoPrimero);
 
     this.actuales.set(actuales);
@@ -225,6 +251,21 @@ export class ConductorInicioPage implements ViewWillEnter {
     return servicios
       .filter((servicio) => !visibles.has(servicio.idServicio))
       .sort(compararMasRecientePrimero);
+  }
+
+  private avisarRefreshFallido(): void {
+    if (this.cicloConAviso === this.cicloCarga) {
+      return;
+    }
+
+    this.cicloConAviso = this.cicloCarga;
+    void this.avisos
+      .create({
+        message: 'No se pudo actualizar la información.',
+        duration: 2500,
+        position: 'bottom',
+      })
+      .then((aviso) => aviso.present());
   }
 }
 

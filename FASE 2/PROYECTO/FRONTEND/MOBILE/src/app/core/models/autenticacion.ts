@@ -37,15 +37,3 @@ export interface ActivarCuentaSolicitud {
   codigo: string;
   nuevaPassword: string;
 }
-
-export interface ServicioPasajeroResumen {
-  idPasajeroServicio: number;
-  idServicio: number;
-  fecha: string;
-  horaInicio: string;
-  horaFin: string;
-  tipoServicio: string;
-  estadoServicio: string;
-  estadoConfirmacion: string;
-  nombreRuta?: string | null;
-}

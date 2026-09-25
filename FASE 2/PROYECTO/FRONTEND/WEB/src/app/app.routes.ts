@@ -1,5 +1,11 @@
 import { Routes } from '@angular/router';
-import { adminGuard, authGuard, guestGuard } from './core/guards/auth.guard';
+import {
+  adminGuard,
+  authGuard,
+  cambiarPasswordGuard,
+  guestGuard,
+  passwordObligatorioGuard,
+} from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -8,8 +14,16 @@ export const routes: Routes = [
     canActivate: [guestGuard],
   },
   {
+    path: 'cambiar-password',
+    loadComponent: () =>
+      import('./features/auth/cambiar-password/cambiar-password').then(
+        (m) => m.CambiarPasswordPage,
+      ),
+    canActivate: [authGuard, adminGuard, cambiarPasswordGuard],
+  },
+  {
     path: '',
-    canActivate: [authGuard, adminGuard],
+    canActivate: [authGuard, adminGuard, passwordObligatorioGuard],
     loadChildren: () => import('./layout/admin.routes').then((m) => m.adminRoutes),
   },
   { path: '**', redirectTo: '/dashboard' },

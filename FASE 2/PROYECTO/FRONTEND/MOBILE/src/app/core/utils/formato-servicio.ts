@@ -105,7 +105,7 @@ export function tieneTexto(valor: string | null | undefined): boolean {
 
 const ETIQUETAS_ASISTENCIA: Record<EstadoAsistencia, string> = {
   VALIDA: 'Asistencia registrada',
-  PROVISIONAL: 'Asistencia provisional',
+  PROVISIONAL: 'Asistencia pendiente',
   ANULADA: 'Asistencia anulada',
 };
 
@@ -151,6 +151,18 @@ export function etiquetaConfirmacion(estado: EstadoConfirmacionViaje | null | un
   return null;
 }
 
+export function colorConfirmacion(estado: EstadoConfirmacionViaje | null | undefined): string {
+  if (estado === 'CONFIRMADO') {
+    return 'success';
+  }
+
+  if (estado === 'RECHAZADO') {
+    return 'danger';
+  }
+
+  return 'medium';
+}
+
 export function textoPuntoRecogida(
   nombre: string | null | undefined,
   referencia: string | null | undefined,
@@ -161,6 +173,62 @@ export function textoPuntoRecogida(
 
   if (tieneTexto(referencia)) {
     return `Recogida: ${referencia?.trim()}`;
+  }
+
+  return null;
+}
+
+export function referenciaPuntoAporta(
+  nombre: string | null | undefined,
+  referencia: string | null | undefined,
+): string | null {
+  const valor = (referencia ?? '').trim();
+  if (!valor) {
+    return null;
+  }
+
+  const nombreNormalizado = (nombre ?? '').trim().toLowerCase();
+  if (nombreNormalizado && valor.toLowerCase() === nombreNormalizado) {
+    return null;
+  }
+
+  return valor;
+}
+
+export function etiquetaAsistenciaListado(
+  tieneAsistencia: boolean,
+  estado: EstadoAsistencia | null | undefined,
+): string | null {
+  if (estado === 'VALIDA' && tieneAsistencia) {
+    return 'Asistencia registrada';
+  }
+
+  if (estado === 'ANULADA') {
+    return 'Asistencia anulada';
+  }
+
+  return null;
+}
+
+export function etiquetaTipoAsistencia(tipo: string | null | undefined): string | null {
+  if (tipo === 'PLANIFICADA') {
+    return 'Planificada';
+  }
+
+  if (tipo === 'NO_PLANIFICADA') {
+    return 'No planificada';
+  }
+
+  return null;
+}
+
+export function etiquetaMetodoAsistencia(metodo: string | null | undefined): string | null {
+  if (metodo === 'QR') {
+    return 'Código QR';
+  }
+
+  if (metodo === 'MANUAL') {
+    return 'Manual';
   }
 
   return null;

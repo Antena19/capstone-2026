@@ -24,8 +24,17 @@ export const routes: Routes = [
   },
   {
     path: 'pasajero',
+    pathMatch: 'full',
     canActivate: [rolGuard(ROL_PASAJERO)],
     loadComponent: () => import('./home/home.page').then((m) => m.HomePage),
+  },
+  {
+    path: 'pasajero/servicios/:idServicio',
+    canActivate: [rolGuard(ROL_PASAJERO)],
+    loadComponent: () =>
+      import('./features/pasajero/detalle/pasajero-detalle.page').then(
+        (m) => m.PasajeroDetallePage,
+      ),
   },
   {
     path: 'conductor',

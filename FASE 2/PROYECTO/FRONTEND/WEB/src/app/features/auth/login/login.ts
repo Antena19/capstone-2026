@@ -58,7 +58,7 @@ export class LoginPage {
         }
 
         this.enviando.set(false);
-        void this.router.navigate(['/dashboard']);
+        void this.router.navigateByUrl(this.auth.rutaInicio());
       },
       error: (err: unknown) => {
         this.enviando.set(false);

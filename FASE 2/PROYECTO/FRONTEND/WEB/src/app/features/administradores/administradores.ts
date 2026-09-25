@@ -1,9 +1,11 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import {
   CrearAdministradorSolicitud,
   EditarAdministradorSolicitud,
+  RestablecerPasswordRespuesta,
   Usuario,
 } from '../../core/models/usuario';
 import { EstadoRegistro } from '../../core/models/empresa';
@@ -46,6 +48,7 @@ export class AdministradoresPage {
   private readonly api = inject(UsuariosService);
   private readonly auth = inject(AuthService);
   private readonly feedback = inject(FeedbackService);
+  private readonly router = inject(Router);
 
   readonly opcionesEstado: FilterOption[] = [
     { value: 'ACTIVO', label: 'Activos' },
@@ -69,6 +72,14 @@ export class AdministradoresPage {
   readonly confirmacionAbierta = signal(false);
   readonly administradorEstado = signal<Usuario | null>(null);
   readonly idUsuarioCambiandoEstado = signal<number | null>(null);
+
+  readonly confirmacionResetAbierta = signal(false);
+  readonly administradorReset = signal<Usuario | null>(null);
+  readonly idUsuarioRestableciendo = signal<number | null>(null);
+  readonly credencialesReset = signal<RestablecerPasswordRespuesta | null>(null);
+  readonly copiado = signal(false);
+  readonly avisoCopia = signal<string | null>(null);
+  readonly resetEsCuentaPropia = signal(false);
 
   readonly idUsuarioActual = computed(() => this.auth.sesion()?.idUsuario ?? null);
 
@@ -99,6 +110,19 @@ export class AdministradoresPage {
     }
 
     return `Este administrador (${administrador.email}) dejará de poder acceder a la plataforma. Podrás volver a activarlo posteriormente.`;
+  });
+
+  readonly mensajeReset = computed(() => {
+    const administrador = this.administradorReset();
+    if (!administrador) {
+      return '';
+    }
+
+    const propio = this.esCuentaPropia(administrador)
+      ? ' Como es tu propia cuenta, deberás usar la clave temporal como contraseña actual y cambiarla de inmediato.'
+      : '';
+
+    return `Se generará una contraseña temporal para ${administrador.email}. La anterior dejará de funcionar.${propio}`;
   });
 
   constructor() {
@@ -234,6 +258,87 @@ export class AdministradoresPage {
 
   activar(administrador: Usuario): void {
     this.cambiarEstado(administrador, 'ACTIVO', 'Administrador activado correctamente.');
+  }
+
+  pedirRestablecer(administrador: Usuario): void {
+    if (this.estaRestableciendo(administrador.idUsuario)) {
+      return;
+    }
+
+    this.administradorReset.set(administrador);
+    this.confirmacionResetAbierta.set(true);
+  }
+
+  cancelarRestablecer(): void {
+    if (this.idUsuarioRestableciendo() !== null) {
+      return;
+    }
+
+    this.confirmacionResetAbierta.set(false);
+    this.administradorReset.set(null);
+  }
+
+  confirmarRestablecer(): void {
+    const administrador = this.administradorReset();
+    if (!administrador || this.estaRestableciendo(administrador.idUsuario)) {
+      return;
+    }
+
+    const esPropia = this.esCuentaPropia(administrador);
+    this.confirmacionResetAbierta.set(false);
+    this.idUsuarioRestableciendo.set(administrador.idUsuario);
+    this.resetEsCuentaPropia.set(esPropia);
+
+    this.api.restablecerPassword(administrador.idUsuario).subscribe({
+      next: (respuesta) => {
+        this.idUsuarioRestableciendo.set(null);
+        this.administradorReset.set(null);
+        this.credencialesReset.set(respuesta);
+        this.copiado.set(false);
+        this.avisoCopia.set(null);
+        if (esPropia) {
+          this.auth.marcarDebeCambiarPassword();
+        }
+        this.feedback.mostrar('Contraseña restablecida correctamente.');
+      },
+      error: (err: unknown) => {
+        this.idUsuarioRestableciendo.set(null);
+        this.administradorReset.set(null);
+        this.resetEsCuentaPropia.set(false);
+        this.error.set(mensajeErrorHttp(err, 'No fue posible restablecer la contraseña.'));
+      },
+    });
+  }
+
+  cerrarCredencialesReset(): void {
+    this.credencialesReset.set(null);
+    this.avisoCopia.set(null);
+    this.copiado.set(false);
+    const irACambio = this.resetEsCuentaPropia();
+    this.resetEsCuentaPropia.set(false);
+    if (irACambio || this.auth.debeCambiarPassword()) {
+      void this.router.navigateByUrl('/cambiar-password');
+    }
+  }
+
+  async copiarPasswordTemporal(): Promise<void> {
+    const password = this.credencialesReset()?.passwordTemporal;
+    if (!password) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(password);
+      this.copiado.set(true);
+      this.avisoCopia.set('Contraseña copiada.');
+    } catch {
+      this.copiado.set(false);
+      this.avisoCopia.set('No fue posible copiar. Selecciona la contraseña y cópiala manualmente.');
+    }
+  }
+
+  estaRestableciendo(idUsuario: number): boolean {
+    return this.idUsuarioRestableciendo() === idUsuario;
   }
 
   estaCambiandoEstado(idUsuario: number): boolean {

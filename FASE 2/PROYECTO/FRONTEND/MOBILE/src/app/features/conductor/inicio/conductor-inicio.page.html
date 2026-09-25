@@ -24,13 +24,13 @@
       <section class="seccion">
         <div class="seccion-head">
           <h2>Pendientes de días anteriores</h2>
-          <p>Quedaron en curso. Ábrelos para finalizarlos.</p>
+          <p>Servicios anteriores que aún debes iniciar o finalizar.</p>
         </div>
         <div class="lista">
           @for (servicio of pendientesAnteriores(); track servicio.idServicio) {
             <ng-container
               [ngTemplateOutlet]="tarjetaServicio"
-              [ngTemplateOutletContext]="{ $implicit: servicio, pendiente: true }"
+              [ngTemplateOutletContext]="{ $implicit: servicio, aviso: avisoPendiente(servicio) }"
             />
           }
         </div>
@@ -38,21 +38,19 @@
     }
 
     <section class="seccion">
-      @if (pendientesAnteriores().length > 0) {
-        <div class="seccion-head">
-          <h2>Servicios actuales</h2>
-        </div>
-      }
+      <div class="seccion-head">
+        <h2>Hoy y próximos</h2>
+      </div>
       @if (actuales().length === 0) {
         <div class="ion-padding vacio">
-          <p>No tienes servicios programados para hoy.</p>
+          <p>No tienes servicios para hoy ni próximos.</p>
         </div>
       } @else {
         <div class="lista">
           @for (servicio of actuales(); track servicio.idServicio) {
             <ng-container
               [ngTemplateOutlet]="tarjetaServicio"
-              [ngTemplateOutletContext]="{ $implicit: servicio, pendiente: false }"
+              [ngTemplateOutletContext]="{ $implicit: servicio }"
             />
           }
         </div>
@@ -95,7 +93,7 @@
             @for (servicio of historial(); track servicio.idServicio) {
               <ng-container
                 [ngTemplateOutlet]="tarjetaServicio"
-                [ngTemplateOutletContext]="{ $implicit: servicio, pendiente: servicio.estado === 'EN_CURSO' }"
+                [ngTemplateOutletContext]="{ $implicit: servicio }"
               />
             }
           </div>
@@ -104,7 +102,7 @@
     }
   }
 
-  <ng-template #tarjetaServicio let-servicio let-pendiente="pendiente">
+  <ng-template #tarjetaServicio let-servicio let-aviso="aviso">
     <ion-card button="true" (click)="abrirDetalle(servicio.idServicio)">
       <ion-card-header>
         <p class="id-servicio">Servicio #{{ servicio.idServicio }}</p>
@@ -119,8 +117,8 @@
             {{ etiquetaEstado(estado) }}
           </ion-badge>
         }
-        @if (pendiente) {
-          <p class="alerta">Fecha anterior · pendiente de finalizar</p>
+        @if (aviso) {
+          <p class="alerta">{{ aviso }}</p>
         }
         @if (tieneTexto(servicio.tipoServicio)) {
           <p class="dato">{{ servicio.tipoServicio }}</p>
