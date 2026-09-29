@@ -11,7 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { fromEvent } from 'rxjs';
 import { LngLatBounds, Map as MapaLibre, MapMouseEvent, Marker, NavigationControl, Popup } from 'maplibre-gl';
@@ -33,7 +33,8 @@ import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 import { coincidePasajero } from './buscar-pasajeros';
 import { CENTRO_PUERTO_MONTT, ESTILO_MAPA_BASE, LAYER_TRAZADO, SOURCE_TRAZADO, ZOOM_CIUDAD, ZOOM_PASAJERO, configurarWorkerMapLibre } from './mapa-base';
 
-type TabPanel = 'pasajeros' | 'puntos' | 'recorrido';
+type BloqueRuta = 'informacion' | 'extremos' | 'puntos' | 'revision';
+type EstadoBloque = 'completo' | 'pendiente' | 'atencion' | 'bloqueado';
 type FiltroAsignacion = 'todos' | 'sin' | 'con';
 type TipoConfirmacion = 'geo' | 'eliminar' | 'mover';
 type TipoExtremo = 'origen' | 'destino';
@@ -50,6 +51,7 @@ type TipoExtremo = 'origen' | 'destino';
     Modal,
     CdkDropList,
     CdkDrag,
+    CdkDragHandle,
   ],
   templateUrl: './rutas.html',
   styleUrl: './rutas.scss',
@@ -62,6 +64,7 @@ export class RutasPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly zona = inject(NgZone);
   private readonly contenedorMapa = viewChild<ElementRef<HTMLDivElement>>('mapa');
+  private readonly cuerpoPanel = viewChild<ElementRef<HTMLElement>>('cuerpo');
 
   private mapa: MapaLibre | null = null;
   private marcadoresPasajeros = new Map<number, Marker>();
@@ -78,7 +81,10 @@ export class RutasPage {
   readonly ruta = signal<Ruta | null>(null);
   readonly idEmpresa = signal('');
   readonly idRuta = signal('');
-  readonly tab = signal<TabPanel>('pasajeros');
+  readonly bloque = signal<BloqueRuta>('informacion');
+  readonly mostrarFormNueva = signal(false);
+  readonly pasajerosAbiertos = signal(false);
+  readonly recorridoPendienteRecalculo = signal(false);
   readonly busqueda = signal('');
   readonly filtroAsignacion = signal<FiltroAsignacion>('todos');
   readonly cargando = signal(false);
@@ -102,7 +108,6 @@ export class RutasPage {
   readonly nombreExtremo = signal('');
   readonly referenciaExtremo = signal('');
   readonly calcularEnCurso = signal(false);
-  readonly modalRutaAbierta = signal(false);
   readonly nombreRuta = signal('');
   readonly sectorRuta = signal('');
   readonly modalAsignarAbierto = signal(false);
@@ -158,19 +163,164 @@ export class RutasPage {
     return !!ruta?.origen && !!ruta.destino && !this.calcularEnCurso() && !this.guardando();
   });
 
-  readonly etiquetaCalcular = computed(() => (this.ruta()?.trazado ? 'Recalcular ruta' : 'Calcular ruta'));
+  readonly etiquetaCalcular = computed(() =>
+    this.ruta()?.trazado ? 'Recalcular recorrido' : 'Calcular recorrido',
+  );
 
-  readonly estadoRecorrido = computed(() => {
+  readonly nombreEmpresa = computed(() => {
+    const id = Number(this.idEmpresa());
+    return this.empresas().find((empresa) => empresa.idEmpresa === id)?.razonSocial ?? '';
+  });
+
+  readonly sectorVisible = computed(() => {
+    const sector = this.ruta()?.sector?.trim();
+    return sector ? sector : 'Sin sector';
+  });
+
+  readonly pasajerosAsignados = computed(() => {
+    const asignacion = this.asignacionPorPasajero();
+    return this.pasajeros().filter((pasajero) => asignacion.has(String(pasajero.idPasajero))).length;
+  });
+
+  readonly pasajerosSinPunto = computed(() =>
+    Math.max(0, this.totalActivos() - this.pasajerosAsignados()),
+  );
+
+  readonly textoPasajerosAsignados = computed(() => {
+    if (!this.idEmpresa() || this.cargando()) {
+      return 'Cargando pasajeros';
+    }
+
+    return `${this.pasajerosAsignados()} de ${this.totalActivos()}`;
+  });
+
+  readonly textoPasajerosUbicados = computed(() => {
+    if (!this.idEmpresa()) {
+      return '';
+    }
+
+    if (this.cargando()) {
+      return 'Cargando pasajeros';
+    }
+
+    return `${this.geocodificados()} de ${this.totalActivos()} pasajeros ubicados en el mapa`;
+  });
+
+  readonly rutaConfigurada = computed(() => {
     const ruta = this.ruta();
-    if (!ruta?.origen || !ruta.destino) {
-      return 'Ruta sin calcular';
+    return !!ruta?.origen && !!ruta.destino && !!ruta.trazado && !this.recorridoPendienteRecalculo();
+  });
+
+  readonly estadoInformacion = computed<EstadoBloque>(() => (this.ruta() ? 'completo' : 'pendiente'));
+
+  readonly estadoExtremos = computed<EstadoBloque>(() => {
+    if (!this.ruta()) {
+      return 'bloqueado';
     }
 
-    if (!ruta.trazado) {
-      return 'Pendiente de calcular';
+    const tieneOrigen = !!this.ruta()?.origen;
+    const tieneDestino = !!this.ruta()?.destino;
+    if (tieneOrigen && tieneDestino) {
+      return 'completo';
     }
 
-    return 'Ruta calculada';
+    if (tieneOrigen || tieneDestino) {
+      return 'atencion';
+    }
+
+    return 'pendiente';
+  });
+
+  readonly estadoPuntos = computed<EstadoBloque>(() => {
+    if (!this.ruta()) {
+      return 'bloqueado';
+    }
+
+    if (this.puntosOrdenados().length > 0 || this.ruta()?.trazado) {
+      return 'completo';
+    }
+
+    return 'pendiente';
+  });
+
+  readonly notaInformacion = computed(() => {
+    if (this.ruta()) {
+      return 'Lista';
+    }
+
+    return this.bloque() === 'informacion' ? 'En curso' : 'Pendiente';
+  });
+
+  readonly notaExtremos = computed(() => {
+    if (this.bloque() === 'extremos' && this.estadoExtremos() !== 'completo') {
+      return 'En curso';
+    }
+
+    switch (this.estadoExtremos()) {
+      case 'completo':
+        return 'Definidos';
+      case 'atencion':
+        return 'Incompleto';
+      case 'bloqueado':
+        return 'Tras crear la ruta';
+      default:
+        return 'Pendiente';
+    }
+  });
+
+  readonly notaPuntos = computed(() => {
+    if (!this.ruta()) {
+      return 'Tras crear la ruta';
+    }
+
+    if (this.bloque() === 'puntos' && this.estadoPuntos() !== 'completo') {
+      return 'En curso';
+    }
+
+    const cantidad = this.puntosOrdenados().length;
+    if (cantidad === 1) {
+      return '1 punto';
+    }
+
+    if (cantidad > 1) {
+      return `${cantidad} puntos`;
+    }
+
+    return this.ruta()?.trazado ? 'Sin puntos' : 'Opcional';
+  });
+
+  readonly notaRevision = computed(() => {
+    if (this.bloque() === 'revision' && this.estadoRevision() !== 'completo') {
+      return 'En curso';
+    }
+
+    switch (this.estadoRevision()) {
+      case 'completo':
+        return 'Calculado';
+      case 'atencion':
+        return this.recorridoPendienteRecalculo() ? 'Recalcular' : 'Incompleto';
+      case 'bloqueado':
+        return 'Tras crear la ruta';
+      default:
+        return 'Pendiente';
+    }
+  });
+
+  readonly estadoRevision = computed<EstadoBloque>(() => {
+    const ruta = this.ruta();
+    if (!ruta) {
+      return 'bloqueado';
+    }
+
+    if (this.recorridoPendienteRecalculo()) {
+      return 'atencion';
+    }
+
+    if (!ruta.origen || !ruta.destino) {
+      return 'atencion';
+    }
+
+    return ruta.trazado ? 'completo' : 'pendiente';
   });
 
   readonly textoDistancia = computed(() => {
@@ -301,7 +451,6 @@ export class RutasPage {
 
         if (
           this.modalPuntoAbierto()
-          || this.modalRutaAbierta()
           || this.modalAsignarAbierto()
           || this.modalExtremoAbierto()
           || this.confirmacionAbierta()
@@ -327,6 +476,10 @@ export class RutasPage {
     this.idRuta.set('');
     this.ruta.set(null);
     this.rutas.set([]);
+    this.bloque.set('informacion');
+    this.mostrarFormNueva.set(false);
+    this.recorridoPendienteRecalculo.set(false);
+    this.pasajerosAbiertos.set(false);
     this.seleccionadoId.set(null);
     this.puntoSeleccionadoId.set(null);
     this.busqueda.set('');
@@ -347,8 +500,11 @@ export class RutasPage {
     this.cancelarModosMapa();
     this.idRuta.set(valor);
     this.puntoSeleccionadoId.set(null);
+    this.mostrarFormNueva.set(false);
+    this.recorridoPendienteRecalculo.set(false);
     if (!valor) {
       this.ruta.set(null);
+      this.bloque.set('informacion');
       this.actualizarMarcadoresPuntos(true);
       this.actualizarTrazadoMapa(null);
       return;
@@ -411,7 +567,50 @@ export class RutasPage {
   abrirNuevaRuta(): void {
     this.nombreRuta.set('');
     this.sectorRuta.set('');
-    this.modalRutaAbierta.set(true);
+    this.mostrarFormNueva.set(true);
+    this.bloque.set('informacion');
+  }
+
+  cancelarNuevaRuta(): void {
+    this.mostrarFormNueva.set(false);
+    this.nombreRuta.set('');
+    this.sectorRuta.set('');
+  }
+
+  elegirBloque(bloque: BloqueRuta): void {
+    if (bloque !== 'informacion' && !this.ruta()) {
+      return;
+    }
+
+    if (bloque !== this.bloque()) {
+      this.cancelarModosMapa();
+    }
+
+    this.bloque.set(bloque);
+    this.enfocarBloque();
+  }
+
+  finalizarConfiguracion(): void {
+    if (!this.rutaConfigurada()) {
+      return;
+    }
+
+    this.cancelarModosMapa();
+    this.idRuta.set('');
+    this.ruta.set(null);
+    this.puntoSeleccionadoId.set(null);
+    this.seleccionadoId.set(null);
+    this.mostrarFormNueva.set(false);
+    this.recorridoPendienteRecalculo.set(false);
+    this.bloque.set('informacion');
+    this.actualizarMarcadoresPuntos(true);
+    this.actualizarTrazadoMapa(null);
+    this.feedback.mostrar('Ruta configurada correctamente.');
+    this.enfocarBloque();
+  }
+
+  alternarPasajeros(): void {
+    this.pasajerosAbiertos.update((abierto) => !abierto);
   }
 
   guardarRuta(): void {
@@ -425,11 +624,12 @@ export class RutasPage {
     this.api.crearDiseno({ nombre, empresaId: idEmpresa, sector: this.sectorRuta().trim() || null }).subscribe({
       next: (ruta) => {
         this.guardando.set(false);
-        this.modalRutaAbierta.set(false);
+        this.mostrarFormNueva.set(false);
+        this.recorridoPendienteRecalculo.set(false);
         this.rutas.update((lista) => [...lista, this.normalizarRuta(ruta)]);
         this.idRuta.set(ruta.idRuta);
         this.ruta.set(this.normalizarRuta(ruta));
-        this.tab.set('puntos');
+        this.bloque.set('extremos');
         this.feedback.mostrar('Ruta creada.');
         this.actualizarMarcadoresPuntos(true);
       },
@@ -466,10 +666,6 @@ export class RutasPage {
     this.pendienteCreacion.set(null);
     this.movimientoPendiente.set(null);
     this.actualizarMarcadoresPuntos(false);
-  }
-
-  cerrarModalRuta(): void {
-    this.modalRutaAbierta.set(false);
   }
 
   cerrarModalPunto(): void {
@@ -549,7 +745,7 @@ export class RutasPage {
         this.editandoExtremo.set(false);
         this.modoDefinirExtremo.set(null);
         this.pendienteCreacion.set(null);
-        this.aplicarRuta(actualizada);
+        this.aplicarRuta(actualizada, false, true);
         this.feedback.mostrar(tipo === 'origen' ? 'Origen actualizado.' : 'Destino actualizado.');
       },
       error: (err: unknown) => {
@@ -599,7 +795,7 @@ export class RutasPage {
         this.guardando.set(false);
         this.modoMoverExtremo.set(null);
         this.movimientoPendiente.set(null);
-        this.aplicarRuta(actualizada);
+        this.aplicarRuta(actualizada, false, true);
         this.feedback.mostrar('Ubicación actualizada.');
       },
       error: (err: unknown) => {
@@ -659,7 +855,7 @@ export class RutasPage {
         this.modalPuntoAbierto.set(false);
         this.modoCrearPunto.set(false);
         this.pendienteCreacion.set(null);
-        this.aplicarRuta(actualizada);
+        this.aplicarRuta(actualizada, false, true);
         this.feedback.mostrar('Punto de recogida creado.');
       },
       error: (err: unknown) => {
@@ -701,7 +897,7 @@ export class RutasPage {
         this.guardando.set(false);
         this.modalPuntoAbierto.set(false);
         this.editandoPunto.set(false);
-        this.aplicarRuta(actualizada);
+        this.aplicarRuta(actualizada, false, true);
         this.feedback.mostrar('Punto actualizado.');
       },
       error: (err: unknown) => {
@@ -743,7 +939,7 @@ export class RutasPage {
         this.guardando.set(false);
         this.modoMoverPunto.set(false);
         this.movimientoPendiente.set(null);
-        this.aplicarRuta(actualizada);
+        this.aplicarRuta(actualizada, false, true);
         this.feedback.mostrar('Ubicación actualizada.');
       },
       error: (err: unknown) => {
@@ -810,7 +1006,7 @@ export class RutasPage {
     }).subscribe({
       next: (actualizada) => {
         this.guardando.set(false);
-        this.aplicarRuta(actualizada);
+        this.aplicarRuta(actualizada, false, true);
       },
       error: (err: unknown) => {
         this.guardando.set(false);
@@ -904,8 +1100,35 @@ export class RutasPage {
     return this.asignacionPorPasajero().get(String(idPasajero));
   }
 
-  private aplicarRuta(ruta: Ruta, ajustarVista = false): void {
+  private enfocarBloque(): void {
+    setTimeout(() => {
+      const contenedor = this.cuerpoPanel()?.nativeElement;
+      if (!contenedor) {
+        return;
+      }
+
+      contenedor.scrollTo({ top: 0 });
+      const titulo = contenedor.querySelector('h2');
+      if (titulo instanceof HTMLElement) {
+        titulo.focus({ preventScroll: true });
+      }
+    });
+  }
+
+  private aplicarRuta(ruta: Ruta, ajustarVista = false, desdeMutacion = false): void {
     const normalizada = this.normalizarRuta(ruta);
+    const anterior = this.ruta();
+    if (
+      desdeMutacion
+      && anterior?.idRuta === normalizada.idRuta
+      && !!anterior.trazado
+      && !normalizada.trazado
+    ) {
+      this.recorridoPendienteRecalculo.set(true);
+    } else if (normalizada.trazado) {
+      this.recorridoPendienteRecalculo.set(false);
+    }
+
     this.ruta.set(normalizada);
     this.rutas.update((lista) =>
       lista.some((item) => item.idRuta === normalizada.idRuta)
@@ -997,7 +1220,7 @@ export class RutasPage {
         this.guardando.set(false);
         this.puntoAEliminar.set(null);
         this.puntoSeleccionadoId.set(null);
-        this.aplicarRuta(actualizada);
+        this.aplicarRuta(actualizada, false, true);
         this.feedback.mostrar('Punto eliminado.');
       },
       error: (err: unknown) => {
