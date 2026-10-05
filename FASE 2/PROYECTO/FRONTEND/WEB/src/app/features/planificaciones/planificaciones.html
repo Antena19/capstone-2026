@@ -1,36 +1,52 @@
 <app-page-header title="Planificaciones" [subtitle]="subtitulo">
-  <app-filter-select
-    label="Empresa"
-    blankLabel="Todas las empresas"
-    [items]="opcionesEmpresa()"
-    [value]="empresaFiltro()"
-    (valueChange)="actualizarEmpresaFiltro($event)"
-  />
-  <label class="filtro-mes">
-    <span class="sr-only">Período</span>
-    <input
-      type="month"
-      [value]="periodoFiltro()"
-      aria-label="Período"
-      (change)="actualizarPeriodoFiltro($event)"
-    />
-  </label>
-  <app-filter-select
-    label="Estado"
-    blankLabel="Todos los estados"
-    [items]="opcionesEstado"
-    [value]="estadoFiltro()"
-    (valueChange)="actualizarEstadoFiltro($event)"
-  />
-  @if (hayFiltros()) {
-    <app-action-button label="Limpiar filtros" variant="ghost" (clicked)="limpiarFiltros()" />
-  }
   <app-action-button label="Nueva planificación" icon="plus" (clicked)="abrirCrear()" />
 </app-page-header>
+
+<p class="ayuda">
+  Cada planificación corresponde a una empresa y un mes. Los viajes se crean posteriormente desde Servicios.
+</p>
 
 @if (error(); as texto) {
   <p class="banner">{{ texto }}</p>
 }
+
+<div class="filtros">
+  <p class="filtros-titulo">Filtrar listado</p>
+  <div class="filtros-campos">
+    <label class="filtro">
+      <span>Empresa</span>
+      <app-filter-select
+        label="Empresa"
+        blankLabel="Todas las empresas"
+        [items]="opcionesEmpresa()"
+        [value]="empresaFiltro()"
+        (valueChange)="actualizarEmpresaFiltro($event)"
+      />
+    </label>
+    <label class="filtro">
+      <span>Período</span>
+      <input
+        type="month"
+        [value]="periodoFiltro()"
+        aria-label="Período"
+        (change)="actualizarPeriodoFiltro($event)"
+      />
+    </label>
+    <label class="filtro">
+      <span>Estado</span>
+      <app-filter-select
+        label="Estado"
+        blankLabel="Todos los estados"
+        [items]="opcionesEstado"
+        [value]="estadoFiltro()"
+        (valueChange)="actualizarEstadoFiltro($event)"
+      />
+    </label>
+    @if (hayFiltros()) {
+      <app-action-button label="Limpiar filtros" variant="ghost" (clicked)="limpiarFiltros()" />
+    }
+  </div>
+</div>
 
 <app-card>
   @if (cargando()) {
@@ -47,11 +63,13 @@
   } @else if (planificaciones().length === 0) {
     <div class="empty">
       @if (hayFiltros()) {
-        <p>No hay planificaciones con los filtros seleccionados.</p>
+        <h2>Sin resultados</h2>
+        <p>No encontramos planificaciones con los filtros seleccionados.</p>
         <app-action-button label="Limpiar filtros" variant="secondary" (clicked)="limpiarFiltros()" />
       } @else {
-        <p>No hay planificaciones registradas.</p>
-        <app-action-button label="Registrar primera planificación" icon="plus" (clicked)="abrirCrear()" />
+        <h2>No hay planificaciones</h2>
+        <p>Crea un período mensual para comenzar a organizar los servicios de una empresa.</p>
+        <app-action-button label="Nueva planificación" icon="plus" (clicked)="abrirCrear()" />
       }
     </div>
   } @else {
@@ -59,29 +77,33 @@
       <table>
         <thead>
           <tr>
-            <th>Período</th>
             <th>Empresa</th>
+            <th>Período</th>
             <th>Estado</th>
-            <th>Creada por</th>
-            <th>Fecha creación</th>
             <th>Acciones</th>
+            <th class="secundaria">Creada por</th>
+            <th class="secundaria">Fecha creación</th>
           </tr>
         </thead>
         <tbody>
           @for (planificacion of planificaciones(); track planificacion.idPlanificacion) {
             <tr>
-              <td class="mono name">{{ planificacion.periodo }}</td>
-              <td>{{ planificacion.razonSocialEmpresa }}</td>
-              <td>
+              <td class="empresa">{{ planificacion.razonSocialEmpresa }}</td>
+              <td class="periodo">{{ planificacion.periodo }}</td>
+              <td class="estado">
                 <app-status-badge
                   [label]="planificacion.estado"
                   [tone]="tonoEstado(planificacion.estado)"
                 />
+                <p>{{ textoEstado(planificacion.estado) }}</p>
               </td>
-              <td>{{ planificacion.emailUsuarioCreador || '—' }}</td>
-              <td class="mono">{{ planificacion.fechaCreacion | date: 'dd-MM-yyyy' }}</td>
               <td>
                 <div class="actions">
+                  @if (admiteServicios(planificacion.estado)) {
+                    <button type="button" class="text-btn" (click)="irAServicios()">
+                      Gestionar servicios
+                    </button>
+                  }
                   @if (planificacion.estado === 'BORRADOR') {
                     <button
                       type="button"
@@ -125,10 +147,12 @@
                       Cancelar
                     </button>
                   } @else {
-                    <span class="sin-acciones">—</span>
+                    <span class="sin-acciones">Sin cambios</span>
                   }
                 </div>
               </td>
+              <td class="secundaria">{{ planificacion.emailUsuarioCreador || '—' }}</td>
+              <td class="secundaria fecha">{{ planificacion.fechaCreacion | date: 'dd-MM-yyyy' }}</td>
             </tr>
           }
         </tbody>

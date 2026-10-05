@@ -3,8 +3,10 @@
     <p class="banner">{{ texto }}</p>
   }
 
+  <p class="intro">Indica la empresa cliente y el mes de operación. Al crear, la planificación queda registrada.</p>
+
   <label class="field">
-    <span>Empresa <abbr title="Obligatorio">*</abbr></span>
+    <span>Empresa cliente <abbr title="Obligatorio">*</abbr></span>
     <select formControlName="idEmpresa">
       <option value="">Selecciona una empresa</option>
       @for (empresa of empresas(); track empresa.idEmpresa) {
@@ -17,8 +19,9 @@
   </label>
 
   <label class="field">
-    <span>Período <abbr title="Obligatorio">*</abbr></span>
+    <span>Mes de operación <abbr title="Obligatorio">*</abbr></span>
     <input type="month" formControlName="periodo" [min]="periodoMinimo" />
+    <p class="ayuda">Los servicios asociados deberán realizarse dentro de este mes.</p>
     @if (mensajeCampo('periodo'); as mensaje) {
       <p class="hint">{{ mensaje }}</p>
     }

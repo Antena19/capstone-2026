@@ -1,326 +1,611 @@
 <app-page-header
   title="Rutas"
-  subtitle="Diseña puntos de recogida y asocia pasajeros de cada empresa."
->
-  <app-filter-select
-    label="Empresa"
-    blankLabel="Seleccionar empresa"
-    [items]="opcionesEmpresa()"
-    [value]="idEmpresa()"
-    (valueChange)="seleccionarEmpresa($event)"
-  />
-  <app-action-button
-    label="Geocodificar pendientes"
-    [disabled]="batchEnCurso() || pendientes() === 0 || !idEmpresa() || cargando()"
-    (clicked)="pedirGeocodificarPendientes()"
-  />
-</app-page-header>
+  subtitle="Recorridos y puntos de recogida."
+/>
 
 @if (error(); as texto) {
   <p class="banner">{{ texto }}</p>
 }
 
-<div class="resumen">
-  <p>Pasajeros activos: {{ totalActivos() }}</p>
-  <p>Geocodificados: {{ geocodificados() }}</p>
-  <p>Pendientes: {{ pendientes() }}</p>
-  @if (ruta(); as actual) {
-    <p>Puntos: {{ puntosOrdenados().length }}</p>
-    <p>Ruta: {{ actual.nombre }}</p>
-    <p>Distancia: {{ textoDistancia() }}</p>
-    <p>Duración: {{ textoDuracion() }}</p>
-  }
-</div>
-
-<div class="layout">
+<div class="workspace">
   <aside class="panel">
-    <div class="panel-toolbar">
-      <app-filter-select
-        label="Ruta"
-        blankLabel="Seleccionar ruta"
-        [items]="opcionesRuta()"
-        [value]="idRuta()"
-        [disabled]="!idEmpresa()"
-        (valueChange)="seleccionarRuta($event)"
-      />
-      <app-action-button
-        label="Nueva ruta"
-        icon="plus"
-        [disabled]="!idEmpresa()"
-        (clicked)="abrirNuevaRuta()"
-      />
-    </div>
+    <nav class="pasos" aria-label="Diseño de la ruta">
+      <button
+        type="button"
+        [class.is-active]="bloque() === 'informacion'"
+        [attr.data-estado]="estadoInformacion()"
+        [attr.aria-current]="bloque() === 'informacion' ? 'step' : null"
+        (click)="elegirBloque('informacion')"
+      >
+        <span class="paso-marca" aria-hidden="true"></span>
+        <span class="paso-texto">
+          <span class="paso-titulo">1 Información</span>
+          <span class="paso-nota">{{ notaInformacion() }}</span>
+        </span>
+      </button>
+      <button
+        type="button"
+        [class.is-active]="bloque() === 'extremos'"
+        [attr.data-estado]="estadoExtremos()"
+        [disabled]="!ruta()"
+        [attr.aria-current]="bloque() === 'extremos' ? 'step' : null"
+        (click)="elegirBloque('extremos')"
+      >
+        <span class="paso-marca" aria-hidden="true"></span>
+        <span class="paso-texto">
+          <span class="paso-titulo">2 Origen y destino</span>
+          <span class="paso-nota">{{ notaExtremos() }}</span>
+        </span>
+      </button>
+      <button
+        type="button"
+        [class.is-active]="bloque() === 'puntos'"
+        [attr.data-estado]="estadoPuntos()"
+        [disabled]="!ruta()"
+        [attr.aria-current]="bloque() === 'puntos' ? 'step' : null"
+        (click)="elegirBloque('puntos')"
+      >
+        <span class="paso-marca" aria-hidden="true"></span>
+        <span class="paso-texto">
+          <span class="paso-titulo">3 Puntos de recogida</span>
+          <span class="paso-nota">{{ notaPuntos() }}</span>
+        </span>
+      </button>
+      <button
+        type="button"
+        [class.is-active]="bloque() === 'revision'"
+        [attr.data-estado]="estadoRevision()"
+        [disabled]="!ruta()"
+        [attr.aria-current]="bloque() === 'revision' ? 'step' : null"
+        (click)="elegirBloque('revision')"
+      >
+        <span class="paso-marca" aria-hidden="true"></span>
+        <span class="paso-texto">
+          <span class="paso-titulo">4 Revisar y calcular</span>
+          <span class="paso-nota">{{ notaRevision() }}</span>
+        </span>
+      </button>
+    </nav>
 
-    <div class="tabs" role="tablist">
-      <button
-        type="button"
-        role="tab"
-        [class.is-active]="tab() === 'pasajeros'"
-        (click)="tab.set('pasajeros')"
-      >
-        Pasajeros
-      </button>
-      <button
-        type="button"
-        role="tab"
-        [class.is-active]="tab() === 'puntos'"
-        (click)="tab.set('puntos')"
-      >
-        Puntos
-      </button>
-      <button
-        type="button"
-        role="tab"
-        [class.is-active]="tab() === 'recorrido'"
-        (click)="tab.set('recorrido')"
-      >
-        Recorrido
-      </button>
-    </div>
+    @if (recorridoPendienteRecalculo() && bloque() !== 'revision') {
+      <div class="aviso-recalculo" role="status">
+        <p class="aviso-titulo">Recorrido pendiente de recalcular</p>
+        <p>Modificaste un elemento del recorrido. Calcula nuevamente la ruta para actualizar distancia y duración.</p>
+        <app-action-button
+          label="Calcular recorrido"
+          [disabled]="!puedeCalcular()"
+          (clicked)="calcularRuta()"
+        />
+      </div>
+    }
 
-    @if (tab() === 'pasajeros') {
-      @if (!idEmpresa()) {
-        <p class="empty">Selecciona una empresa activa para ver sus pasajeros.</p>
-      } @else if (cargando()) {
-        <div class="skeleton-list">
-          @for (item of [1, 2, 3, 4, 5, 6]; track item) {
-            <div class="skeleton-row"></div>
-          }
-        </div>
-      } @else if (pasajeros().length === 0) {
-        <p class="empty">Esta empresa no tiene pasajeros activos.</p>
-      } @else {
-        <div class="busqueda">
-          <app-search-input
-            placeholder="Nombre, RUT, teléfono o dirección"
-            [(value)]="busqueda"
+    <div class="cuerpo" #cuerpo>
+      @if (bloque() === 'informacion') {
+        <section class="bloque">
+          <header class="bloque-encabezado">
+            <h2 tabindex="-1">Información</h2>
+            <p>Empresa, nombre y sector identifican la ruta. Al crearla se guarda de inmediato.</p>
+          </header>
+
+          <app-filter-select
+            label="Empresa"
+            blankLabel="Seleccionar empresa"
+            [items]="opcionesEmpresa()"
+            [value]="idEmpresa()"
+            (valueChange)="seleccionarEmpresa($event)"
           />
-          <div class="chips">
-            <button type="button" [class.is-active]="filtroAsignacion() === 'todos'" (click)="filtroAsignacion.set('todos')">
-              Todos
-            </button>
-            <button type="button" [class.is-active]="filtroAsignacion() === 'sin'" (click)="filtroAsignacion.set('sin')">
-              Sin punto
-            </button>
-            <button type="button" [class.is-active]="filtroAsignacion() === 'con'" (click)="filtroAsignacion.set('con')">
-              Con punto
-            </button>
-          </div>
-          @if (hayFiltroPasajeros()) {
-            <p class="conteo">{{ pasajerosVisibles().length }} de {{ totalActivos() }} pasajeros</p>
-          }
-        </div>
-        @if (pasajerosVisibles().length === 0) {
-          <p class="empty">No se encontraron pasajeros.</p>
-        } @else {
-          <ul class="lista">
-            @for (pasajero of pasajerosVisibles(); track pasajero.idPasajero) {
-              <li>
-                <button
-                  type="button"
-                  class="fila"
-                  [class.is-selected]="seleccionadoId() === pasajero.idPasajero"
-                  (click)="seleccionarPasajero(pasajero)"
-                >
-                  <span class="nombre">{{ pasajero.nombre }}</span>
-                  <span class="direccion">{{ pasajero.direccion }}</span>
-                  @if (pasajero.estadoGeocodificacion !== 'GEOCODIFICADO') {
-                    <span class="pendiente">Dirección pendiente de geocodificación.</span>
-                  }
-                  <span class="punto-badge">{{ etiquetaPunto(pasajero) }}</span>
-                  <app-status-badge
-                    [label]="pasajero.estadoGeocodificacion === 'GEOCODIFICADO' ? 'Geocodificado' : 'Pendiente'"
-                    [tone]="pasajero.estadoGeocodificacion === 'GEOCODIFICADO' ? 'green' : 'amber'"
+
+          @if (!idEmpresa()) {
+            <p class="nota">Selecciona una empresa para ver sus rutas o crear una nueva.</p>
+          } @else {
+            <app-filter-select
+              label="Ruta"
+              blankLabel="Seleccionar ruta"
+              [items]="opcionesRuta()"
+              [value]="idRuta()"
+              (valueChange)="seleccionarRuta($event)"
+            />
+
+            @if (ruta(); as actual) {
+              @if (!mostrarFormNueva()) {
+                <dl class="ficha">
+                  <div>
+                    <dt>Empresa</dt>
+                    <dd>{{ nombreEmpresa() }}</dd>
+                  </div>
+                  <div>
+                    <dt>Nombre</dt>
+                    <dd>{{ actual.nombre }}</dd>
+                  </div>
+                  <div>
+                    <dt>Sector</dt>
+                    <dd>{{ sectorVisible() }}</dd>
+                  </div>
+                </dl>
+                <p class="nota">Los cambios de origen, destino, puntos y pasajeros se guardan automáticamente.</p>
+                <app-action-button label="Crear otra ruta" variant="ghost" (clicked)="abrirNuevaRuta()" />
+              }
+            }
+
+            @if (!ruta() || mostrarFormNueva()) {
+              <form class="form" (submit)="$event.preventDefault(); guardarRuta()">
+                <h3>{{ ruta() ? 'Nueva ruta' : 'Crear ruta' }}</h3>
+                <label class="field">
+                  <span>Nombre <abbr title="Obligatorio">*</abbr></span>
+                  <input
+                    type="text"
+                    maxlength="150"
+                    [value]="nombreRuta()"
+                    (input)="actualizarCampo('nombreRuta', $event)"
                   />
-                </button>
+                </label>
+                <label class="field">
+                  <span>Sector</span>
+                  <input
+                    type="text"
+                    maxlength="150"
+                    [value]="sectorRuta()"
+                    (input)="actualizarCampo('sectorRuta', $event)"
+                  />
+                </label>
                 <div class="acciones-fila">
-                  @if (pasajero.estadoGeocodificacion === 'GEOCODIFICADO') {
-                    <app-action-button label="Ver domicilio" variant="ghost" (clicked)="verDomicilio(pasajero)" />
-                  }
-                  @if (puntoDePasajero(pasajero.idPasajero); as punto) {
-                    <app-action-button label="Ver punto" variant="ghost" (clicked)="verPunto(pasajero)" />
+                  @if (ruta()) {
+                    <app-action-button
+                      label="Cancelar"
+                      variant="ghost"
+                      type="button"
+                      (clicked)="cancelarNuevaRuta()"
+                    />
                   }
                   <app-action-button
-                    [label]="pasajero.estadoGeocodificacion === 'GEOCODIFICADO' ? 'Regeocodificar' : 'Geocodificar'"
-                    variant="ghost"
-                    [disabled]="batchEnCurso() || idGeocodificando() === pasajero.idPasajero"
-                    (clicked)="geocodificarUno(pasajero)"
+                    label="Crear ruta"
+                    type="submit"
+                    [disabled]="guardando() || !nombreRuta().trim()"
                   />
                 </div>
-              </li>
+              </form>
             }
-          </ul>
+
+            @if (ruta() && !mostrarFormNueva()) {
+              <div class="nav-siguiente">
+                <app-action-button
+                  label="Siguiente: Origen y destino →"
+                  variant="secondary"
+                  (clicked)="elegirBloque('extremos')"
+                />
+              </div>
+            }
+          }
+        </section>
+      } @else if (bloque() === 'extremos') {
+        @if (ruta(); as actual) {
+          <section class="bloque">
+            <header class="bloque-encabezado">
+              <h2 tabindex="-1">Origen y destino</h2>
+              <p>Marca cada extremo en el mapa. Al confirmar el nombre, la ubicación queda guardada.</p>
+            </header>
+
+            <article class="extremo" [class.is-activo]="modoDefinirExtremo() === 'origen' || modoMoverExtremo() === 'origen'">
+              <div class="extremo-texto">
+                <h3>Origen</h3>
+                @if (actual.origen) {
+                  <p class="extremo-nombre">{{ actual.origen.nombre }}</p>
+                  @if (actual.origen.referencia) {
+                    <p class="meta">{{ actual.origen.referencia }}</p>
+                  }
+                } @else {
+                  <p class="meta">Aún no definido</p>
+                }
+              </div>
+              <div class="acciones-fila">
+                @if (!actual.origen) {
+                  <app-action-button label="Definir en mapa" (clicked)="activarDefinirExtremo('origen')" />
+                } @else {
+                  <app-action-button label="Editar datos" variant="secondary" (clicked)="abrirEditarExtremo('origen')" />
+                  <app-action-button label="Mover en mapa" variant="ghost" (clicked)="activarMoverExtremo('origen')" />
+                }
+              </div>
+              @if (modoDefinirExtremo() === 'origen' && !modalExtremoAbierto()) {
+                <p class="nota">Haz clic en el mapa para ubicar el origen.</p>
+              }
+              @if (modoMoverExtremo() === 'origen') {
+                <p class="nota">Arrastra el marcador del origen y confirma en el mapa.</p>
+              }
+            </article>
+
+            <article class="extremo" [class.is-activo]="modoDefinirExtremo() === 'destino' || modoMoverExtremo() === 'destino'">
+              <div class="extremo-texto">
+                <h3>Destino</h3>
+                @if (actual.destino) {
+                  <p class="extremo-nombre">{{ actual.destino.nombre }}</p>
+                  @if (actual.destino.referencia) {
+                    <p class="meta">{{ actual.destino.referencia }}</p>
+                  }
+                } @else {
+                  <p class="meta">Aún no definido</p>
+                }
+              </div>
+              <div class="acciones-fila">
+                @if (!actual.destino) {
+                  <app-action-button label="Definir en mapa" (clicked)="activarDefinirExtremo('destino')" />
+                } @else {
+                  <app-action-button label="Editar datos" variant="secondary" (clicked)="abrirEditarExtremo('destino')" />
+                  <app-action-button label="Mover en mapa" variant="ghost" (clicked)="activarMoverExtremo('destino')" />
+                }
+              </div>
+              @if (modoDefinirExtremo() === 'destino' && !modalExtremoAbierto()) {
+                <p class="nota">Haz clic en el mapa para ubicar el destino.</p>
+              }
+              @if (modoMoverExtremo() === 'destino') {
+                <p class="nota">Arrastra el marcador del destino y confirma en el mapa.</p>
+              }
+            </article>
+
+            @if (!actual.origen || !actual.destino) {
+              <p class="nota">
+                @if (!actual.origen && !actual.destino) {
+                  Falta definir el origen y el destino.
+                } @else if (!actual.origen) {
+                  Falta definir el origen.
+                } @else {
+                  Falta definir el destino.
+                }
+              </p>
+            }
+            <div class="nav-siguiente">
+              <app-action-button
+                label="Siguiente: Puntos de recogida →"
+                variant="secondary"
+                [disabled]="!actual.origen || !actual.destino"
+                (clicked)="elegirBloque('puntos')"
+              />
+            </div>
+          </section>
         }
-      }
-    } @else if (tab() === 'recorrido') {
-      @if (!idEmpresa()) {
-        <p class="empty">Selecciona una empresa para definir el recorrido.</p>
-      } @else if (!ruta()) {
-        <p class="empty">Selecciona o crea una ruta para definir origen y destino.</p>
-      } @else {
-        <section class="recorrido">
-          <p class="conteo">{{ estadoRecorrido() }}</p>
-          <div class="extremo">
-            <span class="nombre">Origen</span>
-            <span class="direccion">{{ ruta()?.origen?.nombre || 'Sin definir' }}</span>
-            <div class="acciones-fila">
+      } @else if (bloque() === 'puntos') {
+        @if (ruta()) {
+          <section class="bloque">
+            <header class="bloque-encabezado">
+              <h2 tabindex="-1">Puntos de recogida</h2>
+              <p>El orden de la lista es el que se usa al calcular el recorrido: origen, estos puntos y destino.</p>
+            </header>
+
+            <div class="acciones-puntos">
               <app-action-button
-                [label]="ruta()?.origen ? 'Editar' : 'Definir origen'"
-                variant="ghost"
-                (clicked)="ruta()?.origen ? abrirEditarExtremo('origen') : activarDefinirExtremo('origen')"
+                label="Agregar punto"
+                icon="plus"
+                [disabled]="modoCrearPunto() || modoMoverPunto() || guardando()"
+                (clicked)="activarCrearPunto()"
               />
-              @if (ruta()?.origen) {
-                <app-action-button label="Mover" variant="ghost" (clicked)="activarMoverExtremo('origen')" />
+              @if (modoCrearPunto()) {
+                <app-action-button label="Cancelar" variant="ghost" (clicked)="cancelarModosMapa()" />
               }
             </div>
-          </div>
-          <div class="extremo">
-            <span class="nombre">Destino</span>
-            <span class="direccion">{{ ruta()?.destino?.nombre || 'Sin definir' }}</span>
-            <div class="acciones-fila">
+            @if (modoCrearPunto()) {
+              <p class="nota">Haz clic en el mapa para ubicar el punto de recogida.</p>
+            }
+
+            @if (puntosOrdenados().length === 0) {
+              <p class="nota">Esta ruta todavía no tiene puntos de recogida.</p>
+            } @else {
+              <ul class="lista puntos" cdkDropList (cdkDropListDropped)="soltarPunto($event)">
+                @for (punto of puntosOrdenados(); track punto.idPunto) {
+                  <li
+                    cdkDrag
+                    class="punto-item"
+                    [class.is-selected]="puntoSeleccionadoId() === punto.idPunto"
+                  >
+                    <div class="punto-cabeza">
+                      <button type="button" class="agarre" cdkDragHandle aria-label="Arrastrar para cambiar el orden">
+                        {{ punto.orden }}
+                      </button>
+                      <button type="button" class="fila" (click)="seleccionarPunto(punto)">
+                        <span class="nombre">{{ punto.nombre }}</span>
+                        <span class="meta">
+                          {{ punto.cantidadPasajeros }} pasajeros
+                          <span class="id-punto">{{ punto.idPunto }}</span>
+                        </span>
+                      </button>
+                    </div>
+                    <div class="acciones-fila">
+                      <app-action-button label="Editar" variant="ghost" (clicked)="abrirEditarPunto(punto)" />
+                      <app-action-button label="Asignar pasajeros" variant="ghost" (clicked)="abrirAsignar(punto)" />
+                      <app-action-button
+                        label="Mover"
+                        variant="ghost"
+                        [disabled]="modoCrearPunto()"
+                        (clicked)="activarMoverPunto(punto)"
+                      />
+                      <app-action-button
+                        label="Eliminar"
+                        variant="danger"
+                        [disabled]="guardando()"
+                        (clicked)="pedirEliminarPunto(punto)"
+                      />
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+
+            @if (pasajerosSinPunto() > 0 && !cargando()) {
+              <div class="aviso-suave">
+                <p>
+                  {{ pasajerosSinPunto() }}
+                  {{ pasajerosSinPunto() === 1 ? 'pasajero aún no tiene' : 'pasajeros aún no tienen' }}
+                  punto de recogida.
+                </p>
+                <p>Esto no impide utilizar la ruta, pero puedes asignarlos para dejar preparada la operación.</p>
+              </div>
+            }
+
+            <div class="nav-siguiente">
               <app-action-button
-                [label]="ruta()?.destino ? 'Editar' : 'Definir destino'"
-                variant="ghost"
-                (clicked)="ruta()?.destino ? abrirEditarExtremo('destino') : activarDefinirExtremo('destino')"
+                label="Siguiente: Revisar y calcular →"
+                variant="secondary"
+                (clicked)="elegirBloque('revision')"
               />
-              @if (ruta()?.destino) {
-                <app-action-button label="Mover" variant="ghost" (clicked)="activarMoverExtremo('destino')" />
-              }
             </div>
+          </section>
+        }
+      } @else if (ruta(); as actual) {
+        <section class="bloque">
+          <header class="bloque-encabezado">
+            <h2 tabindex="-1">Revisar y calcular</h2>
+            <p>Comprueba los datos ya guardados y calcula el recorrido cuando origen y destino estén definidos.</p>
+          </header>
+
+          <dl class="ficha">
+            <div>
+              <dt>Empresa</dt>
+              <dd>{{ nombreEmpresa() }}</dd>
+            </div>
+            <div>
+              <dt>Nombre</dt>
+              <dd>{{ actual.nombre }}</dd>
+            </div>
+            <div>
+              <dt>Sector</dt>
+              <dd>{{ sectorVisible() }}</dd>
+            </div>
+            <div>
+              <dt>Origen</dt>
+              <dd>{{ actual.origen?.nombre || 'Aún no definido' }}</dd>
+            </div>
+            <div>
+              <dt>Destino</dt>
+              <dd>{{ actual.destino?.nombre || 'Aún no definido' }}</dd>
+            </div>
+            <div>
+              <dt>Pasajeros asignados a puntos</dt>
+              <dd>{{ textoPasajerosAsignados() }}</dd>
+            </div>
+          </dl>
+
+          <h3>Puntos en orden</h3>
+          @if (puntosOrdenados().length === 0) {
+            <p class="nota">No hay puntos de recogida. El cálculo usa solo origen y destino.</p>
+          } @else {
+            <ol class="revision-puntos">
+              @for (punto of puntosOrdenados(); track punto.idPunto) {
+                <li>
+                  <span class="nombre">{{ punto.nombre }}</span>
+                  <span class="meta">{{ punto.cantidadPasajeros }} pasajeros</span>
+                </li>
+              }
+            </ol>
+            <p class="nota">Ese orden entra al cálculo entre el origen y el destino.</p>
+          }
+
+          @if (pasajerosSinPunto() > 0 && !cargando()) {
+            <div class="aviso-suave">
+              <p>
+                {{ pasajerosSinPunto() }}
+                {{ pasajerosSinPunto() === 1 ? 'pasajero aún no tiene' : 'pasajeros aún no tienen' }}
+                punto de recogida.
+              </p>
+              <p>Esto no impide utilizar la ruta, pero puedes asignarlos para dejar preparada la operación.</p>
+            </div>
+          }
+
+          <div class="estado-recorrido">
+            @if (!actual.origen || !actual.destino) {
+              <p class="estado-titulo">Faltan extremos</p>
+              @if (!actual.origen) {
+                <p>Origen: aún no definido.</p>
+              }
+              @if (!actual.destino) {
+                <p>Destino: aún no definido.</p>
+              }
+            } @else if (recorridoPendienteRecalculo()) {
+              <p class="estado-titulo">Recorrido pendiente de recalcular</p>
+              <p>Modificaste un elemento del recorrido. Calcula nuevamente la ruta para actualizar distancia y duración.</p>
+            } @else if (!actual.trazado) {
+              <p class="estado-titulo">Recorrido pendiente de calcular</p>
+            } @else {
+              <p class="estado-titulo">Recorrido calculado</p>
+              <p>{{ textoDistancia() }} · {{ textoDuracion() }}</p>
+            }
           </div>
-          <p class="conteo">{{ puntosOrdenados().length }} puntos de recogida</p>
-          <app-action-button
-            [label]="etiquetaCalcular()"
-            [disabled]="!puedeCalcular()"
-            (clicked)="calcularRuta()"
-          />
-          <p class="resumen-ruta">{{ textoDistancia() }} · {{ textoDuracion() }}</p>
+
+          @if (actual.origen && actual.destino) {
+            <app-action-button
+              [label]="etiquetaCalcular()"
+              [variant]="rutaConfigurada() ? 'secondary' : 'primary'"
+              [disabled]="!puedeCalcular()"
+              (clicked)="calcularRuta()"
+            />
+          }
+
+          @if (rutaConfigurada()) {
+            <div class="ruta-lista">
+              <p class="estado-titulo">Ruta configurada</p>
+              <p>El recorrido está calculado y listo para utilizarse.</p>
+              <p class="nota">
+                {{ puntosOrdenados().length }}
+                {{ puntosOrdenados().length === 1 ? 'punto' : 'puntos' }}
+                · {{ textoPasajerosAsignados() }} pasajeros asignados
+                · {{ textoDistancia() }}
+                · {{ textoDuracion() }}
+              </p>
+              <app-action-button label="Finalizar configuración" (clicked)="finalizarConfiguracion()" />
+            </div>
+          }
         </section>
       }
-    } @else {
-      @if (!idEmpresa()) {
-        <p class="empty">Selecciona una empresa para administrar puntos de recogida.</p>
-      } @else if (!ruta()) {
-        <p class="empty">Selecciona o crea una ruta para agregar puntos de recogida.</p>
-      } @else {
-        <div class="acciones-puntos">
-          <app-action-button
-            label="Agregar punto"
-            icon="plus"
-            [disabled]="modoCrearPunto() || modoMoverPunto() || guardando()"
-            (clicked)="activarCrearPunto()"
-          />
-          @if (modoCrearPunto()) {
-            <app-action-button label="Cancelar" variant="ghost" (clicked)="cancelarModosMapa()" />
-          }
-        </div>
-        @if (puntosOrdenados().length === 0) {
-          <p class="empty">Esta ruta aún no tiene puntos de recogida.</p>
-        } @else {
-          <ul class="lista puntos" cdkDropList (cdkDropListDropped)="soltarPunto($event)">
-            @for (punto of puntosOrdenados(); track punto.idPunto) {
-              <li
-                cdkDrag
-                class="punto-item"
-                [class.is-selected]="puntoSeleccionadoId() === punto.idPunto"
-              >
-                <button type="button" class="fila" (click)="seleccionarPunto(punto)">
-                  <span class="nombre">{{ punto.orden }}. {{ punto.idPunto }} — {{ punto.nombre }}</span>
-                  <span class="direccion">{{ punto.cantidadPasajeros }} pasajeros</span>
-                </button>
-                <div class="acciones-fila">
-                  <app-action-button label="Editar" variant="ghost" (clicked)="abrirEditarPunto(punto)" />
-                  <app-action-button label="Asignar pasajeros" variant="ghost" (clicked)="abrirAsignar(punto)" />
-                  <app-action-button
-                    label="Mover punto"
-                    variant="ghost"
-                    [disabled]="modoCrearPunto()"
-                    (clicked)="activarMoverPunto(punto)"
-                  />
-                  <app-action-button
-                    label="Eliminar"
-                    variant="danger"
-                    [disabled]="guardando()"
-                    (clicked)="pedirEliminarPunto(punto)"
-                  />
-                </div>
-              </li>
-            }
-          </ul>
-        }
-      }
-    }
+    </div>
   </aside>
 
   <div class="mapa-wrap">
-    @if (modoCrearPunto()) {
-      <p class="mapa-hint">Haz clic en el mapa para ubicar el punto de recogida.</p>
-    }
-    @if (modoDefinirExtremo() === 'origen' && !modalExtremoAbierto()) {
-      <p class="mapa-hint">Haz clic en el mapa para definir el origen de la ruta.</p>
-    }
-    @if (modoDefinirExtremo() === 'destino' && !modalExtremoAbierto()) {
-      <p class="mapa-hint">Haz clic en el mapa para definir el destino de la ruta.</p>
-    }
-    @if ((modoMoverPunto() || modoMoverExtremo()) && movimientoPendiente(); as movimiento) {
-      <div class="mapa-hint mapa-hint-acciones">
-        <p>
-          Nueva ubicación: {{ formatoCoord(movimiento.lat) }}, {{ formatoCoord(movimiento.lng) }}
-        </p>
-        <div class="acciones-fila">
-          <app-action-button
-            label="Guardar"
-            [disabled]="guardando()"
-            (clicked)="modoMoverExtremo() ? guardarMovimientoExtremo() : guardarMovimiento()"
-          />
-          <app-action-button label="Cancelar" variant="ghost" (clicked)="cancelarModosMapa()" />
+    <div class="mapa-ui">
+      <button
+        type="button"
+        class="herramienta"
+        [class.is-active]="pasajerosAbiertos()"
+        (click)="alternarPasajeros()"
+      >
+        Pasajeros
+        @if (idEmpresa()) {
+          <span>{{ textoPasajerosUbicados() }}</span>
+        }
+      </button>
+
+      @if (modoCrearPunto()) {
+        <p class="mapa-hint">Haz clic en el mapa para ubicar el punto de recogida.</p>
+      }
+      @if (modoDefinirExtremo() === 'origen' && !modalExtremoAbierto()) {
+        <p class="mapa-hint">Haz clic en el mapa para definir el origen.</p>
+      }
+      @if (modoDefinirExtremo() === 'destino' && !modalExtremoAbierto()) {
+        <p class="mapa-hint">Haz clic en el mapa para definir el destino.</p>
+      }
+      @if ((modoMoverPunto() || modoMoverExtremo()) && movimientoPendiente(); as movimiento) {
+        <div class="mapa-hint mapa-hint-acciones">
+          <p>Arrastra el marcador hasta la nueva ubicación y confirma.</p>
+          <p>Nueva ubicación: {{ formatoCoord(movimiento.lat) }}, {{ formatoCoord(movimiento.lng) }}</p>
+          <div class="acciones-fila">
+            <app-action-button
+              label="Guardar"
+              [disabled]="guardando()"
+              (clicked)="modoMoverExtremo() ? guardarMovimientoExtremo() : guardarMovimiento()"
+            />
+            <app-action-button label="Cancelar" variant="ghost" (clicked)="cancelarModosMapa()" />
+          </div>
         </div>
-      </div>
+      }
+    </div>
+
+    @if (pasajerosAbiertos()) {
+      <aside class="pasajeros-mapa">
+        <header class="pasajeros-encabezado">
+          <div>
+            <h2>Pasajeros</h2>
+            <p>Ubicación de domicilios en el mapa. No es la asignación a puntos de recogida.</p>
+          </div>
+          <button type="button" class="cerrar-herramienta" (click)="alternarPasajeros()">Cerrar</button>
+        </header>
+
+        @if (!idEmpresa()) {
+          <p class="nota">Selecciona una empresa para ver sus pasajeros.</p>
+        } @else {
+          <div class="pasajeros-resumen">
+            <span>{{ textoPasajerosUbicados() }}</span>
+            @if (!cargando()) {
+              <span>{{ pendientes() }} sin ubicar</span>
+            }
+          </div>
+          <app-action-button
+            label="Geocodificar pendientes"
+            variant="secondary"
+            [disabled]="batchEnCurso() || pendientes() === 0 || cargando()"
+            (clicked)="pedirGeocodificarPendientes()"
+          />
+
+          @if (cargando()) {
+            <div class="skeleton-list">
+              @for (item of [1, 2, 3, 4]; track item) {
+                <div class="skeleton-row"></div>
+              }
+            </div>
+          } @else if (pasajeros().length === 0) {
+            <p class="nota">Esta empresa no tiene pasajeros activos.</p>
+          } @else {
+            <div class="busqueda">
+              <app-search-input
+                placeholder="Nombre, RUT, teléfono o dirección"
+                [(value)]="busqueda"
+              />
+              <div class="chips">
+                <button type="button" [class.is-active]="filtroAsignacion() === 'todos'" (click)="filtroAsignacion.set('todos')">
+                  Todos
+                </button>
+                <button type="button" [class.is-active]="filtroAsignacion() === 'sin'" (click)="filtroAsignacion.set('sin')">
+                  Sin punto
+                </button>
+                <button type="button" [class.is-active]="filtroAsignacion() === 'con'" (click)="filtroAsignacion.set('con')">
+                  Con punto
+                </button>
+              </div>
+              @if (hayFiltroPasajeros()) {
+                <p class="conteo">{{ pasajerosVisibles().length }} de {{ totalActivos() }} pasajeros</p>
+              }
+            </div>
+            @if (pasajerosVisibles().length === 0) {
+              <p class="nota">No se encontraron pasajeros.</p>
+            } @else {
+              <ul class="lista">
+                @for (pasajero of pasajerosVisibles(); track pasajero.idPasajero) {
+                  <li>
+                    <button
+                      type="button"
+                      class="fila"
+                      [class.is-selected]="seleccionadoId() === pasajero.idPasajero"
+                      (click)="seleccionarPasajero(pasajero)"
+                    >
+                      <span class="nombre">{{ pasajero.nombre }}</span>
+                      <span class="direccion">{{ pasajero.direccion }}</span>
+                      @if (pasajero.estadoGeocodificacion !== 'GEOCODIFICADO') {
+                        <span class="pendiente">Dirección pendiente de geocodificación.</span>
+                      }
+                      <span class="punto-badge">{{ etiquetaPunto(pasajero) }}</span>
+                      <app-status-badge
+                        [label]="pasajero.estadoGeocodificacion === 'GEOCODIFICADO' ? 'Geocodificado' : 'Pendiente'"
+                        [tone]="pasajero.estadoGeocodificacion === 'GEOCODIFICADO' ? 'green' : 'amber'"
+                      />
+                    </button>
+                    <div class="acciones-fila">
+                      @if (pasajero.estadoGeocodificacion === 'GEOCODIFICADO') {
+                        <app-action-button label="Ver domicilio" variant="ghost" (clicked)="verDomicilio(pasajero)" />
+                      }
+                      @if (puntoDePasajero(pasajero.idPasajero); as punto) {
+                        <app-action-button label="Ver punto" variant="ghost" (clicked)="verPunto(pasajero)" />
+                      }
+                      <app-action-button
+                        [label]="pasajero.estadoGeocodificacion === 'GEOCODIFICADO' ? 'Regeocodificar' : 'Geocodificar'"
+                        variant="ghost"
+                        [disabled]="batchEnCurso() || idGeocodificando() === pasajero.idPasajero"
+                        (clicked)="geocodificarUno(pasajero)"
+                      />
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+          }
+        }
+      </aside>
     }
+
     <div
       #mapa
       class="mapa"
       [class.is-crear]="modoCrearPunto() || !!modoDefinirExtremo()"
+      [class.is-mover]="modoMoverPunto() || !!modoMoverExtremo()"
       role="application"
       aria-label="Mapa de pasajeros y puntos de recogida"
     ></div>
   </div>
 </div>
-
-<app-modal
-  [open]="modalRutaAbierta()"
-  titulo="Nueva ruta"
-  (closed)="cerrarModalRuta()"
->
-  <form class="form" (submit)="$event.preventDefault(); guardarRuta()">
-    <label class="field">
-      <span>Nombre <abbr title="Obligatorio">*</abbr></span>
-      <input
-        type="text"
-        maxlength="150"
-        [value]="nombreRuta()"
-        (input)="actualizarCampo('nombreRuta', $event)"
-      />
-    </label>
-    <label class="field">
-      <span>Sector</span>
-      <input
-        type="text"
-        maxlength="150"
-        [value]="sectorRuta()"
-        (input)="actualizarCampo('sectorRuta', $event)"
-      />
-    </label>
-    <div class="acciones-modal">
-      <app-action-button label="Cancelar" variant="ghost" type="button" (clicked)="cerrarModalRuta()" />
-      <app-action-button
-        label="Guardar"
-        type="submit"
-        [disabled]="guardando() || !nombreRuta().trim()"
-      />
-    </div>
-  </form>
-</app-modal>
 
 <app-modal
   [open]="modalPuntoAbierto()"
