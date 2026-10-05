@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { EmpresasService } from '../../core/services/empresas.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { PlanificacionesService } from '../../core/services/planificaciones.service';
@@ -44,6 +45,7 @@ export class PlanificacionesPage {
   private readonly api = inject(PlanificacionesService);
   private readonly empresasApi = inject(EmpresasService);
   private readonly feedback = inject(FeedbackService);
+  private readonly router = inject(Router);
 
   readonly opcionesEstado: FilterOption[] = [
     { value: 'BORRADOR', label: 'BORRADOR' },
@@ -53,7 +55,7 @@ export class PlanificacionesPage {
   ];
 
   readonly esqueletos = [1, 2, 3, 4, 5, 6];
-  readonly subtitulo = 'Gestión mensual de la operación por empresa cliente.';
+  readonly subtitulo = 'Organiza los períodos mensuales de operación de cada empresa.';
 
   readonly planificaciones = signal<Planificacion[]>([]);
   readonly empresas = signal<Empresa[]>([]);
@@ -292,6 +294,27 @@ export class PlanificacionesPage {
 
   estaCambiandoEstado(idPlanificacion: number): boolean {
     return this.idCambiandoEstado() === idPlanificacion;
+  }
+
+  admiteServicios(estado: EstadoPlanificacion): boolean {
+    return estado === 'BORRADOR' || estado === 'ACTIVA';
+  }
+
+  textoEstado(estado: EstadoPlanificacion): string {
+    switch (estado) {
+      case 'BORRADOR':
+        return 'Se puede editar y utilizar para crear servicios.';
+      case 'ACTIVA':
+        return 'Disponible para gestionar servicios del período.';
+      case 'CERRADA':
+        return 'Período finalizado. Este mes continúa asociado a esta planificación y ya no admite cambios en sus servicios.';
+      case 'CANCELADA':
+        return 'Planificación cancelada. El período puede utilizarse nuevamente.';
+    }
+  }
+
+  irAServicios(): void {
+    void this.router.navigate(['/servicios']);
   }
 
   tonoEstado(estado: EstadoPlanificacion): BadgeTone {

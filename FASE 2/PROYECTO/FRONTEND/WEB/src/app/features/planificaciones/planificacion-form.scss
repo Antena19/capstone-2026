@@ -38,6 +38,14 @@ select:focus {
   box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
+.intro,
+.ayuda {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
 .hint {
   margin: 0;
   font-size: 12px;
