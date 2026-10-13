@@ -43,3 +43,68 @@
   color: #0369a1;
   border-color: #bae6fd;
 }
+
+:host(.resultado) .badge[data-tone='red'] {
+  background: #d90700;
+  border-color: #d90700;
+  color: #fff;
+}
+
+:host(.resultado) .badge[data-tone='sky'] {
+  background: #2b161b;
+  border-color: #2b161b;
+  color: #fff;
+}
+
+@mixin etiqueta-activa {
+  background: #fce8e6;
+  border-color: #fce8e6;
+  color: #a51a16;
+}
+
+@mixin etiqueta-inactiva {
+  background: #e8e4e5;
+  border-color: #e8e4e5;
+  color: #453e3e;
+}
+
+:host(.resultado) .badge[data-tone='slate'],
+:host(.corporativo) .badge[data-tone='red'],
+:host(.estado-inactivo) .badge {
+  @include etiqueta-inactiva;
+}
+
+:host(.corporativo) .badge[data-tone='amber'],
+:host(.estado-activo) .badge {
+  @include etiqueta-activa;
+}
+
+:host(.estado-pendiente) .badge {
+  background: #fce8e6;
+  border-color: #fce8e6;
+  color: var(--color-primary);
+}
+
+:host(.resultado-valido) .badge {
+  background: #ecfdf5;
+  border-color: #ecfdf5;
+  color: #047857;
+}
+
+:host(.resultado-error) .badge {
+  background: #fef2f2;
+  border-color: #fef2f2;
+  color: #b91c1c;
+}
+
+:host(.corporativo) .badge[data-tone='green'] {
+  background: #f8d7d3;
+  border-color: #f8d7d3;
+  color: #893f40;
+}
+
+:host(.corporativo) .badge[data-tone='sky'] {
+  background: #e9dadd;
+  border-color: #e9dadd;
+  color: #2b161b;
+}

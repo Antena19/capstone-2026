@@ -2,39 +2,30 @@
   @if (error(); as texto) {
     <p class="banner">{{ texto }}</p>
   }
+  @if (guardando() && progreso()) {
+    <p class="nota">{{ progreso() }}</p>
+  }
 
   <fieldset class="cuerpo" [disabled]="guardando()">
-    <div class="modo" role="tablist" aria-label="Modalidad de creación">
-      <button
-        type="button"
-        role="tab"
-        [class.activo]="modalidadActual() === 'individual'"
-        (click)="seleccionarModalidad('individual')"
-      >
-        Individual
-      </button>
-      <button
-        type="button"
-        role="tab"
-        [class.activo]="modalidadActual() === 'recurrente'"
-        (click)="seleccionarModalidad('recurrente')"
-      >
-        Recurrente
-      </button>
-    </div>
-
-    <label class="field">
-      <span>Empresa <abbr title="Obligatorio">*</abbr></span>
-      <select formControlName="idEmpresa">
-        <option value="">Selecciona una empresa</option>
-        @for (empresa of empresas(); track empresa.idEmpresa) {
-          <option [value]="empresa.idEmpresa">{{ empresa.razonSocial }}</option>
+    @if (idEmpresaInicial()) {
+      <div class="field">
+        <span>Empresa</span>
+        <strong>{{ empresaNombre() }}</strong>
+      </div>
+    } @else {
+      <label class="field">
+        <span>Empresa <abbr title="Obligatorio">*</abbr></span>
+        <select formControlName="idEmpresa">
+          <option value="">Selecciona una empresa</option>
+          @for (empresa of empresas(); track empresa.idEmpresa) {
+            <option [value]="empresa.idEmpresa">{{ empresa.razonSocial }}</option>
+          }
+        </select>
+        @if (mensajeCampo('idEmpresa'); as mensaje) {
+          <p class="hint">{{ mensaje }}</p>
         }
-      </select>
-      @if (mensajeCampo('idEmpresa'); as mensaje) {
-        <p class="hint">{{ mensaje }}</p>
-      }
-    </label>
+      </label>
+    }
 
     <label class="field">
       <span>Planificación <abbr title="Obligatorio">*</abbr></span>
@@ -50,8 +41,126 @@
         <p class="hint">{{ mensaje }}</p>
       } @else if (idEmpresaActual() && !cargandoPlanificaciones() && planificaciones().length === 0) {
         <p class="nota">No hay planificaciones BORRADOR o ACTIVA para esta empresa.</p>
-      } @else if (rangoFechasEtiqueta(); as rango) {
-        <p class="nota">{{ rango }}</p>
+      }
+    </label>
+
+    <label class="field">
+      <span>Serie del servicio <abbr title="Obligatorio">*</abbr></span>
+      <select formControlName="modalidad">
+        <option value="individual">Individual</option>
+        <option value="recurrente">Recurrente</option>
+      </select>
+    </label>
+
+    @if (!esRecurrente()) {
+      <label class="field">
+        <span>Fecha del servicio <abbr title="Obligatorio">*</abbr></span>
+        <input
+          type="date"
+          formControlName="fecha"
+          [attr.min]="fechaMinima()"
+          [attr.max]="fechaMaxima() || null"
+        />
+        @if (mensajeCampo('fecha'); as mensaje) {
+          <p class="hint">{{ mensaje }}</p>
+        }
+      </label>
+    } @else {
+      <div class="row">
+        <label class="field">
+          <span>Fecha desde <abbr title="Obligatorio">*</abbr></span>
+          <input
+            type="date"
+            formControlName="fechaDesde"
+            [attr.min]="fechaMinima()"
+            [attr.max]="fechaMaxima() || null"
+          />
+          @if (mensajeCampo('fechaDesde'); as mensaje) {
+            <p class="hint">{{ mensaje }}</p>
+          }
+        </label>
+        <label class="field">
+          <span>Fecha hasta <abbr title="Obligatorio">*</abbr></span>
+          <input
+            type="date"
+            formControlName="fechaHasta"
+            [attr.min]="fechaMinima()"
+            [attr.max]="fechaMaxima() || null"
+          />
+          @if (mensajeCampo('fechaHasta'); as mensaje) {
+            <p class="hint">{{ mensaje }}</p>
+          }
+        </label>
+      </div>
+
+      <fieldset class="field dias-field">
+        <legend>Días de repetición <abbr title="Obligatorio">*</abbr></legend>
+        <div class="dias">
+          @for (dia of diasSemana; track dia.value) {
+            <button
+              type="button"
+              class="chip"
+              [class.activo]="diaSeleccionado(dia.value)"
+              [disabled]="soloAsignacion() || guardando() || sinDiasEnPeriodo()"
+              (click)="alternarDia(dia.value)"
+            >
+              {{ dia.label }}
+            </button>
+          }
+        </div>
+        @if (mensajeCampo('diasSemana'); as mensaje) {
+          <p class="hint">{{ mensaje }}</p>
+        }
+      </fieldset>
+
+      @if (avisoSerie(); as aviso) {
+        <p [class.hint]="sinCoincidencias()" [class.nota]="!sinCoincidencias()">{{ aviso }}</p>
+      }
+    }
+
+    @if (sinDiasEnPeriodo()) {
+      <p class="hint">{{ avisoPlanificacion() }}</p>
+    } @else if (avisoPlanificacion(); as aviso) {
+      <p class="nota">{{ aviso }}</p>
+    }
+
+    @if (esRecurrente()) {
+      <p class="nota">
+        El conductor y vehículo seleccionados se asignarán automáticamente a todos los servicios generados.
+        Posteriormente podrás modificar cada servicio individualmente mientras esté PROGRAMADO.
+      </p>
+    }
+
+    <div class="field">
+      <span>Horario programado <abbr title="Obligatorio">*</abbr></span>
+      <div class="row">
+        <label class="field">
+          <span>Inicio</span>
+          <input type="time" formControlName="horaInicio" />
+          @if (mensajeCampo('horaInicio'); as mensaje) {
+            <p class="hint">{{ mensaje }}</p>
+          }
+        </label>
+        <label class="field">
+          <span>Fin</span>
+          <input type="time" formControlName="horaFin" />
+          @if (mensajeCampo('horaFin'); as mensaje) {
+            <p class="hint">{{ mensaje }}</p>
+          }
+        </label>
+      </div>
+    </div>
+
+    <label class="field">
+      <span>Tipo de servicio <abbr title="Obligatorio">*</abbr></span>
+      <select formControlName="tipoServicio">
+        <option value="">Selecciona un tipo</option>
+        @for (tipo of tipos; track tipo) {
+          <option [value]="tipo">{{ tipo }}</option>
+        }
+      </select>
+      @if (mensajeCampo('tipoServicio'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
       }
     </label>
 
@@ -70,12 +179,50 @@
       }
     </label>
 
+    <label class="field">
+      <span>Conductor <abbr title="Obligatorio">*</abbr></span>
+      <select formControlName="idConductor">
+        <option value="">Selecciona un conductor</option>
+        @for (conductor of conductores(); track conductor.idConductor) {
+          <option [value]="conductor.idConductor">{{ conductor.nombre }} · {{ conductor.rut }}</option>
+        }
+      </select>
+      @if (mensajeCampo('idConductor'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      } @else if (conductores().length === 0) {
+        <p class="nota">No hay conductores activos.</p>
+      }
+    </label>
+
+    <label class="field">
+      <span>Vehículo <abbr title="Obligatorio">*</abbr></span>
+      <select formControlName="idVehiculo">
+        <option value="">Selecciona un vehículo</option>
+        @for (vehiculo of vehiculos(); track vehiculo.idVehiculo) {
+          <option [value]="vehiculo.idVehiculo">{{ vehiculo.patente }} · {{ vehiculo.tipo }}</option>
+        }
+      </select>
+      @if (mensajeCampo('idVehiculo'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      } @else if (detalleVehiculo(); as detalle) {
+        <p class="nota">{{ detalle }}</p>
+        @if (excedeCapacidad()) {
+          <p class="hint">La cantidad de pasajeros seleccionados supera la capacidad del vehículo</p>
+        }
+      } @else if (vehiculos().length === 0) {
+        <p class="nota">No hay vehículos activos.</p>
+      }
+    </label>
+
     @if (mostrarPasajeros()) {
       <section class="pasajeros" aria-labelledby="pasajeros-titulo">
         <div class="pasajeros-head">
           <div>
             <h3 id="pasajeros-titulo">Pasajeros del servicio</h3>
             <p class="contador">{{ cantidadSeleccionados() }} pasajeros seleccionados</p>
+            @if (soloAsignacion()) {
+              <p class="nota">Los pasajeros de esta creación ya quedaron registrados. El reintento solo completa conductor y vehículo.</p>
+            }
           </div>
           <div class="pasajeros-acciones">
             <button
@@ -155,9 +302,9 @@
                       [attr.aria-label]="'Punto de recogida de ' + pasajero.nombre"
                       (change)="cambiarPunto(pasajero.idPasajero, puntoDesdeEvento($event))"
                     >
-                      <option value="">Selecciona un punto</option>
+                      <option value="" [selected]="!pasajero.idPuntoRecogida">Selecciona un punto</option>
                       @for (punto of puntosRuta(); track punto.idPunto) {
-                        <option [value]="punto.idPunto">{{ etiquetaPunto(punto) }}</option>
+                        <option [value]="punto.idPunto" [selected]="pasajero.idPuntoRecogida === punto.idPunto">{{ etiquetaPunto(punto) }}</option>
                       }
                     </select>
                   </div>
@@ -193,9 +340,9 @@
                       [attr.aria-label]="'Punto de recogida de ' + pasajero.nombre"
                       (change)="cambiarPunto(pasajero.idPasajero, puntoDesdeEvento($event))"
                     >
-                      <option value="">Selecciona un punto</option>
+                      <option value="" [selected]="!pasajero.idPuntoRecogida">Selecciona un punto</option>
                       @for (punto of puntosRuta(); track punto.idPunto) {
-                        <option [value]="punto.idPunto">{{ etiquetaPunto(punto) }}</option>
+                        <option [value]="punto.idPunto" [selected]="pasajero.idPuntoRecogida === punto.idPunto">{{ etiquetaPunto(punto) }}</option>
                       }
                     </select>
                   </div>
@@ -206,102 +353,11 @@
         }
       </section>
     }
-
-    <div class="row">
-      <label class="field">
-        <span>Hora inicio <abbr title="Obligatorio">*</abbr></span>
-        <input type="time" formControlName="horaInicio" />
-        @if (mensajeCampo('horaInicio'); as mensaje) {
-          <p class="hint">{{ mensaje }}</p>
-        }
-      </label>
-      <label class="field">
-        <span>Hora fin <abbr title="Obligatorio">*</abbr></span>
-        <input type="time" formControlName="horaFin" />
-        @if (mensajeCampo('horaFin'); as mensaje) {
-          <p class="hint">{{ mensaje }}</p>
-        }
-      </label>
-    </div>
-
-    <label class="field">
-      <span>Tipo de servicio <abbr title="Obligatorio">*</abbr></span>
-      <select formControlName="tipoServicio">
-        <option value="">Selecciona un tipo</option>
-        @for (tipo of tipos; track tipo) {
-          <option [value]="tipo">{{ tipo }}</option>
-        }
-      </select>
-      @if (mensajeCampo('tipoServicio'); as mensaje) {
-        <p class="hint">{{ mensaje }}</p>
-      }
-    </label>
-
-    @if (!esRecurrente()) {
-      <label class="field">
-        <span>Fecha <abbr title="Obligatorio">*</abbr></span>
-        <input
-          type="date"
-          formControlName="fecha"
-          [attr.min]="fechaMinima()"
-          [attr.max]="fechaMaxima() || null"
-        />
-        @if (mensajeCampo('fecha'); as mensaje) {
-          <p class="hint">{{ mensaje }}</p>
-        }
-      </label>
-    } @else {
-      <div class="row">
-        <label class="field">
-          <span>Fecha desde <abbr title="Obligatorio">*</abbr></span>
-          <input
-            type="date"
-            formControlName="fechaDesde"
-            [attr.min]="fechaMinima()"
-            [attr.max]="fechaMaxima() || null"
-          />
-          @if (mensajeCampo('fechaDesde'); as mensaje) {
-            <p class="hint">{{ mensaje }}</p>
-          }
-        </label>
-        <label class="field">
-          <span>Fecha hasta <abbr title="Obligatorio">*</abbr></span>
-          <input
-            type="date"
-            formControlName="fechaHasta"
-            [attr.min]="fechaMinima()"
-            [attr.max]="fechaMaxima() || null"
-          />
-          @if (mensajeCampo('fechaHasta'); as mensaje) {
-            <p class="hint">{{ mensaje }}</p>
-          }
-        </label>
-      </div>
-
-      <fieldset class="field dias-field">
-        <legend>Días de la semana <abbr title="Obligatorio">*</abbr></legend>
-        <div class="dias">
-          @for (dia of diasSemana; track dia.value) {
-            <button
-              type="button"
-              class="chip"
-              [class.activo]="diaSeleccionado(dia.value)"
-              (click)="alternarDia(dia.value)"
-            >
-              {{ dia.label }}
-            </button>
-          }
-        </div>
-        @if (mensajeCampo('diasSemana'); as mensaje) {
-          <p class="hint">{{ mensaje }}</p>
-        }
-      </fieldset>
-    }
   </fieldset>
 
   <div class="actions">
     <app-action-button
-      label="Cancelar"
+      [label]="avisoAbandono() ? 'Cerrar de todas formas' : 'Cancelar'"
       variant="secondary"
       type="button"
       [disabled]="guardando()"
@@ -310,7 +366,7 @@
     <app-action-button
       [label]="etiquetaGuardar()"
       type="submit"
-      [disabled]="guardando()"
+      [disabled]="guardando() || (!soloAsignacion() && (sinDiasEnPeriodo() || sinCoincidencias() || excedeCapacidad()))"
     />
   </div>
 </form>

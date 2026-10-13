@@ -1,3 +1,5 @@
+@use '../../../styles/ui' as ui;
+
 .detalle {
   display: flex;
   flex-direction: column;
@@ -31,30 +33,32 @@
   color: var(--color-text-secondary);
 }
 
-.datos {
+.ficha {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 0;
 }
 
-.dato {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.ficha > div {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 38%) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
   min-width: 0;
 }
 
-.dato-ancho {
-  grid-column: 1 / -1;
+.ficha dt,
+.ficha dd {
+  margin: 0;
+  font-size: 13px;
 }
 
-.dato span {
-  font-size: 12px;
+.ficha dt {
   color: var(--color-text-secondary);
 }
 
-.dato strong {
-  font-size: 14px;
+.ficha dd {
   font-weight: 600;
   color: var(--color-text);
 }
@@ -63,47 +67,33 @@
   font-variant-numeric: tabular-nums;
 }
 
-.pasajeros {
+.con-accion {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+}
+
+.text-btn {
+  @include ui.accion-texto;
+}
+
+@include ui.tabla-datos;
+
+.table-wrap {
   max-height: 280px;
   overflow: auto;
 }
 
-.pasajero {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  background: var(--color-slate-50);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+td.name {
+  white-space: normal;
 }
 
-.identidad {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 2px;
-}
-
-.identidad strong {
-  font-size: 13px;
-}
-
-.meta,
-.punto {
+td.name .meta {
+  display: block;
   font-size: 12px;
+  font-weight: 500;
   color: var(--color-text-secondary);
-}
-
-.badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .vacio,
@@ -117,8 +107,8 @@
   margin: 0;
   padding: 10px 12px;
   font-size: 13px;
-  color: #92400e;
-  background: #fffbeb;
+  color: var(--color-warning-text);
+  background: var(--color-warning-soft);
   border-radius: var(--radius-lg);
 }
 
@@ -130,16 +120,11 @@
 }
 
 .pasajeros-error p {
-  color: #991b1b;
+  color: var(--color-danger-text);
 }
 
 .banner {
-  margin: 0;
-  padding: 10px 12px;
-  font-size: 13px;
-  color: #991b1b;
-  background: #fef2f2;
-  border-radius: var(--radius-lg);
+  @include ui.banner-error-compacto;
 }
 
 .acciones,
@@ -149,35 +134,11 @@
   gap: 8px;
 }
 
-.skeleton-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.skeleton-row {
-  height: 40px;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: pulse 1.4s ease infinite;
-}
-
-@keyframes pulse {
-  0% {
-    background-position: 100% 0;
-  }
-  100% {
-    background-position: -100% 0;
-  }
-}
+@include ui.lista-esqueleto(40px, 0);
 
 @media (max-width: 640px) {
-  .datos {
+  .ficha,
+  .ficha > div {
     grid-template-columns: 1fr;
-  }
-
-  .pasajero {
-    flex-direction: column;
   }
 }

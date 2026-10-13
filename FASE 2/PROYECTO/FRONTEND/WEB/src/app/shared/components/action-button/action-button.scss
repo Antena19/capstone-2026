@@ -1,3 +1,8 @@
+:host(.principal) {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -8,11 +13,6 @@
   font-weight: 500;
   border: 1px solid transparent;
   transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.btn:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
 }
 
 .btn:disabled {
@@ -58,4 +58,10 @@
 
 .btn[data-variant='danger']:hover:not(:disabled) {
   background: #b91c1c;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }

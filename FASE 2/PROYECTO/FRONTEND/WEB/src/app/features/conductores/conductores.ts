@@ -5,6 +5,7 @@ import { UsuariosService } from '../../core/services/usuarios.service';
 import { Conductor, ConductorConCuentaSolicitud, ConductorSolicitud } from '../../core/models/conductor';
 import { EstadoRegistro } from '../../core/models/empresa';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { PaginacionLista } from '../../core/utils/paginacion';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
 import { ConfirmDialog } from '../../shared/components/confirm-dialog/confirm-dialog';
@@ -12,6 +13,7 @@ import { FilterOption, FilterSelect } from '../../shared/components/filter-selec
 import { Icon } from '../../shared/components/icon/icon';
 import { Modal } from '../../shared/components/modal/modal';
 import { PageHeader } from '../../shared/components/page-header/page-header';
+import { Paginacion } from '../../shared/components/paginacion/paginacion';
 import { SearchInput } from '../../shared/components/search-input/search-input';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 import { ConductorForm } from './conductor-form';
@@ -31,6 +33,7 @@ type ModoFormulario = 'crear' | 'editar';
     Modal,
     ConfirmDialog,
     ConductorForm,
+    Paginacion,
   ],
   templateUrl: './conductores.html',
   styleUrl: './conductores.scss',
@@ -84,6 +87,12 @@ export class ConductoresPage {
       [conductor.nombre, conductor.rut, conductor.telefono].join(' ').toLowerCase().includes(texto),
     );
   });
+
+  readonly paginacion = new PaginacionLista(
+    () => this.visibles(),
+    () => `${this.busqueda()}|${this.estadoFiltro()}`,
+  );
+  readonly filas = computed(() => this.paginacion.recortar());
 
   readonly subtitulo = computed(
     () => 'Gestión de conductores habilitados para los servicios de transporte',

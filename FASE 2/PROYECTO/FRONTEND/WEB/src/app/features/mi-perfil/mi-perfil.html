@@ -3,31 +3,33 @@
 @if (error(); as texto) {
   <p class="banner">{{ texto }}</p>
   @if (!perfil()) {
-    <app-action-button label="Reintentar" variant="secondary" (clicked)="cargar()" />
+    <div class="reintento">
+      <app-action-button label="Reintentar" variant="secondary" (clicked)="cargar()" />
+    </div>
   }
 }
 
 <div class="perfil-grid">
   <app-card>
-    <div class="card-inner">
-      <div class="seccion-head">
-        <h2>Información de la cuenta</h2>
-        <app-action-button
-          label="Editar perfil"
-          variant="secondary"
-          icon="edit"
-          [disabled]="cargando() || !perfil()"
-          (clicked)="abrirEditarPerfil()"
-        />
-      </div>
+    <div class="card-head">
+      <h2>Información de la cuenta</h2>
+      <app-action-button
+        label="Editar perfil"
+        variant="secondary"
+        icon="edit"
+        [disabled]="cargando() || !perfil()"
+        (clicked)="abrirEditarPerfil()"
+      />
+    </div>
 
-      @if (cargando()) {
-        <div class="skeleton-list">
-          <div class="skeleton-row"></div>
-          <div class="skeleton-row"></div>
-          <div class="skeleton-row"></div>
-        </div>
-      } @else if (perfil(); as actual) {
+    @if (cargando()) {
+      <div class="skeleton-list">
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+      </div>
+    } @else if (perfil(); as actual) {
+      <div class="card-body">
         <div class="datos">
           <div class="dato">
             <span>Correo electrónico</span>
@@ -44,6 +46,8 @@
           <div class="dato">
             <span>Estado</span>
             <app-status-badge
+              [class.estado-activo]="actual.estado === 'ACTIVO'"
+              [class.estado-inactivo]="actual.estado === 'INACTIVO'"
               [label]="actual.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'"
               [tone]="actual.estado === 'ACTIVO' ? 'green' : 'slate'"
             />
@@ -59,24 +63,23 @@
             </strong>
           </div>
         </div>
-      }
-    </div>
+      </div>
+    }
   </app-card>
 
   <app-card>
-    <div class="card-inner">
-      <div class="seccion-head">
-        <h2>Seguridad</h2>
-        <app-action-button
-          label="Cambiar contraseña"
-          variant="secondary"
-          [disabled]="cargando() || !perfil()"
-          (clicked)="abrirCambiarPassword()"
-        />
-      </div>
-      <p class="ayuda">
-        Actualiza tu contraseña cuando lo necesites. Deberás indicar la contraseña actual.
-      </p>
+    <div class="card-head">
+      <h2>Seguridad</h2>
+      <app-action-button
+        label="Cambiar contraseña"
+        variant="secondary"
+        icon="llave"
+        [disabled]="cargando() || !perfil()"
+        (clicked)="abrirCambiarPassword()"
+      />
+    </div>
+    <div class="card-body">
+      <p class="ayuda">Actualiza tu contraseña cuando lo necesites. Deberás indicar la contraseña actual.</p>
     </div>
   </app-card>
 </div>

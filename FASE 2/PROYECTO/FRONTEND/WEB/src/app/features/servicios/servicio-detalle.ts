@@ -1,18 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, output, signal, untracked } from '@angular/core';
+import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, EMPTY, forkJoin, map, of, Subject, switchMap, tap } from 'rxjs';
-import { AsignacionServicio, EstadoAsignacionServicio } from '../../core/models/asignacion';
+import { AsignacionServicio } from '../../core/models/asignacion';
 import { Conductor } from '../../core/models/conductor';
 import { Pasajero } from '../../core/models/pasajero';
 import { Planificacion } from '../../core/models/planificacion';
 import { PuntoRecogida, Ruta } from '../../core/models/ruta';
-import {
-  EstadoConfirmacionViaje,
-  EstadoPasajeroServicio,
-  EstadoServicio,
-  PasajeroServicio,
-  Servicio,
-} from '../../core/models/servicio';
+import { EstadoServicio, PasajeroServicio, Servicio } from '../../core/models/servicio';
 import { Vehiculo } from '../../core/models/vehiculo';
 import { AsignacionesService } from '../../core/services/asignaciones.service';
 import { ConductoresService } from '../../core/services/conductores.service';
@@ -25,7 +20,8 @@ import { ServiciosService } from '../../core/services/servicios.service';
 import { VehiculosService } from '../../core/services/vehiculos.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
 import { ActionButton } from '../../shared/components/action-button/action-button';
-import { BadgeTone, StatusBadge } from '../../shared/components/status-badge/status-badge';
+import { StatusBadge } from '../../shared/components/status-badge/status-badge';
+import { planificacionPermiteAdministrar } from './planificacion-administrable';
 
 @Component({
   selector: 'app-servicio-detalle',
@@ -44,6 +40,7 @@ export class ServicioDetalle {
   readonly asignar = output<Servicio>();
 
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
   private readonly api = inject(ServiciosService);
   private readonly empresasApi = inject(EmpresasService);
   private readonly planificacionesApi = inject(PlanificacionesService);
@@ -119,13 +116,19 @@ export class ServicioDetalle {
     () => (this.asociaciones() ?? []).filter((item) => item.estado === 'ACTIVO').length,
   );
 
+  readonly puedeAdministrar = computed(() => planificacionPermiteAdministrar(this.planificacion()?.estado));
+
+  readonly puedeGestionarPasajeros = computed(
+    () => this.servicio()?.estado === 'PROGRAMADO' && this.puedeAdministrar(),
+  );
+
   readonly puedeCrearAsignacion = computed(
-    () => this.servicio()?.estado === 'PROGRAMADO' && !this.asignacion(),
+    () => this.servicio()?.estado === 'PROGRAMADO' && !this.asignacion() && this.puedeAdministrar(),
   );
 
   readonly puedeCambiarAsignacion = computed(() => {
     const estado = this.servicio()?.estado;
-    return !!this.asignacion() && estado !== 'FINALIZADO' && estado !== 'CANCELADO';
+    return !!this.asignacion() && estado !== 'FINALIZADO' && estado !== 'CANCELADO' && this.puedeAdministrar();
   });
 
   readonly pasajerosVisibles = computed(() => {
@@ -149,7 +152,6 @@ export class ServicioDetalle {
           nombre: persona?.nombre ?? `Pasajero #${asociacion.idPasajero}`,
           rut: persona?.rut ?? '—',
           punto: etiquetaPunto(asociacion.idPuntoRecogida, puntos),
-          estadoConfirmacion: asociacion.estadoConfirmacion,
           estado: asociacion.estado,
         };
       })
@@ -252,7 +254,7 @@ export class ServicioDetalle {
 
   abrirGestionPasajeros(): void {
     const actual = this.servicio();
-    if (!actual || this.error()) {
+    if (!actual || this.error() || !this.puedeGestionarPasajeros()) {
       return;
     }
 
@@ -268,46 +270,35 @@ export class ServicioDetalle {
     this.asignar.emit(actual);
   }
 
-  tonoEstado(estado: EstadoServicio): BadgeTone {
-    switch (estado) {
-      case 'PROGRAMADO':
-        return 'amber';
-      case 'EN_CURSO':
-        return 'green';
-      case 'FINALIZADO':
-        return 'sky';
-      case 'CANCELADO':
-        return 'red';
+  verRuta(): void {
+    const actual = this.servicio();
+    if (!actual?.idRuta) {
+      return;
     }
+
+    void this.router.navigate(['/rutas'], {
+      queryParams: {
+        empresa: String(actual.idEmpresa),
+        ruta: actual.idRuta,
+      },
+    });
+    this.cerrado.emit();
   }
 
   etiquetaEstado(estado: EstadoServicio): string {
     return estado === 'EN_CURSO' ? 'EN CURSO' : estado;
   }
 
-  tonoConfirmacion(estado: EstadoConfirmacionViaje): BadgeTone {
+  textoEstado(estado: EstadoServicio): string {
     switch (estado) {
-      case 'CONFIRMADO':
-        return 'green';
-      case 'RECHAZADO':
-        return 'red';
-      case 'PENDIENTE':
-        return 'amber';
-    }
-  }
-
-  tonoAsociacion(estado: EstadoPasajeroServicio): BadgeTone {
-    return estado === 'ACTIVO' ? 'green' : 'red';
-  }
-
-  tonoAsignacion(estado: EstadoAsignacionServicio): BadgeTone {
-    switch (estado) {
-      case 'ACTIVA':
-        return 'green';
-      case 'CANCELADA':
-        return 'red';
-      case 'REEMPLAZADA':
-        return 'slate';
+      case 'PROGRAMADO':
+        return 'Servicio planificado. Se puede editar, gestionar pasajeros y cancelar.';
+      case 'EN_CURSO':
+        return 'Servicio iniciado. Se puede cancelar. Los pasajeros ya no se pueden modificar.';
+      case 'FINALIZADO':
+        return 'Servicio terminado. Solo consulta.';
+      case 'CANCELADO':
+        return 'Servicio cancelado. Solo consulta.';
     }
   }
 

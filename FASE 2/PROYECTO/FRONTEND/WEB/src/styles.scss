@@ -1,37 +1,53 @@
 :root {
-  --color-sidebar: #0f172a;
-  --color-sidebar-hover: #1e293b;
-  --color-sidebar-active: #1d4ed8;
-  --color-surface: #f1f5f9;
+  --color-sidebar: #2b161b;
+  --color-sidebar-hover: #3a2429;
+  --color-sidebar-active: #d90700;
+  --color-sidebar-text: #f7f3f5;
+  --color-sidebar-muted: #c4b4b6;
+  --color-sidebar-border: rgb(255 255 255 / 12%);
+  --color-surface: #f7f3f5;
+  --color-neutral: #f6f7f8;
   --color-card: #ffffff;
-  --color-border: #e2e8f0;
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
+  --color-border: #dddddd;
+  --color-primary: #d90700;
+  --color-primary-hover: #b20600;
+  --color-secondary: #ef4d48;
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
   --color-info: #0ea5e9;
-  --color-text: #0f172a;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
-  --color-slate-50: #f8fafc;
-  --color-slate-100: #f1f5f9;
-  --color-slate-200: #e2e8f0;
-  --color-slate-400: #94a3b8;
-  --color-slate-500: #64748b;
-  --color-slate-600: #475569;
-  --color-slate-700: #334155;
-  --color-slate-800: #1e293b;
-  --color-sidebar-active-bg: rgb(37 99 235 / 20%);
-  --color-focus-ring: rgb(59 130 246 / 30%);
+  --color-text: #2b161b;
+  --color-text-secondary: #4b4f58;
+  --color-text-muted: #7a7274;
+  --color-slate-50: var(--color-neutral);
+  --color-slate-100: #efe8ea;
+  --color-slate-200: #dddddd;
+  --color-slate-400: #9a9092;
+  --color-slate-500: #6e6868;
+  --color-slate-600: #5a5353;
+  --color-slate-700: #453e3e;
+  --color-slate-800: #2b161b;
+  --color-sidebar-active-bg: rgb(217 7 0 / 20%);
+  --color-focus-border: var(--color-secondary);
+  --color-focus-ring: rgb(217 7 0 / 30%);
+  --color-primary-soft: #f8e6e4;
+  --color-danger-text: #991b1b;
+  --color-danger-strong: #dc2626;
+  --color-danger-soft: #fef2f2;
+  --color-danger-border: #fecaca;
+  --color-success-text: #047857;
+  --color-success-strong: #059669;
+  --color-success-soft: #ecfdf5;
+  --color-warning-text: #92400e;
+  --color-warning-soft: #fffbeb;
   --font-sans: 'Inter', sans-serif;
-  --font-display: 'DM Sans', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: 'Montserrat', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', monospace;
   --sidebar-width: 240px;
   --topbar-height: 56px;
   --radius-lg: 8px;
   --radius-xl: 12px;
-  --shadow-sm: 0 1px 2px rgb(15 23 42 / 6%);
+  --shadow-sm: 0 1px 2px rgb(43 22 27 / 7%);
   --color-estado-programado: #2563eb;
   --color-estado-en-curso: #0d9488;
   --color-estado-realizado: #10b981;
@@ -98,12 +114,12 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--color-slate-400);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--color-slate-500);
 }
 
 .mapa-popup {
@@ -156,7 +172,7 @@ a {
   font-size: 12px;
   font-weight: 700;
   color: #fff;
-  background: #0d9488;
+  background: #d90700;
   border: 2px solid #fff;
   border-radius: 50%;
   box-shadow: 0 1px 4px rgb(15 23 42 / 28%);
@@ -175,16 +191,9 @@ a {
   color: #fff;
   border: 2px solid #fff;
   border-radius: 6px;
+  background: #2b161b;
   box-shadow: 0 1px 4px rgb(15 23 42 / 28%);
   cursor: pointer;
-}
-
-.marcador-origen {
-  background: #2563eb;
-}
-
-.marcador-destino {
-  background: #7c3aed;
 }
 
 .cdk-drag-preview {
@@ -201,4 +210,103 @@ a {
 
 .cdk-drag-placeholder {
   opacity: 0.4;
+}
+
+.vistas {
+  display: flex;
+  flex: none;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.vistas button {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+}
+
+.vistas button.is-active {
+  color: #d90700;
+  border-bottom-color: #d90700;
+}
+
+.vistas button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.nav-pasos {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-pasos app-action-button {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.nav-pasos app-action-button .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.pasajeros-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px 28px;
+}
+
+.pasajeros-panel h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.nav-siguiente {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+app-action-button.ancho {
+  display: flex;
+  width: 100%;
+}
+
+app-action-button.ancho .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.tabla-compacta {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tabla-compacta th {
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+  color: #fff;
+  background: #2b161b;
+}
+
+.tabla-compacta td {
+  padding: 6px 8px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tabla-compacta tr.is-selected td {
+  background: var(--color-primary-soft);
 }

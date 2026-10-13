@@ -23,6 +23,36 @@
   max-width: 960px;
 }
 
+.dialog.is-importacion {
+  display: flex;
+  flex-direction: column;
+  width: min(1000px, calc(100vw - 32px));
+  max-width: min(1000px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+}
+
+.dialog.is-importacion .head {
+  flex-shrink: 0;
+}
+
+.dialog.is-importacion .body {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+  .backdrop:has(.is-importacion) {
+    padding: 8px;
+  }
+
+  .dialog.is-importacion {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 16px);
+  }
+}
+
 .head {
   display: flex;
   align-items: center;

@@ -12,13 +12,15 @@ import {
   Planificacion,
 } from '../../core/models/planificacion';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { PaginacionLista } from '../../core/utils/paginacion';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
 import { ConfirmDialog } from '../../shared/components/confirm-dialog/confirm-dialog';
 import { FilterOption, FilterSelect } from '../../shared/components/filter-select/filter-select';
 import { Modal } from '../../shared/components/modal/modal';
-import { PageHeader } from '../../shared/components/page-header/page-header';
-import { StatusBadge, BadgeTone } from '../../shared/components/status-badge/status-badge';
+import { Paginacion } from '../../shared/components/paginacion/paginacion';
+import { Icon } from '../../shared/components/icon/icon';
+import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 import { PlanificacionForm } from './planificacion-form';
 
 type ModoFormulario = 'crear' | 'editar';
@@ -28,14 +30,15 @@ type DestinoEstado = CambiarEstadoPlanificacionSolicitud['estado'];
   selector: 'app-planificaciones',
   imports: [
     DatePipe,
-    PageHeader,
     ActionButton,
     FilterSelect,
     AppCard,
     StatusBadge,
+    Icon,
     Modal,
     ConfirmDialog,
     PlanificacionForm,
+    Paginacion,
   ],
   templateUrl: './planificaciones.html',
   styleUrl: './planificaciones.scss',
@@ -55,16 +58,21 @@ export class PlanificacionesPage {
   ];
 
   readonly esqueletos = [1, 2, 3, 4, 5, 6];
-  readonly subtitulo = 'Organiza los períodos mensuales de operación de cada empresa.';
 
   readonly planificaciones = signal<Planificacion[]>([]);
   readonly empresas = signal<Empresa[]>([]);
-  readonly cargando = signal(true);
+  readonly cargando = signal(false);
   readonly error = signal<string | null>(null);
+  private cargaId = 0;
 
   readonly empresaFiltro = signal('');
   readonly periodoFiltro = signal('');
   readonly estadoFiltro = signal('');
+  readonly paginacion = new PaginacionLista(
+    () => this.planificaciones(),
+    () => `${this.empresaFiltro()}|${this.periodoFiltro()}|${this.estadoFiltro()}`,
+  );
+  readonly filas = computed(() => this.paginacion.recortar());
 
   readonly formularioAbierto = signal(false);
   readonly modo = signal<ModoFormulario>('crear');
@@ -99,9 +107,12 @@ export class PlanificacionesPage {
     return actual ? [actual, ...activas] : activas;
   });
 
-  readonly hayFiltros = computed(
-    () => !!this.empresaFiltro() || !!this.periodoFiltro() || !!this.estadoFiltro(),
-  );
+  readonly hayFiltros = computed(() => !!this.periodoFiltro() || !!this.estadoFiltro());
+
+  readonly nombreEmpresaSeleccionada = computed(() => {
+    const id = Number(this.empresaFiltro());
+    return this.empresas().find((empresa) => empresa.idEmpresa === id)?.razonSocial ?? '';
+  });
 
   readonly tituloFormulario = computed(() =>
     this.modo() === 'editar' ? 'Editar planificación' : 'Nueva planificación',
@@ -141,29 +152,47 @@ export class PlanificacionesPage {
 
   constructor() {
     this.cargarEmpresas();
-    this.cargar();
   }
 
   cargar(): void {
-    this.cargando.set(true);
-    this.error.set(null);
     const idEmpresa = Number(this.empresaFiltro());
+    if (!Number.isInteger(idEmpresa) || idEmpresa < 1) {
+      this.cargaId += 1;
+      this.planificaciones.set([]);
+      this.cargando.set(false);
+      this.error.set(null);
+      return;
+    }
+
+    const solicitud = ++this.cargaId;
     const periodo = this.periodoFiltro();
     const estado = this.estadoFiltro() as EstadoPlanificacion | '';
+    this.planificaciones.set([]);
+    this.cargando.set(true);
+    this.error.set(null);
 
     this.api
       .listar({
-        idEmpresa: Number.isInteger(idEmpresa) && idEmpresa > 0 ? idEmpresa : undefined,
+        idEmpresa,
         periodo: periodo || undefined,
         estado: estado || undefined,
       })
       .subscribe({
         next: (lista) => {
+          if (solicitud !== this.cargaId || Number(this.empresaFiltro()) !== idEmpresa) {
+            return;
+          }
+
           this.planificaciones.set(lista);
           this.cargando.set(false);
         },
         error: (err: unknown) => {
+          if (solicitud !== this.cargaId || Number(this.empresaFiltro()) !== idEmpresa) {
+            return;
+          }
+
           this.cargando.set(false);
+          this.planificaciones.set([]);
           this.error.set(mensajeErrorHttp(err, 'No fue posible cargar las planificaciones.'));
         },
       });
@@ -171,6 +200,8 @@ export class PlanificacionesPage {
 
   actualizarEmpresaFiltro(valor: string): void {
     this.empresaFiltro.set(valor);
+    this.planificaciones.set([]);
+    this.error.set(null);
     this.cargar();
   }
 
@@ -185,13 +216,16 @@ export class PlanificacionesPage {
   }
 
   limpiarFiltros(): void {
-    this.empresaFiltro.set('');
     this.periodoFiltro.set('');
     this.estadoFiltro.set('');
     this.cargar();
   }
 
   abrirCrear(): void {
+    if (!this.empresaFiltro()) {
+      return;
+    }
+
     this.modo.set('crear');
     this.planificacionEdicion.set(null);
     this.errorFormulario.set(null);
@@ -315,19 +349,6 @@ export class PlanificacionesPage {
 
   irAServicios(): void {
     void this.router.navigate(['/servicios']);
-  }
-
-  tonoEstado(estado: EstadoPlanificacion): BadgeTone {
-    switch (estado) {
-      case 'ACTIVA':
-        return 'green';
-      case 'BORRADOR':
-        return 'amber';
-      case 'CERRADA':
-        return 'sky';
-      case 'CANCELADA':
-        return 'red';
-    }
   }
 
   private cargarEmpresas(): void {

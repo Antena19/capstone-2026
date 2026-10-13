@@ -1,4 +1,4 @@
-<app-card>
+<app-card class="fill">
   <div class="kpi">
     <div>
       <p class="label">{{ label() }}</p>
@@ -11,6 +11,8 @@
       <app-progress-ring
         [value]="progress() ?? 0"
         [color]="progressColor()"
+        [track]="track()"
+        [size]="ringSize()"
         [label]="label() + ' ' + value()"
       />
     } @else if (icon(); as iconName) {

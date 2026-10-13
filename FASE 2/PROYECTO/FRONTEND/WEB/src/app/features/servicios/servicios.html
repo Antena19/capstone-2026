@@ -1,18 +1,10 @@
 <app-page-header title="Servicios" [subtitle]="subtitulo">
   <app-filter-select
     label="Empresa"
-    blankLabel="Todas las empresas"
+    blankLabel="Seleccionar empresa"
     [items]="opcionesEmpresa()"
     [value]="empresaFiltro()"
     (valueChange)="actualizarEmpresaFiltro($event)"
-  />
-  <app-filter-select
-    label="Planificación"
-    blankLabel="Todas las planificaciones"
-    [items]="opcionesPlanificacion()"
-    [value]="planificacionFiltro()"
-    [disabled]="!empresaFiltro()"
-    (valueChange)="actualizarPlanificacionFiltro($event)"
   />
   <label class="filtro-fecha">
     <span class="sr-only">Fecha</span>
@@ -40,7 +32,13 @@
   @if (hayFiltros()) {
     <app-action-button label="Limpiar filtros" variant="ghost" (clicked)="limpiarFiltros()" />
   }
-  <app-action-button label="Nuevo servicio" icon="plus" (clicked)="abrirCrear()" />
+  <app-action-button
+    class="principal"
+    label="Nuevo servicio"
+    icon="plus"
+    [disabled]="!empresaFiltro()"
+    (clicked)="abrirCrear()"
+  />
 </app-page-header>
 
 @if (aviso(); as texto) {
@@ -63,6 +61,10 @@
       <p>No fue posible mostrar el listado. Intente nuevamente.</p>
       <app-action-button label="Reintentar" variant="secondary" (clicked)="cargar()" />
     </div>
+  } @else if (!empresaFiltro()) {
+    <div class="empty">
+      <p>Selecciona una empresa para ver sus servicios.</p>
+    </div>
   } @else if (servicios().length === 0) {
     <div class="empty">
       @if (hayFiltros()) {
@@ -78,40 +80,85 @@
       <table>
         <thead>
           <tr>
-            <th>Fecha</th>
-            <th>Empresa</th>
-            <th>Ruta</th>
+            <th>Fecha del servicio</th>
             <th>Horario</th>
             <th>Tipo</th>
-            <th>Estado</th>
+            <th>Ruta</th>
             <th>Serie</th>
+            <th>Conductor</th>
+            <th>Vehículo</th>
+            <th>Capacidad</th>
+            <th>Estado</th>
             <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          @for (servicio of servicios(); track servicio.idServicio) {
+          @for (servicio of filas(); track servicio.idServicio) {
             <tr>
               <td class="mono name">{{ formatearFecha(servicio.fecha) }}</td>
-              <td>{{ nombreEmpresa(servicio.idEmpresa) }}</td>
-              <td>{{ nombreRuta(servicio.idRuta) }}</td>
               <td class="mono">{{ formatearHorario(servicio.horaInicio, servicio.horaFin) }}</td>
               <td>{{ servicio.tipoServicio }}</td>
+              <td>{{ nombreRuta(servicio.idRuta) }}</td>
+              <td>{{ etiquetaSerie(servicio.idSerie) }}</td>
+              <td [class.sin-asignar]="esSinAsignar(conductorDe(servicio))">{{ conductorDe(servicio) }}</td>
+              <td [class.sin-asignar]="esSinAsignar(patenteDe(servicio))" class="mono">{{ patenteDe(servicio) }}</td>
+              <td [class.sin-asignar]="esSinAsignar(capacidadDe(servicio))" class="mono">{{ capacidadDe(servicio) }}</td>
               <td>
                 <app-status-badge
+                  [class.estado-activo]="servicio.estado === 'PROGRAMADO'"
+                  [class.corporativo]="servicio.estado === 'EN_CURSO'"
+                  [class.estado-inactivo]="servicio.estado === 'FINALIZADO' || servicio.estado === 'CANCELADO'"
+                  [tone]="servicio.estado === 'EN_CURSO' ? 'green' : 'slate'"
                   [label]="etiquetaEstado(servicio.estado)"
-                  [tone]="tonoEstado(servicio.estado)"
+                  [title]="textoEstado(servicio.estado)"
                 />
               </td>
-              <td>{{ etiquetaSerie(servicio.idSerie) }}</td>
               <td>
                 <div class="actions">
-                  <button type="button" class="text-btn" (click)="ver(servicio)">Ver</button>
-                  @if (servicio.estado === 'PROGRAMADO') {
-                    <button type="button" class="text-btn" (click)="abrirEditar(servicio)">Editar</button>
+                  <button type="button" class="icon-btn" title="Ver detalles" aria-label="Ver detalles" (click)="ver(servicio)">
+                    <app-icon name="ojo" [size]="15" />
+                  </button>
+                  @if (servicio.idRuta) {
+                    <button type="button" class="icon-btn" title="Ver ruta" aria-label="Ver ruta" (click)="verRuta(servicio)">
+                      <app-icon name="ruta" [size]="15" />
+                    </button>
+                  }
+                  @if (puedeGestionarPasajeros(servicio)) {
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      title="Gestionar pasajeros"
+                      aria-label="Gestionar pasajeros"
+                      (click)="abrirGestionPasajeros(servicio)"
+                    >
+                      <app-icon name="pasajeros" [size]="15" />
+                    </button>
+                  }
+                  @if (puedeEditar(servicio)) {
+                    <button type="button" class="icon-btn" title="Editar" aria-label="Editar" (click)="abrirEditar(servicio)">
+                      <app-icon name="edit" [size]="15" />
+                    </button>
+                  }
+                  @if (servicio.estado === 'FINALIZADO') {
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      title="Ver asistencia"
+                      aria-label="Ver asistencia"
+                      (click)="abrirAsistencia(servicio)"
+                    >
+                      <app-icon name="clipboard-check" [size]="15" />
+                    </button>
                   }
                   @if (puedeCancelar(servicio)) {
-                    <button type="button" class="text-btn is-danger" (click)="pedirCancelar(servicio)">
-                      Cancelar
+                    <button
+                      type="button"
+                      class="icon-btn is-danger"
+                      title="Cancelar"
+                      aria-label="Cancelar"
+                      (click)="pedirCancelar(servicio)"
+                    >
+                      <app-icon name="ban" [size]="15" />
                     </button>
                   }
                 </div>
@@ -121,6 +168,13 @@
         </tbody>
       </table>
     </div>
+    <app-paginacion
+      [pagina]="paginacion.pagina()"
+      [tamano]="paginacion.tamano()"
+      [total]="servicios().length"
+      (paginaChange)="paginacion.ir($event)"
+      (tamanoChange)="paginacion.cambiarTamano($event)"
+    />
   }
 </app-card>
 
@@ -134,6 +188,12 @@
     [abierto]="formularioAbierto()"
     [guardando]="guardando()"
     [error]="errorFormulario()"
+    [idEmpresaInicial]="empresaFiltro()"
+    [empresaNombre]="nombreEmpresaSeleccionada()"
+    [soloAsignacion]="serviciosYaCreados()"
+    [fase]="faseCreacion()"
+    [avisoAbandono]="avisoAbandono()"
+    [progreso]="progresoCreacion()"
     (guardado)="guardar($event)"
     (cancelado)="cerrarFormulario()"
   />
@@ -202,6 +262,19 @@
     [nombreEmpresaInicial]="nombreEmpresaGestion()"
     [nombreRutaInicial]="nombreRutaGestion()"
     (cerrado)="cerrarGestionPasajeros()"
+  />
+</app-modal>
+
+<app-modal
+  [open]="asistenciaAbierta()"
+  [titulo]="tituloAsistencia()"
+  [wide]="true"
+  (closed)="cerrarAsistencia()"
+>
+  <app-servicio-asistencia
+    [abierto]="asistenciaAbierta()"
+    [servicioInicial]="servicioAsistencia()"
+    (cerrado)="cerrarAsistencia()"
   />
 </app-modal>
 

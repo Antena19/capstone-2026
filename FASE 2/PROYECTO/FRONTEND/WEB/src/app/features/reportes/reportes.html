@@ -1,15 +1,5 @@
-<app-page-header title="Reportes Operacionales" [subtitle]="subtitulo()">
-  <app-action-button
-    label="Exportar Excel"
-    variant="secondary"
-    icon="download"
-    [disabled]="!reporte() || descargando() || consultando()"
-    (clicked)="exportarExcel()"
-  />
-</app-page-header>
-
-<div class="filters">
-  <label class="filter-field">
+<app-page-header title="Reportes" [subtitle]="subtitulo()">
+  <label class="filtro">
     <span>Empresa</span>
     <app-filter-select
       label="Empresa"
@@ -17,11 +7,11 @@
       [items]="opcionesEmpresa()"
       [value]="idEmpresa()"
       [disabled]="cargandoEmpresas()"
-      (valueChange)="idEmpresa.set($event)"
+      (valueChange)="actualizarEmpresa($event)"
     />
   </label>
 
-  <label class="filter-field">
+  <label class="filtro">
     <span>Período</span>
     <app-filter-select
       label="Período"
@@ -33,35 +23,61 @@
   </label>
 
   @if (periodo() === 'MES') {
-    <label class="filter-field">
+    <label class="filtro">
       <span>Mes</span>
-      <input type="month" [value]="mes()" (change)="actualizarMes($event)" />
+      <input type="month" [value]="mes()" aria-label="Mes" (change)="actualizarMes($event)" />
+    </label>
+  }
+
+  @if (periodo() === 'DIA') {
+    <label class="filtro">
+      <span>Fecha</span>
+      <input type="date" [value]="fechaDia()" aria-label="Fecha" (change)="actualizarFechaDia($event)" />
     </label>
   }
 
   @if (periodo() === 'SEMANA') {
-    <label class="filter-field">
-      <span>Fecha de la semana</span>
-      <input type="date" [value]="fechaSemana()" (change)="actualizarFechaSemana($event)" />
+    <label class="filtro">
+      <span>Semana</span>
+      <input
+        type="date"
+        [value]="fechaSemana()"
+        aria-label="Fecha de la semana"
+        [title]="rangoSemana() || 'Seleccione una fecha de la semana'"
+        (change)="actualizarFechaSemana($event)"
+      />
+      @if (rangoSemana(); as rango) {
+        <span class="rango">{{ rango }}</span>
+      }
     </label>
-    @if (rangoSemana()) {
-      <p class="rango-semana">{{ rangoSemana() }}</p>
-    }
   }
 
-  @if (periodo() === 'DIA') {
-    <label class="filter-field">
-      <span>Fecha</span>
-      <input type="date" [value]="fechaDia()" (change)="actualizarFechaDia($event)" />
+  @if (periodo() === 'PERSONALIZADO') {
+    <label class="filtro">
+      <span>Desde</span>
+      <input type="date" [value]="fechaDesde()" aria-label="Desde" (change)="actualizarFechaDesde($event)" />
+    </label>
+    <label class="filtro">
+      <span>Hasta</span>
+      <input type="date" [value]="fechaHasta()" aria-label="Hasta" (change)="actualizarFechaHasta($event)" />
     </label>
   }
 
   <app-action-button
     label="Consultar"
+    variant="secondary"
     [disabled]="consultando() || cargandoEmpresas()"
     (clicked)="consultar()"
   />
-</div>
+
+  <app-action-button
+    class="principal"
+    label="Exportar Excel"
+    icon="download"
+    [disabled]="!reporte() || descargando() || consultando()"
+    (clicked)="exportarExcel()"
+  />
+</app-page-header>
 
 @if (errorEmpresas(); as texto) {
   <p class="banner banner-error">{{ texto }}</p>
@@ -88,12 +104,20 @@
 }
 
 @if (consultando() && !reporte()) {
-  <div class="kpi-grid">
-    @for (item of esqueletos; track item) {
-      <div class="skeleton-card"></div>
-    }
-  </div>
+  <app-card class="seccion">
+    <div class="card-head">
+      <h2>Resumen del período</h2>
+    </div>
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  </app-card>
   <app-card>
+    <div class="card-head">
+      <h2>Detalle de servicios</h2>
+    </div>
     <div class="skeleton-list">
       @for (item of esqueletos; track item) {
         <div class="skeleton-row"></div>
@@ -101,79 +125,84 @@
     </div>
   </app-card>
 } @else if (reporte(); as actual) {
-  <div class="kpi-grid">
-    <app-kpi-card
-      label="Servicios planificados"
-      [value]="formatoEntero(actual.resumen.serviciosPlanificados)"
-      icon="servicios"
-      tone="blue"
-    />
-    <app-kpi-card
-      label="Servicios realizados"
-      [value]="formatoEntero(actual.resumen.serviciosRealizados)"
-      icon="bus"
-      tone="green"
-    />
-    <app-kpi-card
-      label="Servicios cancelados"
-      [value]="formatoEntero(actual.resumen.serviciosCancelados)"
-      icon="servicios"
-      tone="red"
-    />
-    <app-kpi-card
-      label="Personas planificadas"
-      [value]="formatoEntero(actual.resumen.personasPlanificadas)"
-      icon="pasajeros"
-      tone="blue"
-    />
-    <app-kpi-card
-      label="Total transportados"
-      [value]="formatoEntero(actual.resumen.totalTransportados)"
-      icon="pasajeros"
-      tone="teal"
-    />
-    <app-kpi-card
-      label="Ausencias"
-      [value]="formatoEntero(actual.resumen.planificadosNoTransportados)"
-      icon="alert"
-      tone="amber"
-    />
-    <app-kpi-card
-      label="No planificados transportados"
-      [value]="formatoEntero(actual.resumen.noPlanificadosTransportados)"
-      icon="pasajeros"
-      tone="sky"
-    />
-  </div>
+  <app-card class="seccion">
+    <div class="card-head">
+      <h2>Resumen del período</h2>
+    </div>
+    <div class="grupos">
+      @for (grupo of gruposResumen(actual.resumen); track grupo.titulo) {
+        <table class="grupo">
+          <thead>
+            <tr>
+              <th colspan="2">{{ grupo.titulo }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (fila of grupo.filas; track fila.etiqueta) {
+              <tr>
+                <td>{{ fila.etiqueta }}</td>
+                <td class="mono valor">{{ fila.valor }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </app-card>
 
   <app-card>
     <div class="card-head">
       <h2>Detalle de servicios</h2>
     </div>
     @if (sinResultados()) {
-      <p class="empty">No hay servicios para el período consultado.</p>
+      <div class="vacio">
+        <app-icon name="servicios" [size]="28" />
+        <p class="vacio-titulo">No se encontraron servicios para los filtros seleccionados.</p>
+        <p class="vacio-ayuda">Prueba con otra empresa o período para consultar los registros.</p>
+      </div>
     } @else {
       <div class="table-wrap">
-        <table>
+        <table class="detalle">
           <thead>
             <tr>
-              <th>Fecha</th>
-              <th>Servicio #</th>
-              <th>Ruta</th>
-              <th>Horario</th>
-              <th>Conductor</th>
-              <th>Vehículo</th>
-              <th>Capacidad</th>
-              <th>Planificados</th>
-              <th>Transportados</th>
-              <th>Ausentes</th>
-              <th>No planificados</th>
-              <th>Estado</th>
-              <th></th>
+              <th scope="col" aria-label="Fecha del servicio">
+                <span aria-hidden="true">Fecha del</span>
+                <span aria-hidden="true">servicio</span>
+              </th>
+              <th scope="col" aria-label="N° servicio">
+                <span aria-hidden="true">N°</span>
+                <span aria-hidden="true">servicio</span>
+              </th>
+              <th scope="col">Ruta</th>
+              <th scope="col" aria-label="Horario programado">
+                <span aria-hidden="true">Horario</span>
+                <span aria-hidden="true">programado</span>
+              </th>
+              <th scope="col">Conductor</th>
+              <th scope="col">Vehículo</th>
+              <th scope="col">Capacidad</th>
+              <th scope="col" aria-label="Pasajeros planificados">
+                <span aria-hidden="true">Pasajeros</span>
+                <span aria-hidden="true">planificados</span>
+              </th>
+              <th scope="col" aria-label="Pasajeros transportados">
+                <span aria-hidden="true">Pasajeros</span>
+                <span aria-hidden="true">transportados</span>
+              </th>
+              <th scope="col" aria-label="Sin asistencia registrada">
+                <span aria-hidden="true">Sin asistencia</span>
+                <span aria-hidden="true">registrada</span>
+              </th>
+              <th scope="col" aria-label="Transportados no planificados">
+                <span aria-hidden="true">Transportados</span>
+                <span aria-hidden="true">no planificados</span>
+              </th>
+              <th scope="col">Estado</th>
+              <th scope="col">Acciones</th>
             </tr>
           </thead>
           <tbody>
-            @for (servicio of actual.servicios; track servicio.idServicio) {
+            @for (servicio of serviciosPagina(); track servicio.idServicio) {
               <tr>
                 <td class="mono name">{{ formatearFecha(servicio.fecha) }}</td>
                 <td class="mono">{{ servicio.idServicio }}</td>
@@ -181,27 +210,56 @@
                 <td class="mono">{{ formatearHorario(servicio.horaInicio, servicio.horaFin) }}</td>
                 <td>{{ textoOpcional(servicio.nombreConductor) }}</td>
                 <td class="mono">{{ textoOpcional(servicio.patenteVehiculo) }}</td>
-                <td class="mono">{{ servicio.capacidadVehiculo ?? '-' }}</td>
-                <td>{{ formatoEntero(servicio.personasPlanificadas) }}</td>
-                <td>{{ formatoEntero(servicio.totalTransportados) }}</td>
-                <td>{{ formatoEntero(servicio.planificadosNoTransportados) }}</td>
-                <td>{{ formatoEntero(servicio.noPlanificadosTransportados) }}</td>
+                <td class="mono">{{ servicio.capacidadVehiculo ?? '—' }}</td>
+                <td class="mono">{{ formatoEntero(servicio.personasPlanificadas) }}</td>
+                <td class="mono">{{ formatoEntero(servicio.totalTransportados) }}</td>
+                <td class="mono">{{ formatoEntero(servicio.planificadosNoTransportados) }}</td>
+                <td class="mono">{{ formatoEntero(servicio.noPlanificadosTransportados) }}</td>
                 <td>
                   <app-status-badge
+                    [class.estado-activo]="servicio.estado === 'PROGRAMADO'"
+                    [class.corporativo]="servicio.estado === 'EN_CURSO'"
+                    [class.estado-inactivo]="servicio.estado === 'FINALIZADO' || servicio.estado === 'CANCELADO'"
+                    [tone]="servicio.estado === 'EN_CURSO' ? 'green' : 'slate'"
                     [label]="etiquetaEstado(servicio.estado)"
-                    [tone]="tonoEstado(servicio.estado)"
                   />
                 </td>
                 <td>
-                  <button type="button" class="text-btn" (click)="verPasajeros(servicio)">
-                    Ver pasajeros
-                  </button>
+                  <div class="actions">
+                    @if (servicio.idRuta) {
+                      <button
+                        type="button"
+                        class="icon-btn"
+                        title="Ver ruta"
+                        aria-label="Ver ruta"
+                        (click)="verRuta(servicio)"
+                      >
+                        <app-icon name="ruta" [size]="16" />
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      title="Ver pasajeros y asistencia"
+                      aria-label="Ver pasajeros y asistencia"
+                      (click)="verPasajeros(servicio)"
+                    >
+                      <app-icon name="pasajeros" [size]="16" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             }
           </tbody>
         </table>
       </div>
+      <app-paginacion
+        [pagina]="paginacion.pagina()"
+        [tamano]="paginacion.tamano()"
+        [total]="actual.servicios.length"
+        (paginaChange)="paginacion.ir($event)"
+        (tamanoChange)="paginacion.cambiarTamano($event)"
+      />
     }
   </app-card>
 }
@@ -224,7 +282,7 @@
     <p class="empty">No hay pasajeros para este servicio.</p>
   } @else {
     <div class="table-wrap">
-      <table>
+      <table class="pasajeros">
         <thead>
           <tr>
             <th>Nombre</th>
@@ -232,27 +290,28 @@
             <th>Punto de recogida</th>
             <th>Planificado</th>
             <th>Confirmación</th>
-            <th>Resultado</th>
-            <th>Tipo de asistencia</th>
-            <th>Hora asistencia</th>
+            <th>Resultado asistencia</th>
+            <th>Fecha</th>
+            <th>Hora</th>
           </tr>
         </thead>
         <tbody>
           @for (pasajero of pasajeros(); track pasajero.idPasajero) {
             <tr>
               <td class="name">{{ pasajero.nombre }}</td>
-              <td class="mono">{{ pasajero.rut }}</td>
-              <td>{{ textoOpcional(pasajero.nombrePuntoRecogida) }}</td>
+              <td class="mono ahora">{{ pasajero.rut }}</td>
+              <td>{{ nombrePunto(pasajero) }}</td>
               <td>{{ pasajero.estabaPlanificado ? 'Sí' : 'No' }}</td>
-              <td>{{ textoOpcional(pasajero.estadoConfirmacion) }}</td>
+              <td>{{ pasajero.estadoConfirmacion?.trim() || '—' }}</td>
               <td>
                 <app-status-badge
-                  [label]="pasajero.resultado"
+                  class="resultado"
+                  [label]="etiquetaResultado(pasajero.resultado)"
                   [tone]="tonoResultado(pasajero.resultado)"
                 />
               </td>
-              <td>{{ textoOpcional(pasajero.tipoAsistencia) }}</td>
-              <td class="mono">{{ formatearFechaHora(pasajero.fechaHoraAsistencia) }}</td>
+              <td class="mono ahora">{{ formatearFechaAsistencia(pasajero.fechaHoraAsistencia) }}</td>
+              <td class="mono ahora">{{ formatearHoraAsistencia(pasajero.fechaHoraAsistencia) }}</td>
             </tr>
           }
         </tbody>

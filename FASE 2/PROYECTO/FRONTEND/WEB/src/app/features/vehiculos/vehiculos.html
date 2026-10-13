@@ -11,7 +11,7 @@
     [value]="estadoFiltro()"
     (valueChange)="actualizarEstadoFiltro($event)"
   />
-  <app-action-button label="Nuevo vehículo" icon="plus" (clicked)="abrirCrear()" />
+  <app-action-button class="principal" label="Nuevo vehículo" icon="plus" (clicked)="abrirCrear()" />
 </app-page-header>
 
 @if (error(); as texto) {
@@ -49,20 +49,22 @@
             <th>Patente</th>
             <th>Tipo</th>
             <th>Marca / Modelo</th>
-            <th>Capacidad</th>
+            <th class="num">Capacidad</th>
             <th>Estado</th>
             <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          @for (vehiculo of visibles(); track vehiculo.idVehiculo) {
+          @for (vehiculo of filas(); track vehiculo.idVehiculo) {
             <tr>
               <td class="mono name">{{ vehiculo.patente }}</td>
               <td>{{ vehiculo.tipo }}</td>
               <td>{{ vehiculo.marca }} {{ vehiculo.modelo }}</td>
-              <td class="mono">{{ vehiculo.capacidad }}</td>
+              <td class="mono num">{{ vehiculo.capacidad }}</td>
               <td>
                 <app-status-badge
+                  [class.estado-activo]="vehiculo.estado === 'ACTIVO'"
+                  [class.estado-inactivo]="vehiculo.estado === 'INACTIVO'"
                   [label]="vehiculo.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'"
                   [tone]="vehiculo.estado === 'ACTIVO' ? 'green' : 'slate'"
                 />
@@ -108,6 +110,13 @@
         </tbody>
       </table>
     </div>
+    <app-paginacion
+      [pagina]="paginacion.pagina()"
+      [tamano]="paginacion.tamano()"
+      [total]="visibles().length"
+      (paginaChange)="paginacion.ir($event)"
+      (tamanoChange)="paginacion.cambiarTamano($event)"
+    />
   }
 </app-card>
 

@@ -1,0 +1,125 @@
+:host {
+  display: block;
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.icono {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+.etiqueta {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+}
+
+.valor {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.tono-ambar {
+  border-top-color: #ef4d48;
+}
+
+.tono-ambar .icono {
+  background: #fdecea;
+  color: #ef4d48;
+}
+
+.tono-violeta {
+  border-top-color: #453e3e;
+}
+
+.tono-violeta .icono {
+  background: #f7f3f5;
+  color: #453e3e;
+}
+
+.tono-rojo {
+  border-top-color: #d90700;
+}
+
+.tono-rojo .icono {
+  background: #f8e6e4;
+  color: #d90700;
+}
+
+.esqueleto {
+  height: 84px;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(
+    90deg,
+    var(--color-slate-100) 25%,
+    var(--color-neutral) 50%,
+    var(--color-slate-100) 75%
+  );
+  background-size: 200% 100%;
+  animation: pulse 1.4s ease infinite;
+}
+
+@keyframes pulse {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .fila {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .fila > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .fila {
+    grid-template-columns: 1fr;
+  }
+
+  .fila > :last-child {
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .esqueleto {
+    animation: none;
+  }
+}

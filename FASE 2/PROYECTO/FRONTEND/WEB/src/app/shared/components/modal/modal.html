@@ -1,8 +1,10 @@
 @if (open()) {
-  <div class="backdrop" (click)="onBackdrop($event)" (keydown.escape)="closed.emit()">
+  <div class="backdrop" (click)="onBackdrop($event)">
     <div
+      #dialogo
       class="dialog"
-      [class.is-wide]="wide()"
+      [class.is-wide]="wide() && ancho() === 'normal'"
+      [class.is-importacion]="ancho() === 'importacion'"
       role="dialog"
       aria-modal="true"
       [attr.aria-labelledby]="'modal-title'"

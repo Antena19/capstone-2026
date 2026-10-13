@@ -4,16 +4,19 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { catchError, EMPTY, forkJoin, map, of, Subject, switchMap, tap } from 'rxjs';
 import { AsignacionServicio } from '../../core/models/asignacion';
 import { Conductor } from '../../core/models/conductor';
+import { EstadoPlanificacion } from '../../core/models/planificacion';
 import { Servicio } from '../../core/models/servicio';
 import { Vehiculo } from '../../core/models/vehiculo';
 import { AsignacionesService } from '../../core/services/asignaciones.service';
 import { ConductoresService } from '../../core/services/conductores.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { PasajerosServicioService } from '../../core/services/pasajeros-servicio.service';
+import { PlanificacionesService } from '../../core/services/planificaciones.service';
 import { ServiciosService } from '../../core/services/servicios.service';
 import { VehiculosService } from '../../core/services/vehiculos.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
 import { ActionButton } from '../../shared/components/action-button/action-button';
+import { planificacionPermiteAdministrar } from './planificacion-administrable';
 
 @Component({
   selector: 'app-servicio-asignacion-form',
@@ -35,11 +38,14 @@ export class ServicioAsignacionForm {
   private readonly conductoresApi = inject(ConductoresService);
   private readonly vehiculosApi = inject(VehiculosService);
   private readonly pasajerosServicioApi = inject(PasajerosServicioService);
+  private readonly planificacionesApi = inject(PlanificacionesService);
   private readonly feedback = inject(FeedbackService);
   private readonly pedido = new Subject<Servicio>();
 
   readonly esqueletos = [1, 2, 3];
   readonly servicio = signal<Servicio | null>(null);
+  private readonly estadoPlanificacion = signal<EstadoPlanificacion | null>(null);
+  private readonly planificacionConsultada = signal(false);
   readonly asignacion = signal<AsignacionServicio | null>(null);
   readonly conductores = signal<Conductor[]>([]);
   readonly vehiculos = signal<Vehiculo[]>([]);
@@ -52,6 +58,21 @@ export class ServicioAsignacionForm {
   readonly form = this.fb.nonNullable.group({
     idConductor: ['', Validators.required],
     idVehiculo: ['', Validators.required],
+  });
+
+  readonly puedeAdministrar = computed(() => planificacionPermiteAdministrar(this.estadoPlanificacion()));
+
+  readonly notaPlanificacion = computed(() => {
+    if (this.cargando() || !this.planificacionConsultada() || this.puedeAdministrar()) {
+      return null;
+    }
+
+    const estado = this.estadoPlanificacion();
+    if (estado === 'CERRADA' || estado === 'CANCELADA') {
+      return `La planificación está ${estado}. Solo puedes consultar la asignación.`;
+    }
+
+    return 'No se pudo confirmar el estado de la planificación. El cambio de asignación queda deshabilitado.';
   });
 
   readonly esReemplazo = computed(() => !!this.asignacion());
@@ -111,6 +132,8 @@ export class ServicioAsignacionForm {
         takeUntilDestroyed(this.destroyRef),
         tap(() => {
           this.cargando.set(true);
+          this.estadoPlanificacion.set(null);
+          this.planificacionConsultada.set(false);
           this.errorCarga.set(null);
           this.error.set(null);
           this.form.reset({ idConductor: '', idVehiculo: '' });
@@ -135,9 +158,13 @@ export class ServicioAsignacionForm {
                   idServicio: servicio.idServicio,
                   estado: 'ACTIVO',
                 }),
+                planificacion: this.planificacionesApi
+                  .obtenerPorId(servicio.idPlanificacion)
+                  .pipe(catchError(() => of(null))),
               }).pipe(
-                switchMap(({ servicio: actual, asignaciones, conductores, vehiculos, asociaciones }) => {
+                switchMap(({ servicio: actual, asignaciones, conductores, vehiculos, asociaciones, planificacion }) => {
                   const activa = elegirActiva(asignaciones);
+                  const estadoPlanificacion = planificacion?.estado ?? null;
                   if (!activa) {
                     return of({
                       servicio: actual,
@@ -145,6 +172,7 @@ export class ServicioAsignacionForm {
                       conductores,
                       vehiculos,
                       pasajerosActivos: asociaciones.length,
+                      estadoPlanificacion,
                     });
                   }
 
@@ -162,6 +190,7 @@ export class ServicioAsignacionForm {
                       conductores: fusionarConductor(conductores, conductorActual),
                       vehiculos: fusionarVehiculo(vehiculos, vehiculoActual),
                       pasajerosActivos: asociaciones.length,
+                      estadoPlanificacion,
                     })),
                   );
                 }),
@@ -175,8 +204,10 @@ export class ServicioAsignacionForm {
           ),
         ),
       )
-      .subscribe(({ servicio, asignacion, conductores, vehiculos, pasajerosActivos }) => {
+      .subscribe(({ servicio, asignacion, conductores, vehiculos, pasajerosActivos, estadoPlanificacion }) => {
         this.servicio.set(servicio);
+        this.estadoPlanificacion.set(estadoPlanificacion);
+        this.planificacionConsultada.set(true);
         this.asignacion.set(asignacion);
         this.conductores.set(conductores);
         this.vehiculos.set(vehiculos);
@@ -226,7 +257,7 @@ export class ServicioAsignacionForm {
   }
 
   enviar(): void {
-    if (this.guardando() || this.cargando()) {
+    if (this.guardando() || this.cargando() || !this.puedeAdministrar()) {
       return;
     }
 
@@ -277,6 +308,8 @@ export class ServicioAsignacionForm {
 
   private limpiar(): void {
     this.servicio.set(null);
+    this.estadoPlanificacion.set(null);
+    this.planificacionConsultada.set(false);
     this.asignacion.set(null);
     this.conductores.set([]);
     this.vehiculos.set([]);

@@ -1,6 +1,6 @@
 import { EstadoConfirmacionViaje, EstadoServicio } from './servicio';
 
-export type PeriodoReporte = 'MES' | 'SEMANA' | 'DIA';
+export type PeriodoReporte = 'MES' | 'SEMANA' | 'DIA' | 'PERSONALIZADO';
 
 export type ResultadoAsistenciaReporte = 'PRESENTE' | 'AUSENTE' | 'ANULADA' | 'PROVISIONAL';
 
@@ -80,7 +80,7 @@ export interface ReporteRango {
 
 export type ConsultaReporte =
   | { tipo: 'MES'; idEmpresa: number; periodo: string }
-  | { tipo: 'DIA' | 'SEMANA'; idEmpresa: number; desde: string; hasta: string };
+  | { tipo: 'DIA' | 'SEMANA' | 'PERSONALIZADO'; idEmpresa: number; desde: string; hasta: string };
 
 export interface ReporteOperacional {
   consulta: ConsultaReporte;

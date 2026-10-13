@@ -6,6 +6,7 @@ import { PasajerosService } from '../../core/services/pasajeros.service';
 import { Empresa, EstadoRegistro } from '../../core/models/empresa';
 import { EstadoAccesoPasajero, Pasajero, PasajeroConCuentaSolicitud, PasajeroSolicitud } from '../../core/models/pasajero';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { PaginacionLista } from '../../core/utils/paginacion';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
 import { ConfirmDialog } from '../../shared/components/confirm-dialog/confirm-dialog';
@@ -13,6 +14,7 @@ import { FilterOption, FilterSelect } from '../../shared/components/filter-selec
 import { Icon } from '../../shared/components/icon/icon';
 import { Modal } from '../../shared/components/modal/modal';
 import { PageHeader } from '../../shared/components/page-header/page-header';
+import { Paginacion } from '../../shared/components/paginacion/paginacion';
 import { SearchInput } from '../../shared/components/search-input/search-input';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 import { PasajeroForm } from './pasajero-form';
@@ -35,6 +37,7 @@ type ModoFormulario = 'crear' | 'editar';
     ConfirmDialog,
     PasajeroForm,
     PasajeroImport,
+    Paginacion,
   ],
   templateUrl: './pasajeros.html',
   styleUrl: './pasajeros.scss',
@@ -95,6 +98,12 @@ export class PasajerosPage {
         .includes(texto);
     });
   });
+
+  readonly paginacion = new PaginacionLista(
+    () => this.visibles(),
+    () => `${this.busqueda()}|${this.estadoFiltro()}|${this.empresaFiltro()}`,
+  );
+  readonly filas = computed(() => this.paginacion.recortar());
 
   readonly subtitulo = computed(
     () => 'Gestión de pasajeros asociados a las empresas clientes',
@@ -171,6 +180,12 @@ export class PasajerosPage {
 
   abrirImportar(): void {
     this.importacionAbierta.set(true);
+  }
+
+  alImportar(mensaje: string): void {
+    this.feedback.mostrar(mensaje);
+    this.importacionAbierta.set(false);
+    this.cargar();
   }
 
   cerrarImportacion(): void {
@@ -339,16 +354,25 @@ export class PasajerosPage {
   }
 
   private mensajeAlta(telefono: string, estadoAcceso: EstadoAccesoPasajero): string {
-    const invitacion = `Pasajero creado correctamente. Se generó una invitación de activación para ${telefono}.`;
+    const creado = 'Pasajero creado correctamente.';
+
     if (estadoAcceso === 'ERROR') {
-      return `${invitacion} El envío quedó con error; puede reenviar la activación.`;
+      return `${creado} El envío del código de activación a ${telefono} falló.`;
     }
 
-    if (!environment.production) {
-      return `${invitacion} SMS simulado en entorno de desarrollo.`;
+    if (estadoAcceso === 'PENDIENTE' || estadoAcceso === 'SIN_CUENTA') {
+      return `${creado} El código de activación quedó pendiente de envío.`;
     }
 
-    return invitacion;
+    if (estadoAcceso === 'ENVIADA' && !environment.production) {
+      return `${creado} El código de activación para ${telefono} fue simulado y no se envió por SMS.`;
+    }
+
+    if (estadoAcceso === 'ENVIADA') {
+      return `${creado} Se envió el código de activación al teléfono ${telefono}.`;
+    }
+
+    return creado;
   }
 
   pedirDesactivar(pasajero: Pasajero): void {

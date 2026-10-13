@@ -3,23 +3,12 @@
 }
 
 .page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
-h1 {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-p {
-  margin-top: 2px;
-  font-size: 14px;
-  color: var(--color-text-secondary);
+.page-header:has(.actions:empty) {
+  display: none;
+  margin: 0;
 }
 
 .actions {
@@ -27,4 +16,32 @@ p {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
+}
+
+:host ::ng-deep .actions app-search-input,
+:host ::ng-deep .actions app-search-input .search,
+:host ::ng-deep .actions app-search-input input,
+:host ::ng-deep .actions app-filter-select,
+:host ::ng-deep .actions app-filter-select select,
+:host ::ng-deep .actions .filtro-fecha,
+:host ::ng-deep .actions .filtro-fecha input {
+  max-width: 100%;
+}
+
+@media (max-width: 720px) {
+  .actions > app-search-input,
+  .actions > app-filter-select,
+  .actions > .filtro-fecha {
+    flex: 1 1 12rem;
+    min-width: 0;
+  }
+
+  :host ::ng-deep .actions app-search-input input,
+  :host ::ng-deep .actions app-filter-select select,
+  :host ::ng-deep .actions .filtro-fecha input {
+    width: 100%;
+    min-width: 0;
+  }
 }

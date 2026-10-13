@@ -1,25 +1,32 @@
 <app-page-header title="Pasajeros" [subtitle]="subtitulo()">
-  <app-search-input
-    placeholder="Buscar pasajero..."
-    [value]="busqueda()"
-    (valueChange)="busqueda.set($event)"
-  />
-  <app-filter-select
-    label="Empresa"
-    blankLabel="Todas las empresas"
-    [items]="opcionesEmpresa()"
-    [value]="empresaFiltro()"
-    (valueChange)="actualizarEmpresaFiltro($event)"
-  />
-  <app-filter-select
-    label="Estado"
-    blankLabel="Todos los estados"
-    [items]="opcionesEstado"
-    [value]="estadoFiltro()"
-    (valueChange)="actualizarEstadoFiltro($event)"
-  />
-  <app-action-button label="Importar Excel" variant="secondary" (clicked)="abrirImportar()" />
-  <app-action-button label="Nuevo pasajero" icon="plus" (clicked)="abrirCrear()" />
+  <div class="controles">
+    <app-search-input
+      class="busqueda"
+      placeholder="Buscar pasajero..."
+      [value]="busqueda()"
+      (valueChange)="busqueda.set($event)"
+    />
+    <app-filter-select
+      class="filtro"
+      label="Empresa"
+      blankLabel="Todas las empresas"
+      [items]="opcionesEmpresa()"
+      [value]="empresaFiltro()"
+      (valueChange)="actualizarEmpresaFiltro($event)"
+    />
+    <app-filter-select
+      class="filtro"
+      label="Estado"
+      blankLabel="Todos los estados"
+      [items]="opcionesEstado"
+      [value]="estadoFiltro()"
+      (valueChange)="actualizarEstadoFiltro($event)"
+    />
+    <div class="grupo-acciones">
+      <app-action-button label="Importar Excel" variant="secondary" (clicked)="abrirImportar()" />
+      <app-action-button label="Nuevo pasajero" icon="plus" (clicked)="abrirCrear()" />
+    </div>
+  </div>
 </app-page-header>
 
 @if (error(); as texto) {
@@ -54,7 +61,7 @@
       <table>
         <thead>
           <tr>
-            <th>Pasajero</th>
+            <th>Nombre</th>
             <th>RUT</th>
             <th>Empresa</th>
             <th>Teléfono</th>
@@ -64,7 +71,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (pasajero of visibles(); track pasajero.idPasajero) {
+          @for (pasajero of filas(); track pasajero.idPasajero) {
             <tr>
               <td class="name">{{ pasajero.nombre }}</td>
               <td class="mono">{{ pasajero.rut }}</td>
@@ -72,12 +79,15 @@
               <td class="mono">{{ pasajero.telefono }}</td>
               <td>
                 <app-status-badge
+                  [class.estado-activo]="pasajero.estado === 'ACTIVO'"
+                  [class.estado-inactivo]="pasajero.estado === 'INACTIVO'"
                   [label]="pasajero.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'"
                   [tone]="pasajero.estado === 'ACTIVO' ? 'green' : 'slate'"
                 />
               </td>
               <td>
                 <app-status-badge
+                  [class.estado-activo]="pasajero.estadoAcceso === 'ACTIVADA'"
                   [label]="etiquetaAcceso(pasajero.estadoAcceso)"
                   [tone]="tonoAcceso(pasajero.estadoAcceso)"
                 />
@@ -93,26 +103,6 @@
                   >
                     <app-icon name="edit" [size]="15" />
                   </button>
-                  @if (puedeReenviar(pasajero)) {
-                    <button
-                      type="button"
-                      class="text-btn"
-                      [disabled]="estaProcesandoAcceso(pasajero.idPasajero)"
-                      (click)="reenviarActivacion(pasajero)"
-                    >
-                      Reenviar
-                    </button>
-                  }
-                  @if (puedeHabilitar(pasajero)) {
-                    <button
-                      type="button"
-                      class="text-btn"
-                      [disabled]="estaProcesandoAcceso(pasajero.idPasajero)"
-                      (click)="habilitarAcceso(pasajero)"
-                    >
-                      Habilitar acceso
-                    </button>
-                  }
                   @if (pasajero.estado === 'ACTIVO') {
                     <button
                       type="button"
@@ -136,6 +126,26 @@
                       <app-icon name="check" [size]="15" />
                     </button>
                   }
+                  @if (puedeReenviar(pasajero)) {
+                    <button
+                      type="button"
+                      class="text-btn"
+                      [disabled]="estaProcesandoAcceso(pasajero.idPasajero)"
+                      (click)="reenviarActivacion(pasajero)"
+                    >
+                      Reenviar código
+                    </button>
+                  }
+                  @if (puedeHabilitar(pasajero)) {
+                    <button
+                      type="button"
+                      class="text-btn"
+                      [disabled]="estaProcesandoAcceso(pasajero.idPasajero)"
+                      (click)="habilitarAcceso(pasajero)"
+                    >
+                      Habilitar acceso
+                    </button>
+                  }
                 </div>
               </td>
             </tr>
@@ -143,6 +153,13 @@
         </tbody>
       </table>
     </div>
+    <app-paginacion
+      [pagina]="paginacion.pagina()"
+      [tamano]="paginacion.tamano()"
+      [total]="visibles().length"
+      (paginaChange)="paginacion.ir($event)"
+      (tamanoChange)="paginacion.cambiarTamano($event)"
+    />
   }
 </app-card>
 
@@ -167,13 +184,13 @@
 <app-modal
   [open]="importacionAbierta()"
   titulo="Importar pasajeros"
-  [wide]="true"
+  ancho="importacion"
   (closed)="cerrarImportacion()"
 >
   <app-pasajero-import
     [empresas]="empresas()"
     [abierto]="importacionAbierta()"
-    (importado)="cargar()"
+    (importado)="alImportar($event)"
     (cancelado)="cerrarImportacion()"
   />
 </app-modal>

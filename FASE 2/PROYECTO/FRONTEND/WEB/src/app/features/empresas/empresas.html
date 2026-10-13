@@ -11,7 +11,7 @@
     [value]="estadoFiltro()"
     (valueChange)="actualizarEstadoFiltro($event)"
   />
-  <app-action-button label="Nueva empresa" icon="plus" (clicked)="abrirCrear()" />
+  <app-action-button class="principal" label="Nueva empresa" icon="plus" (clicked)="abrirCrear()" />
 </app-page-header>
 
 @if (error(); as texto) {
@@ -56,7 +56,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (empresa of visibles(); track empresa.idEmpresa) {
+          @for (empresa of filas(); track empresa.idEmpresa) {
             <tr>
               <td class="name">{{ empresa.razonSocial }}</td>
               <td class="mono">{{ empresa.rut }}</td>
@@ -65,6 +65,8 @@
               <td class="mono">{{ empresa.telefono }}</td>
               <td>
                 <app-status-badge
+                  [class.estado-activo]="empresa.estado === 'ACTIVO'"
+                  [class.estado-inactivo]="empresa.estado !== 'ACTIVO'"
                   [label]="empresa.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'"
                   [tone]="empresa.estado === 'ACTIVO' ? 'green' : 'slate'"
                 />
@@ -110,6 +112,13 @@
         </tbody>
       </table>
     </div>
+    <app-paginacion
+      [pagina]="paginacion.pagina()"
+      [tamano]="paginacion.tamano()"
+      [total]="visibles().length"
+      (paginaChange)="paginacion.ir($event)"
+      (tamanoChange)="paginacion.cambiarTamano($event)"
+    />
   }
 </app-card>
 

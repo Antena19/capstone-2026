@@ -1,13 +1,14 @@
 <select
+  #selector
   [value]="value()"
   [attr.aria-label]="label()"
   [disabled]="disabled()"
   (change)="onChange($event)"
 >
   @if (includeBlank()) {
-    <option value="">{{ blankLabel() || label() }}</option>
+    <option value="" [selected]="value() === ''">{{ blankLabel() || label() }}</option>
   }
   @for (opcion of opciones(); track opcion.value) {
-    <option [value]="opcion.value">{{ opcion.label }}</option>
+    <option [value]="opcion.value" [selected]="opcion.value === value()">{{ opcion.label }}</option>
   }
 </select>

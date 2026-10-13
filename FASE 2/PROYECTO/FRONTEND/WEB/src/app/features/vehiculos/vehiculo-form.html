@@ -20,11 +20,27 @@
 
     <label class="field">
       <span>Tipo <abbr title="Obligatorio">*</abbr></span>
-      <input type="text" formControlName="tipo" maxlength="50" />
-      @if (mensajeCampo('tipo'); as mensaje) {
+      <select formControlName="tipoCatalogo">
+        <option value="">Seleccione un tipo de vehículo</option>
+        @for (tipo of tiposCatalogo; track tipo) {
+          <option [value]="tipo">{{ tipo }}</option>
+        }
+        <option value="otro">Otro</option>
+      </select>
+      @if (mensajeCampo('tipoCatalogo'); as mensaje) {
         <p class="hint">{{ mensaje }}</p>
       }
     </label>
+
+    @if (esOtro()) {
+      <label class="field campo-completo">
+        <span>Especificar tipo <abbr title="Obligatorio">*</abbr></span>
+        <input type="text" formControlName="tipoPersonalizado" maxlength="50" />
+        @if (mensajeCampo('tipoPersonalizado'); as mensaje) {
+          <p class="hint">{{ mensaje }}</p>
+        }
+      </label>
+    }
   </div>
 
   <div class="grid">
@@ -45,13 +61,15 @@
     </label>
   </div>
 
-  <label class="field">
-    <span>Capacidad <abbr title="Obligatorio">*</abbr></span>
-    <input type="number" formControlName="capacidad" min="1" step="1" />
-    @if (mensajeCampo('capacidad'); as mensaje) {
-      <p class="hint">{{ mensaje }}</p>
-    }
-  </label>
+  <div class="grid">
+    <label class="field">
+      <span>Capacidad <abbr title="Obligatorio">*</abbr></span>
+      <input type="number" formControlName="capacidad" min="1" step="1" />
+      @if (mensajeCampo('capacidad'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
+      }
+    </label>
+  </div>
 
   <div class="actions">
     <app-action-button

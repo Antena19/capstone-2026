@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
+import { afterRenderEffect, ChangeDetectionStrategy, Component, computed, ElementRef, input, model, viewChild } from '@angular/core';
 
 export interface FilterOption {
   value: string;
@@ -19,6 +19,17 @@ export class FilterSelect {
   readonly blankLabel = input<string>();
   readonly disabled = input(false);
   readonly value = model('');
+  private readonly selector = viewChild<ElementRef<HTMLSelectElement>>('selector');
+
+  private readonly sincronizarValor = afterRenderEffect(() => {
+    const valor = this.value();
+    const elemento = this.selector()?.nativeElement;
+    if (!elemento || elemento.value === valor) {
+      return;
+    }
+
+    elemento.value = valor;
+  });
 
   readonly opciones = computed<FilterOption[]>(() => {
     const items = this.items();

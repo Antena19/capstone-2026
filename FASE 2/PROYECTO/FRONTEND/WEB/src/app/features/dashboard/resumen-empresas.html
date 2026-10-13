@@ -1,0 +1,80 @@
+<app-card>
+  <div class="card-head">
+    <h2>Resumen por empresa</h2>
+    <p class="nota">Los porcentajes se calculan sobre todos los servicios y pasajeros planificados del período seleccionado, incluidos los pendientes de ejecución.</p>
+  </div>
+  @if (empresas().length === 0) {
+    <p class="vacio">No hay empresas para mostrar.</p>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="empresa" scope="col" aria-label="Empresa cliente">
+              <span aria-hidden="true">Empresa</span>
+              <span aria-hidden="true">cliente</span>
+            </th>
+            <th scope="col" aria-label="Servicios planificados">
+              <span aria-hidden="true">Servicios</span>
+              <span aria-hidden="true">planificados</span>
+            </th>
+            <th scope="col" aria-label="Servicios finalizados">
+              <span aria-hidden="true">Servicios</span>
+              <span aria-hidden="true">finalizados</span>
+            </th>
+            <th scope="col" aria-label="% de servicios finalizados">
+              <span aria-hidden="true">% de servicios</span>
+              <span aria-hidden="true">finalizados</span>
+            </th>
+            <th scope="col" aria-label="Pasajeros planificados">
+              <span aria-hidden="true">Pasajeros</span>
+              <span aria-hidden="true">planificados</span>
+            </th>
+            <th class="amplia" scope="col" aria-label="Pasajeros planificados transportados">
+              <span aria-hidden="true">Pasajeros</span>
+              <span aria-hidden="true">planificados</span>
+              <span aria-hidden="true">transportados</span>
+            </th>
+            <th class="amplia" scope="col" aria-label="Pasajeros no planificados transportados">
+              <span aria-hidden="true">Pasajeros no</span>
+              <span aria-hidden="true">planificados</span>
+              <span aria-hidden="true">transportados</span>
+            </th>
+            <th class="amplia" scope="col" aria-label="Total de pasajeros transportados">
+              <span aria-hidden="true">Total de</span>
+              <span aria-hidden="true">pasajeros</span>
+              <span aria-hidden="true">transportados</span>
+            </th>
+            <th class="amplia" scope="col" aria-label="% de pasajeros planificados transportados">
+              <span aria-hidden="true">% de pasajeros</span>
+              <span aria-hidden="true">planificados</span>
+              <span aria-hidden="true">transportados</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (empresa of filas(); track empresa.idEmpresa) {
+            <tr [class.foco]="seleccionada(empresa.idEmpresa)">
+              <td class="nombre">{{ empresa.razonSocial }}</td>
+              <td>{{ formatoEntero(empresa.serviciosPlanificados) }}</td>
+              <td>{{ formatoEntero(empresa.serviciosRealizados) }}</td>
+              <td>{{ formatoPorcentaje(empresa.porcentajeServiciosRealizados) }}</td>
+              <td>{{ formatoEntero(empresa.personasPlanificadas) }}</td>
+              <td>{{ formatoEntero(empresa.planificadosTransportados) }}</td>
+              <td>{{ formatoEntero(empresa.noPlanificadosTransportados) }}</td>
+              <td>{{ formatoEntero(empresa.totalTransportados) }}</td>
+              <td>{{ formatoPorcentaje(empresa.porcentajePlanificadosTransportados) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-paginacion
+      [pagina]="paginacion.pagina()"
+      [tamano]="paginacion.tamano()"
+      [total]="empresas().length"
+      (paginaChange)="paginacion.ir($event)"
+      (tamanoChange)="paginacion.cambiarTamano($event)"
+    />
+  }
+</app-card>

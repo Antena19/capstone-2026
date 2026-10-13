@@ -1,0 +1,65 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 16px;
+  background: #f7f3f5;
+}
+
+.pantalla {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  justify-content: center;
+}
+
+.pista {
+  position: relative;
+  width: min(100%, 16rem);
+  height: 72px;
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+img {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 60px;
+  height: 60px;
+  max-width: 60px;
+  max-height: 60px;
+  object-fit: contain;
+  animation: avance 2.6s linear infinite;
+}
+
+p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+@keyframes avance {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100cqi);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  img {
+    animation: none;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}

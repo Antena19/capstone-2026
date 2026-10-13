@@ -20,6 +20,8 @@ export class KpiCard {
   readonly tone = input<'blue' | 'green' | 'sky' | 'amber' | 'red' | 'teal'>('blue');
   readonly progress = input<number | null>(null);
   readonly progressColor = input<string>(PALETA_OPERACIONAL.realizado);
+  readonly track = input('#e2e8f0');
+  readonly ringSize = input(56);
 
   readonly mostrarAnillo = computed(() => this.progress() !== null);
 }

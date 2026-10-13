@@ -1,32 +1,47 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
-import { catchError, forkJoin, of, switchMap } from 'rxjs';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
+import { catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
+import { AsignacionServicio } from '../../core/models/asignacion';
+import { Conductor } from '../../core/models/conductor';
 import { Empresa } from '../../core/models/empresa';
-import { Planificacion } from '../../core/models/planificacion';
+import { EstadoPlanificacion, Planificacion } from '../../core/models/planificacion';
 import { Ruta } from '../../core/models/ruta';
 import {
   AltaServicio,
   CancelacionServicio,
   EdicionServicio,
   EstadoServicio,
+  PasajeroServicio,
   Servicio,
   TipoServicio,
 } from '../../core/models/servicio';
+import { Vehiculo } from '../../core/models/vehiculo';
+import { AsignacionesService } from '../../core/services/asignaciones.service';
+import { ConductoresService } from '../../core/services/conductores.service';
 import { EmpresasService } from '../../core/services/empresas.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { PasajerosServicioService } from '../../core/services/pasajeros-servicio.service';
 import { PlanificacionesService } from '../../core/services/planificaciones.service';
 import { RutasService } from '../../core/services/rutas.service';
 import { ServiciosService } from '../../core/services/servicios.service';
+import { VehiculosService } from '../../core/services/vehiculos.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { PaginacionLista } from '../../core/utils/paginacion';
+import { clasificarErrorAsignacion, idsPendientes, mensajeCuerpo } from './asignacion-creacion';
+import { planificacionPermiteAdministrar } from './planificacion-administrable';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
 import { FilterOption, FilterSelect } from '../../shared/components/filter-select/filter-select';
+import { Icon } from '../../shared/components/icon/icon';
 import { Modal } from '../../shared/components/modal/modal';
 import { PageHeader } from '../../shared/components/page-header/page-header';
-import { BadgeTone, StatusBadge } from '../../shared/components/status-badge/status-badge';
+import { Paginacion } from '../../shared/components/paginacion/paginacion';
+import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 import { ServicioAsignacionForm } from './servicio-asignacion-form';
 import { ServicioCancelarDialog } from './servicio-cancelar-dialog';
+import { ServicioAsistencia } from './servicio-asistencia';
 import { ServicioDetalle } from './servicio-detalle';
 import { ServicioEditarForm } from './servicio-editar-form';
 import { ServicioForm } from './servicio-form';
@@ -40,6 +55,7 @@ import { ServicioPasajerosForm } from './servicio-pasajeros-form';
     FilterSelect,
     AppCard,
     StatusBadge,
+    Icon,
     Modal,
     ServicioForm,
     ServicioDetalle,
@@ -47,6 +63,8 @@ import { ServicioPasajerosForm } from './servicio-pasajeros-form';
     ServicioCancelarDialog,
     ServicioPasajerosForm,
     ServicioAsignacionForm,
+    ServicioAsistencia,
+    Paginacion,
   ],
   templateUrl: './servicios.html',
   styleUrl: './servicios.scss',
@@ -58,7 +76,13 @@ export class ServiciosPage {
   private readonly empresasApi = inject(EmpresasService);
   private readonly planificacionesApi = inject(PlanificacionesService);
   private readonly rutasApi = inject(RutasService);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly asignacionesApi = inject(AsignacionesService);
+  private readonly conductoresApi = inject(ConductoresService);
+  private readonly vehiculosApi = inject(VehiculosService);
   private readonly feedback = inject(FeedbackService);
+  private readonly router = inject(Router);
+  private cargaId = 0;
 
   readonly opcionesEstado: FilterOption[] = [
     { value: 'PROGRAMADO', label: 'PROGRAMADO' },
@@ -78,21 +102,37 @@ export class ServiciosPage {
 
   readonly servicios = signal<Servicio[]>([]);
   readonly empresas = signal<Empresa[]>([]);
-  readonly planificaciones = signal<Planificacion[]>([]);
   readonly rutas = signal<Ruta[]>([]);
-  readonly cargando = signal(true);
+  private readonly estadosPlanificacion = signal<ReadonlyMap<number, EstadoPlanificacion>>(new Map());
+  private readonly planificacionesConsultadas = signal(false);
+  readonly conductores = signal<Conductor[]>([]);
+  readonly vehiculos = signal<Vehiculo[]>([]);
+  readonly asignaciones = signal<AsignacionServicio[]>([]);
+  readonly asociaciones = signal<PasajeroServicio[]>([]);
+  readonly cargando = signal(false);
   readonly error = signal<string | null>(null);
   readonly aviso = signal<string | null>(null);
 
   readonly empresaFiltro = signal('');
-  readonly planificacionFiltro = signal('');
   readonly fechaFiltro = signal('');
   readonly estadoFiltro = signal('');
   readonly tipoFiltro = signal('');
+  readonly paginacion = new PaginacionLista(
+    () => this.servicios(),
+    () => `${this.empresaFiltro()}|${this.fechaFiltro()}|${this.estadoFiltro()}|${this.tipoFiltro()}`,
+  );
+  readonly filas = computed(() => this.paginacion.recortar());
 
   readonly formularioAbierto = signal(false);
   readonly guardando = signal(false);
   readonly errorFormulario = signal<string | null>(null);
+  readonly idsCreados = signal<number[]>([]);
+  readonly idsAsignados = signal<number[]>([]);
+  readonly serviciosYaCreados = signal(false);
+  private readonly avisoPasajerosCreacion = signal<string | null>(null);
+  readonly faseCreacion = signal<'crear' | 'asignar' | ''>('');
+  readonly avisoAbandono = signal(false);
+  readonly progresoCreacion = signal('');
   readonly detalleAbierto = signal(false);
   readonly servicioDetalle = signal<Servicio | null>(null);
   readonly edicionAbierta = signal(false);
@@ -107,6 +147,8 @@ export class ServiciosPage {
   readonly servicioGestion = signal<Servicio | null>(null);
   readonly asignacionAbierta = signal(false);
   readonly servicioAsignacion = signal<Servicio | null>(null);
+  readonly asistenciaAbierta = signal(false);
+  readonly servicioAsistencia = signal<Servicio | null>(null);
 
   private readonly gestionCmp = viewChild(ServicioPasajerosForm);
   private readonly asignacionCmp = viewChild(ServicioAsignacionForm);
@@ -115,13 +157,6 @@ export class ServiciosPage {
     this.empresas().map((empresa) => ({
       value: String(empresa.idEmpresa),
       label: empresa.razonSocial,
-    })),
-  );
-
-  readonly opcionesPlanificacion = computed<FilterOption[]>(() =>
-    this.planificaciones().map((planificacion) => ({
-      value: String(planificacion.idPlanificacion),
-      label: `${planificacion.periodo} · ${planificacion.estado}`,
     })),
   );
 
@@ -142,12 +177,11 @@ export class ServiciosPage {
   });
 
   readonly hayFiltros = computed(
-    () =>
-      !!this.empresaFiltro()
-      || !!this.planificacionFiltro()
-      || !!this.fechaFiltro()
-      || !!this.estadoFiltro()
-      || !!this.tipoFiltro(),
+    () => !!this.fechaFiltro() || !!this.estadoFiltro() || !!this.tipoFiltro(),
+  );
+
+  readonly nombreEmpresaSeleccionada = computed(
+    () => this.nombresEmpresa().get(Number(this.empresaFiltro())) ?? '',
   );
 
   readonly tituloDetalle = computed(() => {
@@ -214,34 +248,64 @@ export class ServiciosPage {
     return servicio ? `Asignación del servicio #${servicio.idServicio}` : 'Asignación operacional';
   });
 
+  readonly tituloAsistencia = computed(() => {
+    const servicio = this.servicioAsistencia();
+    return servicio ? `Asistencia del servicio #${servicio.idServicio}` : 'Asistencia del servicio';
+  });
+
   constructor() {
     this.cargarCatalogos();
-    this.cargar();
   }
 
   cargar(): void {
+    const idEmpresa = Number(this.empresaFiltro());
+    if (!Number.isInteger(idEmpresa) || idEmpresa <= 0) {
+      this.cargaId += 1;
+      this.servicios.set([]);
+      this.asignaciones.set([]);
+      this.asociaciones.set([]);
+      this.estadosPlanificacion.set(new Map());
+      this.planificacionesConsultadas.set(false);
+      this.cargando.set(false);
+      this.error.set(null);
+      return;
+    }
+
+    const solicitud = ++this.cargaId;
     this.cargando.set(true);
     this.error.set(null);
-    const idEmpresa = Number(this.empresaFiltro());
-    const idPlanificacion = Number(this.planificacionFiltro());
     const estado = this.estadoFiltro() as EstadoServicio | '';
     const tipoServicio = this.tipoFiltro() as TipoServicio | '';
 
-    this.api
-      .listar({
-        idEmpresa: Number.isInteger(idEmpresa) && idEmpresa > 0 ? idEmpresa : undefined,
-        idPlanificacion:
-          Number.isInteger(idPlanificacion) && idPlanificacion > 0 ? idPlanificacion : undefined,
+    forkJoin({
+      lista: this.api.listar({
+        idEmpresa,
         fecha: this.fechaFiltro() || undefined,
         estado: estado || undefined,
         tipoServicio: tipoServicio || undefined,
-      })
+      }),
+      asignaciones: this.asignacionesApi.listar({ estado: 'ACTIVA' }).pipe(catchError(() => of([]))),
+      asociaciones: this.pasajerosServicioApi.listar({ estado: 'ACTIVO' }).pipe(catchError(() => of([]))),
+      planificaciones: this.planificacionesApi.listar({ idEmpresa }).pipe(catchError(() => of(null))),
+    })
       .subscribe({
-        next: (lista) => {
-          this.servicios.set(lista);
+        next: ({ lista, asignaciones, asociaciones, planificaciones }) => {
+          if (solicitud !== this.cargaId || Number(this.empresaFiltro()) !== idEmpresa) {
+            return;
+          }
+
+          const ids = new Set(lista.map((servicio) => servicio.idServicio));
+          this.asignaciones.set(asignaciones.filter((item) => ids.has(item.idServicio)));
+          this.asociaciones.set(asociaciones.filter((item) => ids.has(item.idServicio)));
+          this.aplicarPlanificaciones(planificaciones);
+          this.servicios.set([...lista].sort(compararServicios));
           this.cargando.set(false);
         },
         error: (err: unknown) => {
+          if (solicitud !== this.cargaId || Number(this.empresaFiltro()) !== idEmpresa) {
+            return;
+          }
+
           this.cargando.set(false);
           this.error.set(mensajeErrorHttp(err, 'No fue posible cargar los servicios.'));
         },
@@ -250,13 +314,12 @@ export class ServiciosPage {
 
   actualizarEmpresaFiltro(valor: string): void {
     this.empresaFiltro.set(valor);
-    this.planificacionFiltro.set('');
-    this.cargarPlanificaciones();
-    this.cargar();
-  }
-
-  actualizarPlanificacionFiltro(valor: string): void {
-    this.planificacionFiltro.set(valor);
+    this.servicios.set([]);
+    this.asignaciones.set([]);
+    this.asociaciones.set([]);
+    this.estadosPlanificacion.set(new Map());
+    this.planificacionesConsultadas.set(false);
+    this.error.set(null);
     this.cargar();
   }
 
@@ -276,16 +339,18 @@ export class ServiciosPage {
   }
 
   limpiarFiltros(): void {
-    this.empresaFiltro.set('');
-    this.planificacionFiltro.set('');
     this.fechaFiltro.set('');
     this.estadoFiltro.set('');
     this.tipoFiltro.set('');
-    this.planificaciones.set([]);
     this.cargar();
   }
 
   abrirCrear(): void {
+    if (!this.empresaFiltro() || this.formularioAbierto()) {
+      return;
+    }
+
+    this.limpiarCreacion();
     this.errorFormulario.set(null);
     this.aviso.set(null);
     this.formularioAbierto.set(true);
@@ -296,6 +361,29 @@ export class ServiciosPage {
       return;
     }
 
+    const pendientes = idsPendientes(this.idsCreados(), this.idsAsignados());
+    const sinIdentificadores = this.serviciosYaCreados() && this.idsCreados().length === 0;
+    if (pendientes.length > 0 || sinIdentificadores) {
+      if (!this.avisoAbandono()) {
+        this.avisoAbandono.set(true);
+        this.errorFormulario.set(
+          'Los servicios ya fueron creados, pero quedaron asignaciones pendientes. Si cierras, no se completarán al recargar la página. Podrás asignar conductor y vehículo desde cada servicio PROGRAMADO en la grilla.',
+        );
+        return;
+      }
+
+      this.feedback.mostrar(
+        'Quedaron servicios sin conductor o vehículo. Complétalos desde la grilla; al recargar no se reanuda este intento.',
+        8000,
+      );
+      this.limpiarCreacion();
+      this.formularioAbierto.set(false);
+      this.errorFormulario.set(null);
+      this.cargar();
+      return;
+    }
+
+    this.limpiarCreacion();
     this.formularioAbierto.set(false);
     this.errorFormulario.set(null);
   }
@@ -306,71 +394,187 @@ export class ServiciosPage {
     }
 
     this.guardando.set(true);
+    this.avisoAbandono.set(false);
     this.errorFormulario.set(null);
     this.aviso.set(null);
+
+    if (this.serviciosYaCreados()) {
+      this.asignarPendientes(alta.idConductor, alta.idVehiculo);
+      return;
+    }
+
+    this.faseCreacion.set('crear');
+    this.progresoCreacion.set(
+      alta.modalidad === 'recurrente' ? 'Creando los servicios de la serie...' : 'Creando el servicio...',
+    );
 
     if (alta.modalidad === 'individual') {
       this.api
         .crear(alta.solicitud)
         .pipe(
+          tap((servicio) => this.registrarCreados([servicio.idServicio])),
           switchMap((servicio) => {
-            if (alta.pasajeros.length === 0) {
-              return of({ servicio, loteOk: true as const, detalle: null });
+            if (alta.pasajeros.length === 0 || !(servicio.idServicio > 0)) {
+              return of(null);
             }
 
             return this.pasajerosServicioApi
               .crearLote({ idServicio: servicio.idServicio, pasajeros: alta.pasajeros })
               .pipe(
-                switchMap(() => of({ servicio, loteOk: true as const, detalle: null })),
+                map(() => null),
                 catchError((err: unknown) =>
-                  of({
-                    servicio,
-                    loteOk: false as const,
-                    detalle: mensajeErrorHttp(err, 'No fue posible asociar los pasajeros.'),
-                  }),
+                  of(
+                    this.mensajeErrorParcial(
+                      servicio,
+                      mensajeErrorHttp(err, 'No fue posible asociar los pasajeros.'),
+                    ),
+                  ),
                 ),
               );
           }),
+          takeUntilDestroyed(this.destroyRef),
         )
         .subscribe({
-          next: ({ servicio, loteOk, detalle }) => {
-            this.guardando.set(false);
-            this.formularioAbierto.set(false);
-            this.cargar();
-            if (loteOk) {
-              this.feedback.mostrar('Servicio creado correctamente.');
-              return;
+          next: (avisoPasajeros) => {
+            if (avisoPasajeros) {
+              this.avisoPasajerosCreacion.set(avisoPasajeros);
             }
 
-            const mensaje = this.mensajeErrorParcial(servicio, detalle);
-            this.aviso.set(mensaje);
-            this.feedback.mostrar(mensaje, 8000);
+            this.asignarPendientes(alta.idConductor, alta.idVehiculo);
           },
           error: (err: unknown) => {
             this.guardando.set(false);
-            this.errorFormulario.set(mensajeErrorHttp(err, 'No fue posible crear el servicio.'));
+            this.faseCreacion.set('');
+            this.progresoCreacion.set('');
+            if (!this.serviciosYaCreados()) {
+              this.errorFormulario.set(mensajeErrorHttp(err, 'No fue posible crear el servicio.'));
+              return;
+            }
+
+            this.errorFormulario.set(
+              'El servicio ya fue creado. No se volverá a crear. Reintenta solo la asignación pendiente.',
+            );
           },
         });
       return;
     }
 
-    this.api.crearRecurrentes(alta.solicitud).subscribe({
+    this.api.crearRecurrentes(alta.solicitud).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (respuesta) => {
-        this.guardando.set(false);
-        this.formularioAbierto.set(false);
-        const cantidad = respuesta.cantidadServicios;
-        this.feedback.mostrar(
-          typeof cantidad === 'number'
-            ? `Serie creada correctamente (${cantidad} ${cantidad === 1 ? 'servicio' : 'servicios'}).`
-            : 'Serie creada correctamente.',
-        );
-        this.cargar();
+        const ids = (respuesta.servicios ?? []).map((servicio) => servicio.idServicio);
+        this.registrarCreados(ids);
+        this.asignarPendientes(alta.idConductor, alta.idVehiculo);
       },
       error: (err: unknown) => {
         this.guardando.set(false);
-        this.errorFormulario.set(mensajeErrorHttp(err, 'No fue posible crear la serie de servicios.'));
+        this.faseCreacion.set('');
+        this.progresoCreacion.set('');
+        if (!this.serviciosYaCreados()) {
+          this.errorFormulario.set(mensajeErrorHttp(err, 'No fue posible crear la serie de servicios.'));
+          return;
+        }
+
+        this.errorFormulario.set(
+          'La serie ya fue creada. No se volverá a crear. Reintenta solo las asignaciones pendientes.',
+        );
       },
     });
+  }
+
+  private registrarCreados(ids: readonly number[]): void {
+    this.serviciosYaCreados.set(true);
+    const validos = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
+    this.idsCreados.set(validos);
+  }
+
+  private asignarPendientes(idConductor: number, idVehiculo: number): void {
+    if (this.idsCreados().length === 0) {
+      this.guardando.set(false);
+      this.faseCreacion.set('');
+      this.progresoCreacion.set('');
+      this.errorFormulario.set(
+        'Los servicios ya fueron creados, pero la respuesta no incluyó los identificadores. No se volverá a crear. Completa conductor y vehículo desde cada servicio PROGRAMADO en la grilla. Al recargar la página este intento no se reanuda.',
+      );
+      return;
+    }
+
+    this.faseCreacion.set('asignar');
+    this.asignarSiguiente(idsPendientes(this.idsCreados(), this.idsAsignados()), idConductor, idVehiculo);
+  }
+
+  private asignarSiguiente(pendientes: number[], idConductor: number, idVehiculo: number): void {
+    const idServicio = pendientes[0];
+    if (idServicio == null) {
+      this.completarCreacion(this.avisoPasajerosCreacion());
+      return;
+    }
+
+    const hechas = this.idsAsignados().length;
+    const total = this.idsCreados().length;
+    this.progresoCreacion.set(`Asignando conductor y vehículo (${hechas + 1} de ${total})...`);
+
+    this.asignacionesApi.listar({ idServicio, estado: 'ACTIVA' }).pipe(
+      switchMap((existentes) => {
+        if (existentes.length > 0) {
+          return of('ya-existia' as const);
+        }
+
+        return this.asignacionesApi.crear({ idServicio, idConductor, idVehiculo }).pipe(map(() => 'creada' as const));
+      }),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: () => {
+        this.idsAsignados.update((actual) => actual.includes(idServicio) ? actual : [...actual, idServicio]);
+        this.asignarSiguiente(pendientes.slice(1), idConductor, idVehiculo);
+      },
+      error: (err: unknown) => {
+        const estado = err instanceof HttpErrorResponse ? err.status : 0;
+        const clase = clasificarErrorAsignacion(estado, mensajeCuerpo(err));
+        if (clase === 'ya-existia') {
+          this.idsAsignados.update((actual) => actual.includes(idServicio) ? actual : [...actual, idServicio]);
+          this.asignarSiguiente(pendientes.slice(1), idConductor, idVehiculo);
+          return;
+        }
+
+        this.guardando.set(false);
+        this.progresoCreacion.set('');
+        const detalle = mensajeErrorHttp(err, 'No fue posible asignar el conductor y el vehículo.');
+        const motivo = clase === 'horario' ? `Hay un conflicto de horario: ${detalle}` : detalle;
+        this.errorFormulario.set(
+          `Los servicios ya fueron creados, pero quedaron asignaciones pendientes. ${motivo} Elige otro conductor o vehículo y reintenta solo lo pendiente. No se crearán servicios de nuevo.`,
+        );
+      },
+    });
+  }
+
+  private completarCreacion(avisoPasajeros: string | null): void {
+    const cantidad = this.idsCreados().length;
+    this.limpiarCreacion();
+    this.guardando.set(false);
+    this.formularioAbierto.set(false);
+    this.errorFormulario.set(null);
+    this.cargar();
+    if (avisoPasajeros) {
+      this.aviso.set(avisoPasajeros);
+      this.feedback.mostrar(avisoPasajeros, 8000);
+      return;
+    }
+
+    this.feedback.mostrar(
+      cantidad > 1
+        ? `Serie creada y asignada correctamente (${cantidad} servicios).`
+        : 'Servicio creado y asignado correctamente.',
+    );
+  }
+
+  private limpiarCreacion(): void {
+    this.idsCreados.set([]);
+    this.idsAsignados.set([]);
+    this.serviciosYaCreados.set(false);
+    this.avisoPasajerosCreacion.set(null);
+    this.faseCreacion.set('');
+    this.avisoAbandono.set(false);
+    this.progresoCreacion.set('');
   }
 
   private mensajeErrorParcial(servicio: Servicio, detalle: string | null): string {
@@ -385,12 +589,43 @@ export class ServiciosPage {
     this.detalleAbierto.set(true);
   }
 
+  abrirAsistencia(servicio: Servicio): void {
+    if (servicio.estado !== 'FINALIZADO') {
+      return;
+    }
+
+    this.servicioAsistencia.set(servicio);
+    this.asistenciaAbierta.set(true);
+  }
+
+  cerrarAsistencia(): void {
+    this.asistenciaAbierta.set(false);
+    this.servicioAsistencia.set(null);
+  }
+
+  verRuta(servicio: Servicio): void {
+    if (!servicio.idRuta) {
+      return;
+    }
+
+    void this.router.navigate(['/rutas'], {
+      queryParams: {
+        empresa: String(servicio.idEmpresa),
+        ruta: servicio.idRuta,
+      },
+    });
+  }
+
   cerrarDetalle(): void {
     this.detalleAbierto.set(false);
     this.servicioDetalle.set(null);
   }
 
   abrirGestionPasajeros(servicio: Servicio): void {
+    if (!this.puedeGestionarPasajeros(servicio)) {
+      return;
+    }
+
     this.servicioGestion.set(servicio);
     this.detalleAbierto.set(false);
     this.servicioDetalle.set(null);
@@ -405,12 +640,17 @@ export class ServiciosPage {
     const servicio = this.servicioGestion();
     this.gestionAbierta.set(false);
     this.servicioGestion.set(null);
+    this.cargar();
     if (servicio) {
       this.ver(servicio);
     }
   }
 
   abrirAsignacion(servicio: Servicio): void {
+    if (!this.puedeCambiarAsignacion(servicio) && !this.puedeCrearAsignacion(servicio)) {
+      return;
+    }
+
     this.servicioAsignacion.set(servicio);
     this.detalleAbierto.set(false);
     this.servicioDetalle.set(null);
@@ -434,13 +674,14 @@ export class ServiciosPage {
     const servicio = this.servicioAsignacion();
     this.asignacionAbierta.set(false);
     this.servicioAsignacion.set(null);
+    this.cargar();
     if (servicio) {
       this.ver(servicio);
     }
   }
 
   abrirEditar(servicio: Servicio): void {
-    if (servicio.estado !== 'PROGRAMADO') {
+    if (!this.puedeEditar(servicio)) {
       return;
     }
 
@@ -460,7 +701,13 @@ export class ServiciosPage {
   }
 
   guardarEdicion(edicion: EdicionServicio): void {
+    const servicio = this.servicioEdicion();
     if (this.guardandoEdicion()) {
+      return;
+    }
+
+    if (!servicio || !this.puedeEditar(servicio)) {
+      this.errorEdicion.set('Esta planificación no admite modificar el servicio.');
       return;
     }
 
@@ -500,8 +747,28 @@ export class ServiciosPage {
     });
   }
 
+  puedeEditar(servicio: Servicio): boolean {
+    return servicio.estado === 'PROGRAMADO' && this.administrable(servicio);
+  }
+
   puedeCancelar(servicio: Servicio): boolean {
-    return servicio.estado === 'PROGRAMADO' || servicio.estado === 'EN_CURSO';
+    return (servicio.estado === 'PROGRAMADO' || servicio.estado === 'EN_CURSO') && this.administrable(servicio);
+  }
+
+  puedeGestionarPasajeros(servicio: Servicio): boolean {
+    return servicio.estado === 'PROGRAMADO' && this.administrable(servicio);
+  }
+
+  puedeCrearAsignacion(servicio: Servicio): boolean {
+    return servicio.estado === 'PROGRAMADO' && !this.asignacionActiva(servicio.idServicio) && this.administrable(servicio);
+  }
+
+  puedeCambiarAsignacion(servicio: Servicio): boolean {
+    const estado = servicio.estado;
+    return !!this.asignacionActiva(servicio.idServicio)
+      && estado !== 'FINALIZADO'
+      && estado !== 'CANCELADO'
+      && this.administrable(servicio);
   }
 
   pedirCancelar(servicio: Servicio): void {
@@ -525,7 +792,13 @@ export class ServiciosPage {
   }
 
   confirmarCancelacion(cancelacion: CancelacionServicio): void {
+    const servicio = this.servicioCancelacion();
     if (this.cancelando()) {
+      return;
+    }
+
+    if (!servicio || !this.puedeCancelar(servicio)) {
+      this.errorCancelacion.set('Esta planificación no admite cancelar el servicio.');
       return;
     }
 
@@ -580,6 +853,38 @@ export class ServiciosPage {
     return idSerie ? 'Recurrente' : 'Individual';
   }
 
+  conductorDe(servicio: Servicio): string {
+    const asignacion = this.asignacionActiva(servicio.idServicio);
+    if (!asignacion) {
+      return 'Sin asignar';
+    }
+
+    return (
+      this.conductores().find((item) => item.idConductor === asignacion.idConductor)?.nombre
+      ?? `Conductor #${asignacion.idConductor}`
+    );
+  }
+
+  patenteDe(servicio: Servicio): string {
+    return this.vehiculoDe(servicio.idServicio)?.patente ?? 'Sin asignar';
+  }
+
+  capacidadDe(servicio: Servicio): string {
+    const vehiculo = this.vehiculoDe(servicio.idServicio);
+    if (!vehiculo) {
+      return 'Sin asignar';
+    }
+
+    const ocupados = this.asociaciones().filter(
+      (item) => item.idServicio === servicio.idServicio && item.estado === 'ACTIVO',
+    ).length;
+    return `${ocupados}/${vehiculo.capacidad}`;
+  }
+
+  esSinAsignar(valor: string): boolean {
+    return valor === 'Sin asignar';
+  }
+
   formatearFecha(fecha: string): string {
     const iso = fecha.slice(0, 10);
     const partes = iso.split('-');
@@ -594,50 +899,69 @@ export class ServiciosPage {
     return `${this.formatearHora(horaInicio)} – ${this.formatearHora(horaFin)}`;
   }
 
-  tonoEstado(estado: EstadoServicio): BadgeTone {
-    switch (estado) {
-      case 'PROGRAMADO':
-        return 'amber';
-      case 'EN_CURSO':
-        return 'green';
-      case 'FINALIZADO':
-        return 'sky';
-      case 'CANCELADO':
-        return 'red';
-    }
-  }
-
   etiquetaEstado(estado: EstadoServicio): string {
     return estado === 'EN_CURSO' ? 'EN CURSO' : estado;
   }
 
+  textoEstado(estado: EstadoServicio): string {
+    switch (estado) {
+      case 'PROGRAMADO':
+        return 'Servicio planificado. Se puede editar, gestionar pasajeros y cancelar.';
+      case 'EN_CURSO':
+        return 'Servicio iniciado. Se puede cancelar. Los pasajeros ya no se pueden modificar.';
+      case 'FINALIZADO':
+        return 'Servicio terminado. Se puede consultar la asistencia registrada.';
+      case 'CANCELADO':
+        return 'Servicio cancelado. Solo consulta.';
+    }
+  }
+
   private cargarCatalogos(): void {
     forkJoin({
-      empresas: this.empresasApi.listar(),
-      rutas: this.rutasApi.listar(),
+      empresas: this.empresasApi.listar().pipe(catchError(() => of([] as Empresa[]))),
+      rutas: this.rutasApi.listar().pipe(catchError(() => of([] as Ruta[]))),
+      conductores: this.conductoresApi.listar().pipe(catchError(() => of([] as Conductor[]))),
+      vehiculos: this.vehiculosApi.listar().pipe(catchError(() => of([] as Vehiculo[]))),
     }).subscribe({
-      next: ({ empresas, rutas }) => {
+      next: ({ empresas, rutas, conductores, vehiculos }) => {
         this.empresas.set(empresas);
         this.rutas.set(rutas);
-      },
-      error: () => {
-        this.empresas.set([]);
-        this.rutas.set([]);
+        this.conductores.set(conductores);
+        this.vehiculos.set(vehiculos);
       },
     });
   }
 
-  private cargarPlanificaciones(): void {
-    const idEmpresa = Number(this.empresaFiltro());
-    if (!Number.isInteger(idEmpresa) || idEmpresa <= 0) {
-      this.planificaciones.set([]);
+  private aplicarPlanificaciones(lista: Planificacion[] | null): void {
+    if (!lista) {
+      this.estadosPlanificacion.set(new Map());
+      this.planificacionesConsultadas.set(false);
       return;
     }
 
-    this.planificacionesApi.listar({ idEmpresa }).subscribe({
-      next: (lista) => this.planificaciones.set(lista),
-      error: () => this.planificaciones.set([]),
-    });
+    this.estadosPlanificacion.set(new Map(lista.map((item) => [item.idPlanificacion, item.estado])));
+    this.planificacionesConsultadas.set(true);
+  }
+
+  private administrable(servicio: Servicio): boolean {
+    if (!this.planificacionesConsultadas()) {
+      return false;
+    }
+
+    return planificacionPermiteAdministrar(this.estadosPlanificacion().get(servicio.idPlanificacion));
+  }
+
+  private asignacionActiva(idServicio: number): AsignacionServicio | null {
+    return this.asignaciones().find((item) => item.idServicio === idServicio && item.estado === 'ACTIVA') ?? null;
+  }
+
+  private vehiculoDe(idServicio: number): Vehiculo | null {
+    const asignacion = this.asignacionActiva(idServicio);
+    if (!asignacion) {
+      return null;
+    }
+
+    return this.vehiculos().find((item) => item.idVehiculo === asignacion.idVehiculo) ?? null;
   }
 
   private formatearHora(valor: string): string {
@@ -670,4 +994,18 @@ export class ServiciosPage {
       this.errorEdicion.set(null);
     }
   }
+}
+
+function compararServicios(a: Servicio, b: Servicio): number {
+  const fechaA = a.fecha.slice(0, 10);
+  const fechaB = b.fecha.slice(0, 10);
+  if (fechaA !== fechaB) {
+    return fechaA < fechaB ? 1 : -1;
+  }
+
+  if (a.horaInicio !== b.horaInicio) {
+    return a.horaInicio < b.horaInicio ? 1 : -1;
+  }
+
+  return b.idServicio - a.idServicio;
 }

@@ -8,6 +8,7 @@ import {
   ReporteOperacional,
   ReportePasajeroServicio,
   ReporteRango,
+  ReporteServicio,
 } from '../models/reporte';
 
 @Injectable({ providedIn: 'root' })
@@ -47,6 +48,15 @@ export class ReportesService {
           servicios: reporte.servicios,
         })),
       );
+  }
+
+  listarServicios(desde: string, hasta: string, idEmpresa: number | null): Observable<ReporteServicio[]> {
+    let params = new HttpParams().set('desde', desde).set('hasta', hasta);
+    if (idEmpresa != null) {
+      params = params.set('idEmpresa', String(idEmpresa));
+    }
+
+    return this.http.get<ReporteServicio[]>(urlApi('/api/reportes/servicios'), { params });
   }
 
   listarPasajeros(idServicio: number): Observable<ReportePasajeroServicio[]> {

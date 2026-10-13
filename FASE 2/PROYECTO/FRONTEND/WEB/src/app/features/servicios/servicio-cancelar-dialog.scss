@@ -1,3 +1,5 @@
+@use '../../../styles/ui' as ui;
+
 .dialogo {
   display: flex;
   flex-direction: column;
@@ -70,18 +72,11 @@
 }
 
 .nota {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-text-secondary);
+  @include ui.nota;
 }
 
 .banner {
-  margin: 0;
-  padding: 10px 12px;
-  font-size: 13px;
-  color: #991b1b;
-  background: #fef2f2;
-  border-radius: var(--radius-lg);
+  @include ui.banner-error-compacto;
 }
 
 .actions {

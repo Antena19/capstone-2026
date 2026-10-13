@@ -1,43 +1,52 @@
+@use '../../../styles/ui' as ui;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
 .banner {
-  margin: 0 0 16px;
-  padding: 12px 16px;
-  font-size: 14px;
-  color: #991b1b;
-  background: #fef2f2;
-  border-radius: var(--radius-lg);
+  @include ui.banner-error-lista;
+}
+
+.reintento {
+  margin: -8px 0 16px;
 }
 
 .perfil-grid {
   display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 1fr);
   gap: 16px;
+  align-items: start;
 }
 
-.card-inner {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.seccion-head {
+.card-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 8px 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-slate-100);
 }
 
-.seccion-head h2 {
+.card-head h2 {
   margin: 0;
+  font-family: var(--font-display);
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--color-text);
+}
+
+.card-body {
+  padding: 16px 18px 18px;
 }
 
 .datos {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
 }
 
 .dato {
@@ -48,7 +57,11 @@
 }
 
 .dato span {
-  font-size: 12px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--color-text-secondary);
 }
 
@@ -65,35 +78,21 @@
 
 .ayuda {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.5;
+  max-width: 28rem;
+  font-size: 13px;
+  line-height: 1.45;
   color: var(--color-text-secondary);
 }
 
-.skeleton-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+@include ui.lista-esqueleto;
 
-.skeleton-row {
-  height: 36px;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: pulse 1.4s ease infinite;
-}
-
-@keyframes pulse {
-  0% {
-    background-position: 100% 0;
-  }
-  100% {
-    background-position: -100% 0;
+@media (max-width: 900px) {
+  .perfil-grid {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 640px) {
   .datos {
     grid-template-columns: 1fr;
   }

@@ -49,7 +49,6 @@
     @if (mensajeCampo('telefono'); as mensaje) {
       <p class="hint">{{ mensaje }}</p>
     }
-    <p class="help">Móvil Chile. Se usará como identificador de acceso de la cuenta.</p>
   </label>
 
   <label class="field">
@@ -58,7 +57,6 @@
     @if (mensajeCampo('email'); as mensaje) {
       <p class="hint">{{ mensaje }}</p>
     }
-    <p class="help">Opcional. El teléfono es el identificador principal del pasajero.</p>
   </label>
 
   <label class="field">
@@ -67,17 +65,12 @@
     @if (mensajeCampo('direccion'); as mensaje) {
       <p class="hint">{{ mensaje }}</p>
     }
-    <p class="help">Dato maestro del pasajero. No reemplaza el punto de recogida de una ruta.</p>
   </label>
 
   @if (pasajero()?.idUsuario) {
     <p class="note">
       Este pasajero tiene una cuenta asociada. Si cambia el teléfono o el correo, se actualizarán también
       en la cuenta. No se enviará un SMS automático.
-    </p>
-  } @else if (!esEdicion()) {
-    <p class="note">
-      Se creará una cuenta PASAJERO y se enviará un código de activación al teléfono.
     </p>
   }
 

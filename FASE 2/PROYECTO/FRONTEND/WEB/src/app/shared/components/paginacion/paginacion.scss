@@ -1,0 +1,98 @@
+:host {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.paginacion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 12px 16px;
+  background: #fff;
+  border-top: 1px solid var(--color-slate-100);
+}
+
+.resumen {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.controles,
+.nav,
+.tamano {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.tamano span,
+.de {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+select,
+button,
+.actual {
+  height: 32px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+select,
+button {
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-text);
+}
+
+select {
+  padding: 0 8px;
+}
+
+button {
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-surface);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.actual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  padding: 0 8px;
+  background: #2b161b;
+  color: #fff;
+  font-weight: 600;
+}
+
+button:focus-visible,
+select:focus-visible {
+  outline: 2px solid #2b161b;
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .paginacion {
+    align-items: stretch;
+  }
+
+  .controles {
+    justify-content: space-between;
+  }
+}

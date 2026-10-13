@@ -3,20 +3,25 @@
     <p class="banner">{{ texto }}</p>
   }
 
-  <p class="intro">Indica la empresa cliente y el mes de operación. Al crear, la planificación queda registrada.</p>
-
-  <label class="field">
-    <span>Empresa cliente <abbr title="Obligatorio">*</abbr></span>
-    <select formControlName="idEmpresa">
-      <option value="">Selecciona una empresa</option>
-      @for (empresa of empresas(); track empresa.idEmpresa) {
-        <option [value]="empresa.idEmpresa">{{ empresa.razonSocial }}</option>
+  @if (esEdicion()) {
+    <label class="field">
+      <span>Empresa cliente <abbr title="Obligatorio">*</abbr></span>
+      <select formControlName="idEmpresa">
+        <option value="">Selecciona una empresa</option>
+        @for (empresa of empresas(); track empresa.idEmpresa) {
+          <option [value]="empresa.idEmpresa">{{ empresa.razonSocial }}</option>
+        }
+      </select>
+      @if (mensajeCampo('idEmpresa'); as mensaje) {
+        <p class="hint">{{ mensaje }}</p>
       }
-    </select>
-    @if (mensajeCampo('idEmpresa'); as mensaje) {
-      <p class="hint">{{ mensaje }}</p>
-    }
-  </label>
+    </label>
+  } @else {
+    <label class="field">
+      <span>Empresa cliente</span>
+      <p class="empresa-fija">{{ empresaNombre() }}</p>
+    </label>
+  }
 
   <label class="field">
     <span>Mes de operación <abbr title="Obligatorio">*</abbr></span>

@@ -1,3 +1,5 @@
+@use '../../../styles/ui' as ui;
+
 .form,
 .cuerpo {
   display: flex;
@@ -73,14 +75,11 @@
 }
 
 .field > span {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-slate-600);
+  @include ui.etiqueta;
 }
 
 abbr {
-  text-decoration: none;
-  color: #dc2626;
+  @include ui.marca-requerida;
 }
 
 .row {
@@ -91,80 +90,40 @@ abbr {
 
 input,
 select {
-  padding: 8px 12px;
-  font-size: 14px;
-  color: var(--color-text);
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  @include ui.control;
 }
 
 input:focus,
 select:focus {
-  outline: none;
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 2px var(--color-focus-ring);
+  @include ui.control-focus;
+}
+
+input:disabled,
+select:disabled {
+  @include ui.control-disabled;
 }
 
 .hint {
-  margin: 0;
-  font-size: 12px;
-  color: #dc2626;
+  @include ui.mensaje-error;
 }
 
 .nota {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-text-secondary);
+  @include ui.nota;
 }
 
 .aviso {
-  margin: 0;
-  padding: 10px 12px;
-  font-size: 13px;
-  color: #92400e;
-  background: #fffbeb;
-  border-radius: var(--radius-lg);
+  @include ui.aviso;
 }
 
 .banner {
-  margin: 0;
-  padding: 10px 12px;
-  font-size: 13px;
-  color: #991b1b;
-  background: #fef2f2;
-  border-radius: var(--radius-lg);
+  @include ui.banner-error-compacto;
 }
 
 .actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 4px;
+  @include ui.acciones-formulario;
 }
 
-.skeleton-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.skeleton-row {
-  height: 40px;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: pulse 1.4s ease infinite;
-}
-
-@keyframes pulse {
-  0% {
-    background-position: 100% 0;
-  }
-  100% {
-    background-position: -100% 0;
-  }
-}
+@include ui.lista-esqueleto(40px, 0);
 
 @media (max-width: 640px) {
   .row,

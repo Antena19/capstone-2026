@@ -1,11 +1,13 @@
 import { HttpResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { Empresa } from '../../core/models/empresa';
 import {
   ConsultaReporte,
   PeriodoReporte,
   ReporteOperacional,
   ReportePasajeroServicio,
+  ReporteResumen,
   ReporteServicio,
   ResultadoAsistenciaReporte,
 } from '../../core/models/reporte';
@@ -20,17 +22,19 @@ import {
   parsearIso,
 } from '../../core/utils/fechas';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { PaginacionLista } from '../../core/utils/paginacion';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
 import { FilterOption, FilterSelect } from '../../shared/components/filter-select/filter-select';
-import { KpiCard } from '../../shared/components/kpi-card/kpi-card';
+import { Icon } from '../../shared/components/icon/icon';
 import { Modal } from '../../shared/components/modal/modal';
 import { PageHeader } from '../../shared/components/page-header/page-header';
+import { Paginacion } from '../../shared/components/paginacion/paginacion';
 import { BadgeTone, StatusBadge } from '../../shared/components/status-badge/status-badge';
 
 @Component({
   selector: 'app-reportes',
-  imports: [PageHeader, ActionButton, FilterSelect, KpiCard, AppCard, StatusBadge, Modal],
+  imports: [PageHeader, ActionButton, FilterSelect, AppCard, StatusBadge, Modal, Icon, Paginacion],
   templateUrl: './reportes.html',
   styleUrl: './reportes.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,11 +42,13 @@ import { BadgeTone, StatusBadge } from '../../shared/components/status-badge/sta
 export class ReportesPage {
   private readonly reportesApi = inject(ReportesService);
   private readonly empresasApi = inject(EmpresasService);
+  private readonly router = inject(Router);
 
   readonly opcionesPeriodo: FilterOption[] = [
     { value: 'MES', label: 'Mes' },
-    { value: 'SEMANA', label: 'Semana' },
     { value: 'DIA', label: 'Día' },
+    { value: 'SEMANA', label: 'Semana' },
+    { value: 'PERSONALIZADO', label: 'Personalizado' },
   ];
 
   readonly esqueletos = [1, 2, 3, 4, 5, 6, 7];
@@ -53,6 +59,8 @@ export class ReportesPage {
   readonly mes = signal(mesActual());
   readonly fechaDia = signal(formatearIso(hoyLocal()));
   readonly fechaSemana = signal(formatearIso(hoyLocal()));
+  readonly fechaDesde = signal(formatearIso(hoyLocal()));
+  readonly fechaHasta = signal(formatearIso(hoyLocal()));
 
   readonly cargandoEmpresas = signal(true);
   readonly consultando = signal(false);
@@ -63,6 +71,13 @@ export class ReportesPage {
   readonly errorValidacion = signal<string | null>(null);
 
   readonly reporte = signal<ReporteOperacional | null>(null);
+  private readonly sinServicios: ReporteServicio[] = [];
+  private readonly marcaConsulta = signal(0);
+  readonly paginacion = new PaginacionLista(
+    () => this.reporte()?.servicios ?? this.sinServicios,
+    () => String(this.marcaConsulta()),
+  );
+  readonly serviciosPagina = computed(() => this.paginacion.recortar());
 
   readonly pasajerosAbiertos = signal(false);
   readonly servicioPasajeros = signal<ReporteServicio | null>(null);
@@ -117,6 +132,11 @@ export class ReportesPage {
     });
   }
 
+  actualizarEmpresa(valor: string): void {
+    this.idEmpresa.set(valor);
+    this.errorValidacion.set(null);
+  }
+
   actualizarPeriodo(valor: string): void {
     this.periodo.set(valor as PeriodoReporte);
     this.errorValidacion.set(null);
@@ -124,14 +144,27 @@ export class ReportesPage {
 
   actualizarMes(event: Event): void {
     this.mes.set((event.target as HTMLInputElement).value);
+    this.errorValidacion.set(null);
   }
 
   actualizarFechaDia(event: Event): void {
     this.fechaDia.set((event.target as HTMLInputElement).value);
+    this.errorValidacion.set(null);
   }
 
   actualizarFechaSemana(event: Event): void {
     this.fechaSemana.set((event.target as HTMLInputElement).value);
+    this.errorValidacion.set(null);
+  }
+
+  actualizarFechaDesde(event: Event): void {
+    this.fechaDesde.set((event.target as HTMLInputElement).value);
+    this.errorValidacion.set(null);
+  }
+
+  actualizarFechaHasta(event: Event): void {
+    this.fechaHasta.set((event.target as HTMLInputElement).value);
+    this.errorValidacion.set(null);
   }
 
   consultar(): void {
@@ -149,6 +182,7 @@ export class ReportesPage {
       next: (reporte) => {
         this.consultando.set(false);
         this.reporte.set(reporte);
+        this.marcaConsulta.update((marca) => marca + 1);
       },
       error: (error: unknown) => {
         this.consultando.set(false);
@@ -204,13 +238,75 @@ export class ReportesPage {
     this.errorPasajeros.set(null);
   }
 
+  verRuta(servicio: ReporteServicio): void {
+    if (!servicio.idRuta) {
+      return;
+    }
+
+    void this.router.navigate(['/rutas'], {
+      queryParams: {
+        empresa: String(servicio.idEmpresa),
+        ruta: servicio.idRuta,
+      },
+    });
+  }
+
   tituloPasajeros(): string {
     const servicio = this.servicioPasajeros();
-    return servicio ? `Pasajeros · Servicio #${servicio.idServicio}` : 'Pasajeros';
+    return servicio ? `Pasajeros y asistencia · Servicio #${servicio.idServicio}` : 'Pasajeros y asistencia';
+  }
+
+  gruposResumen(resumen: ReporteResumen): { titulo: string; filas: { etiqueta: string; valor: string }[] }[] {
+    return [
+      {
+        titulo: 'Servicios',
+        filas: [
+          { etiqueta: 'Planificados', valor: this.formatoEntero(resumen.serviciosPlanificados) },
+          { etiqueta: 'Finalizados', valor: this.formatoEntero(resumen.serviciosRealizados) },
+          { etiqueta: 'Cancelados', valor: this.formatoEntero(resumen.serviciosCancelados) },
+        ],
+      },
+      {
+        titulo: 'Pasajeros',
+        filas: [
+          { etiqueta: 'Planificados', valor: this.formatoEntero(resumen.personasPlanificadas) },
+          { etiqueta: 'Transportados', valor: this.formatoEntero(resumen.totalTransportados) },
+          {
+            etiqueta: 'Planificados sin asistencia registrada',
+            valor: this.formatoEntero(resumen.planificadosNoTransportados),
+          },
+          {
+            etiqueta: 'No planificados transportados',
+            valor: this.formatoEntero(resumen.noPlanificadosTransportados),
+          },
+        ],
+      },
+      {
+        titulo: 'Indicadores',
+        filas: [
+          {
+            etiqueta: 'Porcentaje de servicios realizados',
+            valor: this.formatoPorcentaje(resumen.porcentajeServiciosRealizados),
+          },
+          {
+            etiqueta: 'Porcentaje de planificados transportados',
+            valor: this.formatoPorcentaje(resumen.porcentajePlanificadosTransportados),
+          },
+        ],
+      },
+    ];
   }
 
   formatoEntero(valor: number): string {
     return new Intl.NumberFormat('es-CL', { maximumFractionDigits: 0 }).format(valor);
+  }
+
+  formatoPorcentaje(valor: number): string {
+    const texto = new Intl.NumberFormat('es-CL', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(valor);
+    return `${texto}%`;
   }
 
   formatearFecha(fecha: string): string {
@@ -227,52 +323,80 @@ export class ReportesPage {
     return valor.length >= 5 ? valor.slice(0, 5) : valor;
   }
 
-  formatearFechaHora(valor: string | null): string {
-    if (!valor) {
-      return '-';
-    }
-
-    const fecha = new Date(valor);
-    if (Number.isNaN(fecha.getTime())) {
-      return valor;
+  formatearFechaAsistencia(valor: string | null): string {
+    const fecha = this.fechaAsistencia(valor);
+    if (!fecha) {
+      return valor?.trim() ? valor : '—';
     }
 
     const dd = String(fecha.getDate()).padStart(2, '0');
     const mm = String(fecha.getMonth() + 1).padStart(2, '0');
-    const yyyy = fecha.getFullYear();
-    const hh = String(fecha.getHours()).padStart(2, '0');
-    const min = String(fecha.getMinutes()).padStart(2, '0');
-    return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+    return `${dd}/${mm}/${fecha.getFullYear()}`;
   }
 
-  tonoEstado(estado: EstadoServicio): BadgeTone {
-    switch (estado) {
-      case 'PROGRAMADO':
-        return 'amber';
-      case 'EN_CURSO':
-        return 'green';
-      case 'FINALIZADO':
-        return 'sky';
-      case 'CANCELADO':
-        return 'red';
+  formatearHoraAsistencia(valor: string | null): string {
+    const fecha = this.fechaAsistencia(valor);
+    if (!fecha) {
+      return '—';
     }
+
+    const hh = String(fecha.getHours()).padStart(2, '0');
+    const min = String(fecha.getMinutes()).padStart(2, '0');
+    return `${hh}:${min}`;
+  }
+
+  private fechaAsistencia(valor: string | null): Date | null {
+    if (!valor?.trim()) {
+      return null;
+    }
+
+    const fecha = new Date(valor);
+    return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
 
   etiquetaEstado(estado: EstadoServicio): string {
     return estado === 'EN_CURSO' ? 'EN CURSO' : estado;
   }
 
-  tonoResultado(resultado: ResultadoAsistenciaReporte): BadgeTone {
+  etiquetaResultado(resultado: ResultadoAsistenciaReporte): string {
+    if (resultado === 'AUSENTE') {
+      return this.servicioPasajeros()?.estado === 'FINALIZADO' ? 'Ausente' : 'Sin registro';
+    }
+
     switch (resultado) {
       case 'PRESENTE':
-        return 'green';
-      case 'AUSENTE':
-        return 'amber';
-      case 'ANULADA':
-        return 'red';
+        return 'Presente';
       case 'PROVISIONAL':
-        return 'sky';
+        return 'Provisional';
+      case 'ANULADA':
+        return 'Anulada';
     }
+  }
+
+  tonoResultado(resultado: ResultadoAsistenciaReporte): BadgeTone {
+    if (resultado === 'AUSENTE' && this.servicioPasajeros()?.estado !== 'FINALIZADO') {
+      return 'slate';
+    }
+
+    switch (resultado) {
+      case 'PRESENTE':
+        return 'sky';
+      case 'AUSENTE':
+        return 'red';
+      case 'ANULADA':
+      case 'PROVISIONAL':
+        return 'slate';
+    }
+  }
+
+  nombrePunto(pasajero: ReportePasajeroServicio): string {
+    const nombre = pasajero.nombrePuntoRecogida?.trim() ?? '';
+    const id = pasajero.idPuntoRecogida?.trim() ?? '';
+    if (!nombre || (id !== '' && nombre === id)) {
+      return '—';
+    }
+
+    return nombre;
   }
 
   textoOpcional(valor: string | null | undefined): string {
@@ -307,18 +431,34 @@ export class ReportesPage {
       return { tipo: 'DIA', idEmpresa, desde: fecha, hasta: fecha };
     }
 
-    const fecha = parsearIso(this.fechaSemana());
-    if (!fecha) {
-      this.errorValidacion.set('Seleccione una fecha válida de la semana.');
+    if (periodo === 'SEMANA') {
+      const fecha = parsearIso(this.fechaSemana());
+      if (!fecha) {
+        this.errorValidacion.set('Seleccione una fecha válida de la semana.');
+        return null;
+      }
+
+      return {
+        tipo: 'SEMANA',
+        idEmpresa,
+        desde: formatearIso(lunesDeSemana(fecha)),
+        hasta: formatearIso(domingoDeSemana(fecha)),
+      };
+    }
+
+    const desde = this.fechaDesde();
+    const hasta = this.fechaHasta();
+    if (!parsearIso(desde) || !parsearIso(hasta)) {
+      this.errorValidacion.set('Seleccione un rango de fechas válido.');
       return null;
     }
 
-    return {
-      tipo: 'SEMANA',
-      idEmpresa,
-      desde: formatearIso(lunesDeSemana(fecha)),
-      hasta: formatearIso(domingoDeSemana(fecha)),
-    };
+    if (desde > hasta) {
+      this.errorValidacion.set('La fecha inicial no puede ser posterior a la fecha final.');
+      return null;
+    }
+
+    return { tipo: 'PERSONALIZADO', idEmpresa, desde, hasta };
   }
 
   private etiquetaConsulta(consulta: ConsultaReporte): string {

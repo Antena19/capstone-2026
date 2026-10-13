@@ -101,8 +101,15 @@ export type AltaServicio =
       modalidad: 'individual';
       solicitud: CrearServicioSolicitud;
       pasajeros: PasajeroServicioInicial[];
+      idConductor: number;
+      idVehiculo: number;
     }
-  | { modalidad: 'recurrente'; solicitud: CrearServiciosRecurrentesSolicitud };
+  | {
+      modalidad: 'recurrente';
+      solicitud: CrearServiciosRecurrentesSolicitud;
+      idConductor: number;
+      idVehiculo: number;
+    };
 
 export type AlcanceEdicionSerie = 'ESTE' | 'ESTE_Y_FUTUROS' | 'TODOS_PROGRAMADOS';
 

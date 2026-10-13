@@ -18,6 +18,7 @@ export class DoughnutCard {
   readonly centerLabel = input.required<string>();
   readonly emptyMessage = input.required<string>();
   readonly unidad = input('unidades');
+  readonly mostrarTitulo = input(true);
 
   readonly vacio = computed(() => this.segments().every((segmento) => segmento.value === 0));
 
@@ -44,6 +45,11 @@ export class DoughnutCard {
       legend: { display: false },
       tooltip: {
         displayColors: false,
+        backgroundColor: '#2b161b',
+        padding: 10,
+        cornerRadius: 8,
+        titleFont: { family: 'Inter, sans-serif', size: 14 },
+        bodyFont: { family: 'Montserrat, sans-serif', size: 14 },
         callbacks: {
           title: (items) => items[0]?.label ?? '',
           label: (ctx) => {

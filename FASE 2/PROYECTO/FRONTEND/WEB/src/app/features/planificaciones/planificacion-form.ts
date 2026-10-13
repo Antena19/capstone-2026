@@ -14,6 +14,8 @@ import { ActionButton } from '../../shared/components/action-button/action-butto
 export class PlanificacionForm {
   readonly planificacion = input<Planificacion | null>(null);
   readonly empresas = input<Empresa[]>([]);
+  readonly idEmpresaInicial = input('');
+  readonly empresaNombre = input('');
   readonly abierto = input(false);
   readonly guardando = input(false);
   readonly error = input<string | null>(null);
@@ -47,7 +49,7 @@ export class PlanificacionForm {
       }
 
       this.form.reset({
-        idEmpresa: '',
+        idEmpresa: this.idEmpresaInicial(),
         periodo: '',
       });
     });

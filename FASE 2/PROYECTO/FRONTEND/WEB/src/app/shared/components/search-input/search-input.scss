@@ -1,3 +1,5 @@
+@use '../../../../styles/ui' as ui;
+
 .search {
   position: relative;
   display: block;
@@ -13,14 +15,10 @@
 }
 
 input {
+  @include ui.control;
   width: 256px;
   max-width: 100%;
   padding: 8px 16px 8px 36px;
-  font-size: 14px;
-  color: var(--color-text);
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
 }
 
 input::placeholder {
@@ -28,7 +26,5 @@ input::placeholder {
 }
 
 input:focus {
-  outline: none;
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 2px var(--color-focus-ring);
+  @include ui.control-focus;
 }

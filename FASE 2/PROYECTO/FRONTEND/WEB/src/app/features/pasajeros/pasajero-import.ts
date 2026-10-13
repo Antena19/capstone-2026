@@ -8,15 +8,17 @@ import {
 } from '../../core/models/pasajero';
 import { PasajerosService } from '../../core/services/pasajeros.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { PaginacionLista } from '../../core/utils/paginacion';
 import { ActionButton } from '../../shared/components/action-button/action-button';
+import { Paginacion } from '../../shared/components/paginacion/paginacion';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 
-type PasoImportacion = 'archivo' | 'hoja' | 'mapeo' | 'preview' | 'resultado';
+type PasoImportacion = 'archivo' | 'hoja' | 'mapeo' | 'preview';
 type FiltroPreview = 'todas' | 'validas' | 'errores';
 
 @Component({
   selector: 'app-pasajero-import',
-  imports: [ActionButton, StatusBadge],
+  imports: [ActionButton, StatusBadge, Paginacion],
   templateUrl: './pasajero-import.html',
   styleUrl: './pasajero-import.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,7 +27,7 @@ export class PasajeroImport {
   readonly empresas = input<Empresa[]>([]);
   readonly abierto = input(false);
   private readonly inputArchivo = viewChild<ElementRef<HTMLInputElement>>('inputArchivo');
-  readonly importado = output<void>();
+  readonly importado = output<string>();
   readonly cancelado = output<void>();
 
   private readonly api = inject(PasajerosService);
@@ -46,6 +48,7 @@ export class PasajeroImport {
   readonly preview = signal<PreviewImportacionPasajeros | null>(null);
   readonly resultado = signal<ResultadoImportacionPasajeros | null>(null);
   readonly filtro = signal<FiltroPreview>('todas');
+  private readonly marcaPreview = signal(0);
   readonly cargando = signal(false);
   readonly importando = signal(false);
   readonly error = signal<string | null>(null);
@@ -57,15 +60,13 @@ export class PasajeroImport {
   readonly tituloPaso = computed(() => {
     switch (this.paso()) {
       case 'archivo':
-        return 'Paso 1 de 5 · Empresa y archivo';
-      case 'hoja':
-        return 'Paso 2 de 5 · Hoja';
-      case 'mapeo':
-        return 'Paso 3 de 5 · Columnas';
+        return 'Paso 1 de 2 · Plantilla y archivo';
       case 'preview':
-        return 'Paso 4 de 5 · Vista previa';
+        return 'Paso 2 de 2 · Vista previa';
+      case 'hoja':
+        return 'Hoja';
       default:
-        return 'Paso 5 de 5 · Resultado';
+        return 'Columnas';
     }
   });
 
@@ -84,6 +85,12 @@ export class PasajeroImport {
         return preview.filas;
     }
   });
+
+  readonly paginacion = new PaginacionLista(
+    () => this.filasVisibles(),
+    () => `${this.filtro()}|${this.marcaPreview()}`,
+  );
+  readonly filasPagina = computed(() => this.paginacion.recortar());
 
   constructor() {
     effect(() => {
@@ -164,16 +171,15 @@ export class PasajeroImport {
     this.error.set(null);
     this.api.inspeccionarExcel(archivo).subscribe({
       next: (respuesta) => {
-        this.cargando.set(false);
         this.hojas.set(respuesta.hojas);
-        if (respuesta.hojas.length === 1) {
-          this.hoja.set(respuesta.hojas[0]);
-          this.cargarEncabezados(respuesta.hojas[0]);
+        const hojaOficial = respuesta.hojas.find((nombre) => normalizarEncabezado(nombre) === 'pasajeros');
+        if (!hojaOficial) {
+          this.cargando.set(false);
+          this.error.set(MENSAJE_PLANTILLA);
           return;
         }
 
-        this.hoja.set(respuesta.hojas[0] ?? '');
-        this.paso.set('hoja');
+        this.leerPlantillaOficial(hojaOficial);
       },
       error: (err: unknown) => {
         this.cargando.set(false);
@@ -200,19 +206,29 @@ export class PasajeroImport {
   }
 
   validar(): void {
-    const archivo = this.archivo();
-    const idEmpresa = Number(this.idEmpresa());
-    if (!archivo || !this.mapeoCompleto() || this.cargando()) {
+    if (!this.archivo() || !this.mapeoCompleto() || this.cargando()) {
       return;
     }
 
     this.cargando.set(true);
     this.error.set(null);
+    this.solicitarValidacion();
+  }
+
+  private solicitarValidacion(): void {
+    const archivo = this.archivo();
+    const idEmpresa = Number(this.idEmpresa());
+    if (!archivo || !this.mapeoCompleto()) {
+      this.cargando.set(false);
+      return;
+    }
+
     this.api.validarImportacion(idEmpresa, archivo, this.hoja(), this.mapeo()).subscribe({
       next: (preview) => {
         this.cargando.set(false);
         this.preview.set(preview);
         this.filtro.set('todas');
+        this.marcaPreview.update((marca) => marca + 1);
         this.paso.set('preview');
       },
       error: (err: unknown) => {
@@ -236,9 +252,7 @@ export class PasajeroImport {
       next: (resultado) => {
         this.importando.set(false);
         this.resultado.set(resultado);
-        this.limpiarArchivo();
-        this.paso.set('resultado');
-        this.importado.emit();
+        this.importado.emit(mensajeImportacion(resultado));
       },
       error: (err: unknown) => {
         this.importando.set(false);
@@ -261,7 +275,7 @@ export class PasajeroImport {
         this.paso.set(this.hojas().length > 1 ? 'hoja' : 'archivo');
         return;
       case 'preview':
-        this.paso.set('mapeo');
+        this.paso.set('archivo');
         return;
       default:
         return;
@@ -273,11 +287,6 @@ export class PasajeroImport {
       return;
     }
 
-    this.resetear();
-    this.cancelado.emit();
-  }
-
-  verPasajeros(): void {
     this.resetear();
     this.cancelado.emit();
   }
@@ -299,9 +308,38 @@ export class PasajeroImport {
     this.preview.set(null);
     this.resultado.set(null);
     this.filtro.set('todas');
+    this.marcaPreview.update((marca) => marca + 1);
     this.cargando.set(false);
     this.importando.set(false);
     this.error.set(null);
+  }
+
+  private leerPlantillaOficial(nombreHoja: string): void {
+    const archivo = this.archivo();
+    if (!archivo) {
+      this.cargando.set(false);
+      return;
+    }
+
+    this.api.leerEncabezados(archivo, nombreHoja).subscribe({
+      next: (respuesta) => {
+        const mapeo = mapeoPlantillaOficial(respuesta.encabezados);
+        if (!mapeo) {
+          this.cargando.set(false);
+          this.error.set(MENSAJE_PLANTILLA);
+          return;
+        }
+
+        this.hoja.set(respuesta.nombreHoja);
+        this.encabezados.set(respuesta.encabezados);
+        this.mapeo.set(mapeo);
+        this.solicitarValidacion();
+      },
+      error: (err: unknown) => {
+        this.cargando.set(false);
+        this.error.set(mensajeErrorHttp(err, 'No fue posible leer los encabezados.'));
+      },
+    });
   }
 
   private cargarEncabezados(nombreHoja: string): void {
@@ -340,4 +378,59 @@ export class PasajeroImport {
       input.nativeElement.value = '';
     }
   }
+}
+
+const MENSAJE_PLANTILLA =
+  'El archivo no corresponde a la plantilla oficial de Trayek. Descárgala y conserva los encabezados Nombre, RUT, Teléfono, Correo y Dirección.';
+
+const ENCABEZADOS_PLANTILLA = ['nombre', 'rut', 'telefono', 'correo', 'direccion'] as const;
+
+function normalizarEncabezado(valor: string): string {
+  return valor
+    .trim()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function mapeoPlantillaOficial(columnas: ColumnaExcel[]): MapeoColumnasImportacion | null {
+  const ordenadas = [...columnas].sort((a, b) => a.indice - b.indice);
+  while (ordenadas.length > 0 && normalizarEncabezado(ordenadas[ordenadas.length - 1].nombre) === '') {
+    ordenadas.pop();
+  }
+
+  if (ordenadas.length !== ENCABEZADOS_PLANTILLA.length) {
+    return null;
+  }
+
+  if (ordenadas.some((columna, indice) => normalizarEncabezado(columna.nombre) !== ENCABEZADOS_PLANTILLA[indice])) {
+    return null;
+  }
+
+  const indiceDe = (nombre: string) => ordenadas.find((columna) => normalizarEncabezado(columna.nombre) === nombre)!.indice;
+
+  return {
+    nombreColumna: indiceDe('nombre'),
+    rutColumna: indiceDe('rut'),
+    telefonoColumna: indiceDe('telefono'),
+    emailColumna: indiceDe('correo'),
+    direccionColumna: indiceDe('direccion'),
+  };
+}
+
+function mensajeImportacion(resultado: ResultadoImportacionPasajeros): string {
+  const creados = resultado.creados === 1
+    ? '1 pasajero creado'
+    : `${resultado.creados} pasajeros creados`;
+
+  if (resultado.omitidos <= 0) {
+    return `Importación completada: ${creados}.`;
+  }
+
+  const omitidos = resultado.omitidos === 1
+    ? '1 registro omitido'
+    : `${resultado.omitidos} registros omitidos`;
+
+  return `Importación completada: ${creados} y ${omitidos}.`;
 }

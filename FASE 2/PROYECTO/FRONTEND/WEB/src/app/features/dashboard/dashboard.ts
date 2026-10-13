@@ -1,17 +1,18 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { afterRenderEffect, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { ChartConfiguration, ChartData } from 'chart.js';
+import { Chart, ChartConfiguration, ChartData } from 'chart.js';
 import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { catchError, concat, distinctUntilChanged, EMPTY, forkJoin, map, of, switchMap, tap } from 'rxjs';
 import { DashboardService } from '../../core/services/dashboard.service';
+import { ReportesService } from '../../core/services/reportes.service';
 import {
   DashboardConsulta,
   DashboardEmpresa,
-  DashboardEvolucion,
   DashboardResumen,
   PeriodoRapido,
 } from '../../core/models/dashboard';
+import { ReporteServicio } from '../../core/models/reporte';
 import {
   agrupacionParaRango,
   etiquetaPeriodo,
@@ -21,26 +22,43 @@ import {
   rangoPeriodo,
 } from '../../core/utils/fechas';
 import { PALETA_OPERACIONAL } from '../../core/constants/paleta-operacional';
+import {
+  contarClases,
+  instanteChile,
+  porcentaje,
+  seriePasajerosFinalizados,
+  serieServicios,
+  totalesPasajerosFinalizados,
+} from './clasificacion-operacion';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
 import { DoughnutCard } from '../../shared/components/doughnut-card/doughnut-card';
 import { DoughnutSegment } from '../../shared/components/doughnut-card/doughnut-segment';
 import { FilterOption, FilterSelect } from '../../shared/components/filter-select/filter-select';
 import { Icon } from '../../shared/components/icon/icon';
-import { KpiCard } from '../../shared/components/kpi-card/kpi-card';
 import { PageHeader } from '../../shared/components/page-header/page-header';
-
+import { DesviacionesOperacionales } from './desviaciones-operacionales';
+import { PieOperacional } from './pie-operacional';
+import { ResumenEmpresas } from './resumen-empresas';
 type VistaDashboard =
   | { fase: 'loading' }
   | { fase: 'error' }
-  | { fase: 'ok'; resumen: DashboardResumen; evolucion: DashboardEvolucion; empresas: DashboardEmpresa[] };
-
-const COLOR_PLANIFICADO = PALETA_OPERACIONAL.planificado;
-const COLOR_REALIZADO = PALETA_OPERACIONAL.realizado;
+  | { fase: 'ok'; resumen: DashboardResumen; empresas: DashboardEmpresa[]; servicios: ReporteServicio[] };
 
 @Component({
   selector: 'app-dashboard',
-  imports: [PageHeader, ActionButton, FilterSelect, KpiCard, AppCard, Icon, BaseChartDirective, DoughnutCard],
+  imports: [
+    PageHeader,
+    ActionButton,
+    FilterSelect,
+    AppCard,
+    Icon,
+    BaseChartDirective,
+    DoughnutCard,
+    DesviacionesOperacionales,
+    PieOperacional,
+    ResumenEmpresas,
+  ],
   providers: [provideCharts(withDefaultRegisterables())],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
@@ -48,7 +66,16 @@ const COLOR_REALIZADO = PALETA_OPERACIONAL.realizado;
 })
 export class DashboardPage {
   private readonly dashboard = inject(DashboardService);
+  private readonly reportes = inject(ReportesService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly ventanaGraficos = viewChild<ElementRef<HTMLElement>>('ventanaGraficos');
+  private readonly consultaMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)');
+  private ignorarDesplazamiento = false;
+  private punteroSobreCarrusel = false;
+  private focoEnCarrusel = false;
+  private movimientoReducido = this.consultaMovimiento.matches;
+  private temporizadorCarrusel: ReturnType<typeof setTimeout> | null = null;
 
   readonly opcionesPeriodo: FilterOption[] = [
     { value: 'hoy', label: 'Hoy' },
@@ -57,12 +84,14 @@ export class DashboardPage {
     { value: 'personalizado', label: 'Personalizado' },
   ];
 
-  readonly paleta = PALETA_OPERACIONAL;
-  readonly esqueletos = [1, 2, 3, 4, 5, 6, 7, 8];
-  readonly esqueletosDistribucion = [1, 2, 3];
+  readonly panelesGrafico = [
+    { id: 'servicios', titulo: 'Servicios' },
+    { id: 'pasajeros', titulo: 'Pasajeros' },
+  ] as const;
+  readonly indiceGrafico = signal(0);
 
   readonly idEmpresa = signal('');
-  readonly periodo = signal<PeriodoRapido>('hoy');
+  readonly periodo = signal<PeriodoRapido>('mes');
   readonly desdePersonalizado = signal(formatearIso(hoyLocal()));
   readonly hastaPersonalizado = signal(formatearIso(hoyLocal()));
   private readonly empresasFiltro = signal<DashboardEmpresa[]>([]);
@@ -77,20 +106,49 @@ export class DashboardPage {
           boxWidth: 10,
           boxHeight: 10,
           usePointStyle: true,
-          font: { family: 'Inter, sans-serif', size: 12 },
-          color: '#64748b',
+          pointStyle: 'circle',
+          padding: 18,
+          font: { family: 'Inter, sans-serif', size: 15 },
+          color: '#4b4f58',
         },
+      },
+      tooltip: {
+        backgroundColor: '#2b161b',
+        padding: 10,
+        cornerRadius: 8,
+        titleFont: { family: 'Inter, sans-serif', size: 14 },
+        bodyFont: { family: 'Montserrat, sans-serif', size: 14 },
+      },
+    },
+    datasets: {
+      bar: {
+        categoryPercentage: 0.78,
+        barPercentage: 0.76,
+        maxBarThickness: 64,
+        borderRadius: 6,
       },
     },
     scales: {
       x: {
         grid: { display: false },
-        ticks: { color: '#64748b', font: { family: 'Inter, sans-serif', size: 11 } },
+        border: { display: false },
+        ticks: {
+          color: '#4b4f58',
+          font: { family: 'Inter, sans-serif', size: 13 },
+          maxRotation: 40,
+          minRotation: 0,
+          autoSkip: true,
+          autoSkipPadding: 12,
+        },
       },
       y: {
         beginAtZero: true,
-        ticks: { color: '#64748b', precision: 0, font: { family: 'Inter, sans-serif', size: 11 } },
-        grid: { color: '#e2e8f0' },
+        ticks: {
+          color: '#4b4f58',
+          precision: 0,
+          font: { family: 'Montserrat, sans-serif', size: 13 },
+        },
+        grid: { color: '#efe8ea' },
         border: { display: false },
       },
     },
@@ -147,14 +205,15 @@ export class DashboardPage {
             resumen: this.dashboard.obtenerResumen(consulta),
             evolucion: this.dashboard.obtenerEvolucion(consulta),
             empresas: this.dashboard.obtenerEmpresas(consulta),
+            servicios: this.reportes.listarServicios(consulta.desde, consulta.hasta, consulta.idEmpresa),
           }).pipe(
             tap((datos) => this.empresasFiltro.set(datos.empresas)),
             map(
               (datos): VistaDashboard => ({
                 fase: 'ok',
                 resumen: datos.resumen,
-                evolucion: datos.evolucion,
                 empresas: datos.empresas,
+                servicios: datos.servicios,
               }),
             ),
             catchError(() => of<VistaDashboard>({ fase: 'error' })),
@@ -171,10 +230,35 @@ export class DashboardPage {
     const vista = this.vista();
     return vista.fase === 'ok' ? vista.resumen : null;
   });
-  readonly evolucion = computed(() => {
-    const vista = this.vista();
-    return vista.fase === 'ok' ? vista.evolucion : null;
+
+  private readonly sincronizarCarrusel = afterRenderEffect(() => {
+    const listo = this.resumen();
+    if (!listo) {
+      return;
+    }
+
+    untracked(() => this.desplazarGrafico(this.indiceGrafico(), 'auto'));
   });
+
+  private readonly vigilarAutoavance = effect((onCleanup) => {
+    const listo = this.resumen() !== null;
+    onCleanup(() => this.detenerCarrusel());
+    if (!listo) {
+      return;
+    }
+
+    untracked(() => this.programarCarrusel());
+  });
+
+  constructor() {
+    this.consultaMovimiento.addEventListener('change', this.alCambiarMovimiento);
+    document.addEventListener('visibilitychange', this.alCambiarVisibilidad);
+    this.destroyRef.onDestroy(() => {
+      this.detenerCarrusel();
+      this.consultaMovimiento.removeEventListener('change', this.alCambiarMovimiento);
+      document.removeEventListener('visibilitychange', this.alCambiarVisibilidad);
+    });
+  }
   readonly empresas = computed(() => {
     const vista = this.vista();
     return vista.fase === 'ok' ? vista.empresas : [];
@@ -187,6 +271,10 @@ export class DashboardPage {
     })),
   );
 
+  readonly tituloGrafico = computed(
+    () => this.panelesGrafico[this.indiceGrafico()]?.titulo ?? '',
+  );
+
   readonly subtitulo = computed(() => {
     const consulta = this.consulta();
     const rango = consulta ? etiquetaRango(consulta.desde, consulta.hasta) : '';
@@ -195,62 +283,116 @@ export class DashboardPage {
       : 'Monitoreo de planificación y operación real';
   });
 
-  readonly sinActividad = computed(() => {
-    const resumen = this.resumen();
-    if (!resumen) {
-      return false;
-    }
-
-    return (
-      resumen.serviciosPlanificados === 0 &&
-      resumen.personasPlanificadas === 0 &&
-      resumen.totalTransportados === 0
-    );
+  readonly serviciosReporte = computed(() => {
+    const vista = this.vista();
+    return vista.fase === 'ok' ? vista.servicios : [];
   });
 
-  readonly graficoServicios = computed<ChartData<'bar'>>(() =>
-    this.construirGrafico('serviciosPlanificados', 'serviciosRealizados', 'Planificados', 'Realizados'),
+  private readonly instanteOperacion = computed(() => {
+    this.serviciosReporte();
+    return instanteChile();
+  });
+
+  readonly conteosServicio = computed(() => contarClases(this.serviciosReporte(), this.instanteOperacion()));
+
+  readonly totalServicios = computed(() => {
+    const conteos = this.conteosServicio();
+    return conteos.porSalir + conteos.horaVencida + conteos.enCurso + conteos.finalizados + conteos.cancelados;
+  });
+
+  readonly serviciosEvaluables = computed(() => {
+    const conteos = this.conteosServicio();
+    return conteos.finalizados + conteos.cancelados + conteos.horaVencida;
+  });
+
+  readonly porcentajeServiciosFinalizados = computed(() =>
+    porcentaje(this.conteosServicio().finalizados, this.serviciosEvaluables()),
   );
 
-  readonly graficoPersonas = computed<ChartData<'bar'>>(() =>
-    this.construirGrafico(
-      'personasPlanificadas',
-      'totalTransportados',
-      'Planificadas',
-      'Transportadas',
-    ),
+  readonly hayServiciosFinalizados = computed(() =>
+    this.serviciosReporte().some((servicio) => servicio.estado === 'FINALIZADO'),
   );
+
+  readonly totalesPasajeros = computed(() => totalesPasajerosFinalizados(this.serviciosReporte()));
+
+  readonly porcentajeAsistencia = computed(() =>
+    porcentaje(this.totalesPasajeros().planificadosTransportados, this.totalesPasajeros().planificados),
+  );
+
+  readonly graficoServicios = computed<ChartData<'bar'>>(() => {
+    const consulta = this.consulta();
+    const puntos = consulta
+      ? serieServicios(this.serviciosReporte(), consulta.desde, consulta.hasta, consulta.agrupacion)
+      : [];
+
+    return {
+      labels: puntos.map((punto) => etiquetaPeriodo(punto.periodo, consulta?.agrupacion ?? 'DIA')),
+      datasets: [
+        {
+          label: 'Planificados',
+          data: puntos.map((punto) => punto.planificados),
+          backgroundColor: PALETA_OPERACIONAL.planificado,
+        },
+        {
+          label: 'Finalizados',
+          data: puntos.map((punto) => punto.finalizados),
+          backgroundColor: PALETA_OPERACIONAL.realizado,
+        },
+      ],
+    };
+  });
+
+  readonly graficoPersonas = computed<ChartData<'bar'>>(() => {
+    const consulta = this.consulta();
+    const puntos = consulta
+      ? seriePasajerosFinalizados(this.serviciosReporte(), consulta.desde, consulta.hasta, consulta.agrupacion)
+      : [];
+
+    return {
+      labels: puntos.map((punto) => etiquetaPeriodo(punto.periodo, consulta?.agrupacion ?? 'DIA')),
+      datasets: [
+        {
+          label: 'Pasajeros planificados',
+          data: puntos.map((punto) => punto.planificados),
+          backgroundColor: PALETA_OPERACIONAL.planificado,
+        },
+        {
+          label: 'Planificados transportados',
+          data: puntos.map((punto) => punto.planificadosTransportados),
+          backgroundColor: PALETA_OPERACIONAL.realizado,
+        },
+        {
+          label: 'No planificados transportados',
+          data: puntos.map((punto) => punto.noPlanificadosTransportados),
+          backgroundColor: PALETA_OPERACIONAL.transportado,
+        },
+      ],
+    };
+  });
 
   readonly segmentosServicios = computed<DoughnutSegment[]>(() => {
-    const resumen = this.resumen();
-    if (!resumen) {
-      return [];
-    }
-
+    const conteos = this.conteosServicio();
     return [
-      { label: 'Programados', value: resumen.serviciosProgramados, color: PALETA_OPERACIONAL.programado },
-      { label: 'En curso', value: resumen.serviciosEnCurso, color: PALETA_OPERACIONAL.enCurso },
-      { label: 'Realizados', value: resumen.serviciosRealizados, color: PALETA_OPERACIONAL.realizado },
-      { label: 'Cancelados', value: resumen.serviciosCancelados, color: PALETA_OPERACIONAL.cancelado },
+      { label: 'Por salir', value: conteos.porSalir, color: PALETA_OPERACIONAL.programado },
+      { label: 'Programado con hora vencida', value: conteos.horaVencida, color: PALETA_OPERACIONAL.transportado },
+      { label: 'En curso', value: conteos.enCurso, color: PALETA_OPERACIONAL.enCurso },
+      { label: 'Finalizados', value: conteos.finalizados, color: PALETA_OPERACIONAL.realizado },
+      { label: 'Cancelados', value: conteos.cancelados, color: PALETA_OPERACIONAL.cancelado },
     ];
   });
 
-  readonly segmentosTransportados = computed<DoughnutSegment[]>(() => {
-    const resumen = this.resumen();
-    if (!resumen) {
-      return [];
-    }
-
+  readonly segmentosAsistencia = computed<DoughnutSegment[]>(() => {
+    const totales = this.totalesPasajeros();
     return [
       {
-        label: 'Planificados',
-        value: resumen.planificadosTransportados,
-        color: PALETA_OPERACIONAL.transportado,
+        label: 'Planificados transportados',
+        value: totales.planificadosTransportados,
+        color: PALETA_OPERACIONAL.realizado,
       },
       {
-        label: 'No planificados',
-        value: resumen.noPlanificadosTransportados,
-        color: PALETA_OPERACIONAL.noPlanificado,
+        label: 'Planificados no transportados',
+        value: totales.planificadosNoTransportados,
+        color: PALETA_OPERACIONAL.planificado,
       },
     ];
   });
@@ -279,8 +421,68 @@ export class DashboardPage {
     void this.router.navigate(['/reportes']);
   }
 
-  empresaSeleccionada(idEmpresa: number): boolean {
-    return this.idEmpresa() === String(idEmpresa);
+  marcarPunteroCarrusel(activo: boolean): void {
+    this.punteroSobreCarrusel = activo;
+    this.programarCarrusel();
+  }
+
+  marcarFocoCarrusel(): void {
+    this.focoEnCarrusel = true;
+    this.programarCarrusel();
+  }
+
+  alSalirFocoCarrusel(evento: FocusEvent): void {
+    const escenario = evento.currentTarget;
+    const destino = evento.relatedTarget;
+    if (escenario instanceof Node && destino instanceof Node && escenario.contains(destino)) {
+      return;
+    }
+
+    this.focoEnCarrusel = false;
+    this.programarCarrusel();
+  }
+
+  irAGrafico(indice: number): void {
+    const ultimo = this.panelesGrafico.length - 1;
+    this.desplazarGrafico(Math.max(0, Math.min(ultimo, indice)), this.movimientoGrafico());
+    this.programarCarrusel();
+  }
+
+  alDesplazarGraficos(): void {
+    if (this.ignorarDesplazamiento) {
+      return;
+    }
+
+    const ventana = this.ventanaGraficos()?.nativeElement;
+    if (!ventana || ventana.clientWidth <= 0) {
+      return;
+    }
+
+    const indice = Math.round(ventana.scrollLeft / ventana.clientWidth);
+    const limitado = Math.max(0, Math.min(this.panelesGrafico.length - 1, indice));
+    if (limitado === this.indiceGrafico()) {
+      return;
+    }
+
+    this.indiceGrafico.set(limitado);
+    this.redibujarGraficos();
+    this.programarCarrusel();
+  }
+
+  alTecladoGraficos(evento: KeyboardEvent): void {
+    if (evento.key === 'ArrowRight') {
+      evento.preventDefault();
+      this.irAGrafico(this.indiceGrafico() + 1);
+    } else if (evento.key === 'ArrowLeft') {
+      evento.preventDefault();
+      this.irAGrafico(this.indiceGrafico() - 1);
+    } else if (evento.key === 'Home') {
+      evento.preventDefault();
+      this.irAGrafico(0);
+    } else if (evento.key === 'End') {
+      evento.preventDefault();
+      this.  irAGrafico(this.panelesGrafico.length - 1);
+    }
   }
 
   formatoEntero(valor: number): string {
@@ -295,34 +497,105 @@ export class DashboardPage {
     }).format(numero)}%`;
   }
 
-  private construirGrafico(
-    campoPlanificado: 'serviciosPlanificados' | 'personasPlanificadas',
-    campoRealizado: 'serviciosRealizados' | 'totalTransportados',
-    etiquetaPlanificado: string,
-    etiquetaRealizado: string,
-  ): ChartData<'bar'> {
-    const evolucion = this.evolucion();
-    const series = evolucion?.series ?? [];
-    const agrupacion = evolucion?.agrupacion ?? 'DIA';
+  private readonly alCambiarMovimiento = (): void => {
+    this.movimientoReducido = this.consultaMovimiento.matches;
+    this.programarCarrusel();
+  };
 
-    return {
-      labels: series.map((punto) => etiquetaPeriodo(punto.periodo, agrupacion)),
-      datasets: [
-        {
-          label: etiquetaPlanificado,
-          data: series.map((punto) => punto[campoPlanificado]),
-          backgroundColor: COLOR_PLANIFICADO,
-          borderRadius: 4,
-          maxBarThickness: 28,
-        },
-        {
-          label: etiquetaRealizado,
-          data: series.map((punto) => punto[campoRealizado]),
-          backgroundColor: COLOR_REALIZADO,
-          borderRadius: 4,
-          maxBarThickness: 28,
-        },
-      ],
-    };
+  private readonly alCambiarVisibilidad = (): void => {
+    this.programarCarrusel();
+  };
+
+  private puedeAvanzarAutomaticamente(): boolean {
+    return (
+      !this.movimientoReducido &&
+      !this.punteroSobreCarrusel &&
+      !this.focoEnCarrusel &&
+      !document.hidden &&
+      this.resumen() !== null
+    );
   }
+
+  private programarCarrusel(): void {
+    this.detenerCarrusel();
+    if (!this.puedeAvanzarAutomaticamente()) {
+      return;
+    }
+
+    this.temporizadorCarrusel = window.setTimeout(() => {
+      this.temporizadorCarrusel = null;
+      this.avanzarCarrusel();
+    }, 8000);
+  }
+
+  private detenerCarrusel(): void {
+    if (this.temporizadorCarrusel !== null) {
+      window.clearTimeout(this.temporizadorCarrusel);
+      this.temporizadorCarrusel = null;
+    }
+  }
+
+  private avanzarCarrusel(): void {
+    if (!this.puedeAvanzarAutomaticamente()) {
+      return;
+    }
+
+    const ventana = this.ventanaGraficos()?.nativeElement;
+    if (!ventana) {
+      this.programarCarrusel();
+      return;
+    }
+
+    const siguiente = (this.indiceGrafico() + 1) % this.panelesGrafico.length;
+    this.desplazarGrafico(siguiente, this.movimientoGrafico());
+    this.programarCarrusel();
+  }
+
+  private movimientoGrafico(): ScrollBehavior {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  }
+
+  private desplazarGrafico(indice: number, comportamiento: ScrollBehavior): void {
+    const ventana = this.ventanaGraficos()?.nativeElement;
+    if (!ventana) {
+      return;
+    }
+
+    this.indiceGrafico.set(indice);
+    const destino = indice * ventana.clientWidth;
+    if (Math.abs(ventana.scrollLeft - destino) < 2) {
+      this.redibujarGraficos();
+      return;
+    }
+
+    this.ignorarDesplazamiento = true;
+    ventana.scrollTo({ left: destino, behavior: comportamiento });
+    const terminar = (): void => {
+      this.ignorarDesplazamiento = false;
+      this.redibujarGraficos();
+    };
+
+    if ('onscrollend' in ventana) {
+      ventana.addEventListener('scrollend', terminar, { once: true });
+      return;
+    }
+
+    window.setTimeout(terminar, comportamiento === 'smooth' ? 360 : 0);
+  }
+
+  private redibujarGraficos(): void {
+    const ventana = this.ventanaGraficos()?.nativeElement;
+    if (!ventana) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      ventana.querySelectorAll('canvas').forEach((nodo) => {
+        if (nodo instanceof HTMLCanvasElement) {
+          Chart.getChart(nodo)?.resize();
+        }
+      });
+    });
+  }
+
 }

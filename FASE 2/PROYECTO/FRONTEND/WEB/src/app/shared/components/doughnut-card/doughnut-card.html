@@ -1,7 +1,9 @@
 <app-card class="fill">
-  <div class="card-head">
-    <h2>{{ title() }}</h2>
-  </div>
+  @if (mostrarTitulo()) {
+    <div class="card-head">
+      <h2>{{ title() }}</h2>
+    </div>
+  }
 
   @if (vacio()) {
     <p class="empty">{{ emptyMessage() }}</p>
@@ -32,4 +34,8 @@
       </ul>
     </div>
   }
+
+  <div class="pie">
+    <ng-content />
+  </div>
 </app-card>

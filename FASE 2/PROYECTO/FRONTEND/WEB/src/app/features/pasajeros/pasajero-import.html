@@ -6,6 +6,16 @@
   }
 
   @if (paso() === 'archivo') {
+    <section class="plantilla">
+      <div>
+        <p class="plantilla-titulo">Plantilla oficial de Trayek</p>
+        <p class="help">
+          Descarga la plantilla de Trayek, completa los datos y selecciona el archivo para importar.
+        </p>
+      </div>
+      <app-action-button label="Descargar plantilla" variant="secondary" icon="download" (clicked)="descargarPlantilla()" />
+    </section>
+
     <label class="field">
       <span>Empresa <abbr title="Obligatorio">*</abbr></span>
       <select [value]="idEmpresa()" (change)="idEmpresa.set($any($event.target).value)">
@@ -29,13 +39,7 @@
       }
     </label>
 
-    <p class="help">
-      Puedes usar una nómina propia de la empresa o descargar la plantilla de Trayek.
-    </p>
-
     <div class="actions">
-      <app-action-button label="Descargar plantilla" variant="ghost" icon="download" (clicked)="descargarPlantilla()" />
-      <div class="spacer"></div>
       <app-action-button label="Cancelar" variant="secondary" (clicked)="cancelar()" />
       <app-action-button label="Continuar" [disabled]="cargando()" (clicked)="continuarArchivo()" />
     </div>
@@ -114,10 +118,19 @@
   }
 
   @if (paso() === 'preview' && preview(); as datos) {
-    <div class="summary">
-      <p>{{ datos.totalFilas }} registros encontrados</p>
-      <p>{{ datos.validas }} válidos</p>
-      <p>{{ datos.invalidas }} con errores</p>
+    <div class="resumen">
+      <p>
+        <strong>{{ datos.totalFilas }}</strong>
+        <span>Registros encontrados</span>
+      </p>
+      <p class="valido">
+        <strong>{{ datos.validas }}</strong>
+        <span>Válidos</span>
+      </p>
+      <p class="con-error">
+        <strong>{{ datos.invalidas }}</strong>
+        <span>Con errores</span>
+      </p>
     </div>
     <p class="help">
       Se crearán {{ datos.validas }} pasajeros con cuenta de acceso.
@@ -134,7 +147,7 @@
       <table>
         <thead>
           <tr>
-            <th>Fila</th>
+            <th class="num">Fila</th>
             <th>Nombre</th>
             <th>RUT</th>
             <th>Teléfono</th>
@@ -144,9 +157,9 @@
           </tr>
         </thead>
         <tbody>
-          @for (fila of filasVisibles(); track fila.numeroFila) {
+          @for (fila of filasPagina(); track fila.numeroFila) {
             <tr>
-              <td>{{ fila.numeroFila }}</td>
+              <td class="num">{{ fila.numeroFila }}</td>
               <td>{{ fila.nombre }}</td>
               <td class="mono">{{ fila.rut }}</td>
               <td class="mono">{{ fila.telefono }}</td>
@@ -154,18 +167,33 @@
               <td>{{ fila.direccion }}</td>
               <td>
                 <app-status-badge
+                  [class.resultado-valido]="fila.esValida"
+                  [class.resultado-error]="!fila.esValida"
                   [label]="fila.esValida ? 'Válido' : 'Error'"
                   [tone]="fila.esValida ? 'green' : 'red'"
                 />
-                @if (!fila.esValida) {
-                  <p class="errores">{{ fila.errores.join(' ') }}</p>
-                }
               </td>
             </tr>
+            @if (!fila.esValida) {
+              <tr class="detalle-error">
+                <td colspan="7">
+                  @for (mensaje of fila.errores; track $index) {
+                    <p>{{ mensaje }}</p>
+                  }
+                </td>
+              </tr>
+            }
           }
         </tbody>
       </table>
     </div>
+    <app-paginacion
+      [pagina]="paginacion.pagina()"
+      [tamano]="paginacion.tamano()"
+      [total]="filasVisibles().length"
+      (paginaChange)="paginacion.ir($event)"
+      (tamanoChange)="paginacion.cambiarTamano($event)"
+    />
     <div class="actions">
       <app-action-button label="Volver" variant="secondary" [disabled]="importando()" (clicked)="volver()" />
       <app-action-button
@@ -173,36 +201,6 @@
         [disabled]="importando() || datos.validas === 0"
         (clicked)="confirmarImportacion()"
       />
-    </div>
-  }
-
-  @if (paso() === 'resultado' && resultado(); as datos) {
-    <div class="summary">
-      <p class="ok">Importación completada</p>
-      <p>{{ datos.creados }} pasajeros creados</p>
-      <p>{{ datos.activacionesEnviadas }} activaciones enviadas/simuladas</p>
-      <p>{{ datos.activacionesError }} activaciones con error</p>
-      <p>{{ datos.omitidos }} registros omitidos</p>
-    </div>
-    @if (datos.filasOmitidas.length > 0) {
-      <div class="detalle">
-        <p>Registros omitidos</p>
-        @for (fila of datos.filasOmitidas; track fila.numeroFila) {
-          <p>Fila {{ fila.numeroFila }}: {{ fila.errores.join(' ') }}</p>
-        }
-      </div>
-    }
-    @if (datos.enviosError.length > 0) {
-      <div class="detalle">
-        <p>Errores de envío</p>
-        @for (envio of datos.enviosError; track envio.idPasajero) {
-          <p>{{ envio.telefono }}: {{ envio.mensaje }}</p>
-        }
-      </div>
-    }
-    <div class="actions">
-      <app-action-button label="Cerrar" variant="secondary" (clicked)="cancelar()" />
-      <app-action-button label="Ver pasajeros" (clicked)="verPasajeros()" />
     </div>
   }
 </div>

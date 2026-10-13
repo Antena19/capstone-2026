@@ -27,7 +27,7 @@
   align-items: center;
   gap: 12px;
   padding: 20px;
-  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  border-bottom: 1px solid var(--color-sidebar-border);
   flex-shrink: 0;
 }
 
@@ -36,7 +36,7 @@
   height: 32px;
   border-radius: var(--radius-lg);
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-card);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -46,7 +46,7 @@
   font-family: var(--font-display);
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--color-sidebar-text);
   line-height: 1.2;
 }
 
@@ -62,9 +62,10 @@
   margin-top: 8px;
   font-size: 10px;
   font-weight: 600;
+  font-family: var(--font-display);
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--color-sidebar-muted);
 }
 
 .nav-item {
@@ -73,8 +74,9 @@
   gap: 12px;
   width: 100%;
   padding: 10px 20px;
+  font-family: var(--font-display);
   font-size: 14px;
-  color: #94a3b8;
+  color: var(--color-sidebar-muted);
   text-decoration: none;
   text-align: left;
   border: 0;
@@ -84,19 +86,19 @@
 }
 
 .nav-item:hover {
-  color: #fff;
-  background: rgb(255 255 255 / 5%);
+  color: var(--color-sidebar-text);
+  background: var(--color-sidebar-hover);
 }
 
 .nav-item.is-active {
-  color: #fff;
-  font-weight: 500;
+  color: var(--color-sidebar-text);
+  font-weight: 600;
   background: var(--color-sidebar-active-bg);
-  border-right-color: #3b82f6;
+  border-right-color: var(--color-sidebar-active);
 }
 
 .nav-item.is-active app-icon {
-  color: #60a5fa;
+  color: var(--color-secondary);
 }
 
 .sidebar-user {
@@ -105,7 +107,7 @@
   gap: 12px;
   margin-top: auto;
   padding: 16px;
-  border-top: 1px solid rgb(255 255 255 / 10%);
+  border-top: 1px solid var(--color-sidebar-border);
   background: var(--color-sidebar);
   position: sticky;
   bottom: 0;
@@ -118,7 +120,7 @@
   height: 32px;
   border-radius: 50%;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-card);
   font-size: 12px;
   font-weight: 600;
   display: flex;
@@ -133,7 +135,7 @@
 }
 
 .email {
-  color: #fff;
+  color: var(--color-sidebar-text);
   font-size: 14px;
   font-weight: 500;
   overflow: hidden;
@@ -142,17 +144,17 @@
 }
 
 .role {
-  color: #94a3b8;
+  color: var(--color-sidebar-muted);
   font-size: 12px;
 }
 
 .logout {
   border: 0;
   background: transparent;
-  color: #64748b;
+  color: var(--color-sidebar-muted);
   padding: 4px;
 }
 
 .logout:hover {
-  color: #cbd5e1;
+  color: var(--color-sidebar-text);
 }

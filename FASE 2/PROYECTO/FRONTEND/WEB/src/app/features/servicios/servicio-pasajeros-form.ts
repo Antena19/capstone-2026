@@ -1,23 +1,29 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { catchError, EMPTY, forkJoin, map, Subject, switchMap, tap } from 'rxjs';
+import { catchError, EMPTY, forkJoin, map, of, Subject, switchMap, tap } from 'rxjs';
+import { AsignacionServicio } from '../../core/models/asignacion';
 import { Pasajero } from '../../core/models/pasajero';
+import { EstadoPlanificacion } from '../../core/models/planificacion';
 import { PuntoRecogida, Ruta } from '../../core/models/ruta';
+import { Vehiculo } from '../../core/models/vehiculo';
 import {
   EstadoConfirmacionViaje,
   EstadoPasajeroServicio,
   PasajeroServicio,
   Servicio,
 } from '../../core/models/servicio';
+import { AsignacionesService } from '../../core/services/asignaciones.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { PasajerosService } from '../../core/services/pasajeros.service';
 import { PasajerosServicioService } from '../../core/services/pasajeros-servicio.service';
+import { PlanificacionesService } from '../../core/services/planificaciones.service';
 import { RutasService } from '../../core/services/rutas.service';
 import { ServiciosService } from '../../core/services/servicios.service';
+import { VehiculosService } from '../../core/services/vehiculos.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { SearchInput } from '../../shared/components/search-input/search-input';
-import { BadgeTone, StatusBadge } from '../../shared/components/status-badge/status-badge';
+import { planificacionPermiteAdministrar } from './planificacion-administrable';
 
 interface AsociadoVista {
   idPasajeroServicio: number;
@@ -30,6 +36,7 @@ interface AsociadoVista {
   habitual: boolean;
   puntoInvalido: boolean;
   sinPunto: boolean;
+  usaHabitual: boolean;
 }
 
 interface CandidatoVista {
@@ -44,7 +51,7 @@ interface CandidatoVista {
 
 @Component({
   selector: 'app-servicio-pasajeros-form',
-  imports: [ActionButton, SearchInput, StatusBadge],
+  imports: [ActionButton, SearchInput],
   templateUrl: './servicio-pasajeros-form.html',
   styleUrl: './servicio-pasajeros-form.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -62,12 +69,19 @@ export class ServicioPasajerosForm {
   private readonly pasajerosServicioApi = inject(PasajerosServicioService);
   private readonly pasajerosApi = inject(PasajerosService);
   private readonly rutasApi = inject(RutasService);
+  private readonly planificacionesApi = inject(PlanificacionesService);
+  private readonly asignacionesApi = inject(AsignacionesService);
+  private readonly vehiculosApi = inject(VehiculosService);
   private readonly feedback = inject(FeedbackService);
   private readonly pedido = new Subject<Servicio>();
 
   readonly esqueletos = [1, 2, 3, 4];
   readonly servicio = signal<Servicio | null>(null);
+  private readonly estadoPlanificacion = signal<EstadoPlanificacion | null>(null);
+  private readonly planificacionConsultada = signal(false);
   readonly ruta = signal<Ruta | null>(null);
+  readonly asignacion = signal<AsignacionServicio | null>(null);
+  readonly vehiculo = signal<Vehiculo | null>(null);
   readonly asociados = signal<AsociadoVista[]>([]);
   readonly candidatos = signal<CandidatoVista[]>([]);
   readonly puntosEdicion = signal<Record<number, string>>({});
@@ -92,7 +106,9 @@ export class ServicioPasajerosForm {
     () => this.agregando() || this.idGuardandoPunto() != null || this.idQuitando() != null,
   );
 
-  readonly puedeAsociar = computed(() => this.servicio()?.estado === 'PROGRAMADO');
+  readonly puedeAsociar = computed(
+    () => this.servicio()?.estado === 'PROGRAMADO' && planificacionPermiteAdministrar(this.estadoPlanificacion()),
+  );
 
   readonly esRecurrente = computed(() => !!this.servicio()?.idSerie);
 
@@ -115,6 +131,15 @@ export class ServicioPasajerosForm {
 
   readonly notaAsociar = computed(() => {
     const estado = this.servicio()?.estado;
+    const planificacion = this.estadoPlanificacion();
+    if (estado === 'PROGRAMADO' && this.planificacionConsultada() && !planificacionPermiteAdministrar(planificacion)) {
+      if (planificacion === 'CERRADA' || planificacion === 'CANCELADA') {
+        return `La planificación está ${planificacion}. Solo puedes consultar los pasajeros.`;
+      }
+
+      return 'No se pudo confirmar el estado de la planificación. Las modificaciones quedan deshabilitadas.';
+    }
+
     if (!estado || estado === 'PROGRAMADO') {
       return null;
     }
@@ -142,6 +167,36 @@ export class ServicioPasajerosForm {
     this.seleccionados().some((item) => !item.idPuntoRecogida),
   );
 
+  readonly pasajerosAsociados = computed(() => this.asociados().length);
+
+  readonly capacidadMaxima = computed(() => this.vehiculo()?.capacidad ?? null);
+
+  readonly cuposDisponibles = computed(() => {
+    const capacidad = this.capacidadMaxima();
+    if (capacidad == null) {
+      return null;
+    }
+
+    return Math.max(0, capacidad - this.pasajerosAsociados());
+  });
+
+  readonly seleccionExcedeCupo = computed(() => {
+    const cupos = this.cuposDisponibles();
+    return cupos != null && this.cantidadSeleccionados() > cupos;
+  });
+
+  readonly etiquetaVehiculo = computed(() => this.vehiculo()?.patente ?? 'Sin asignar');
+
+  readonly etiquetaCapacidad = computed(() => {
+    const capacidad = this.capacidadMaxima();
+    return capacidad == null ? 'Sin asignar' : `${capacidad} pasajeros`;
+  });
+
+  readonly etiquetaCupos = computed(() => {
+    const cupos = this.cuposDisponibles();
+    return cupos == null ? 'Sin asignar' : String(cupos);
+  });
+
   readonly etiquetaAgregar = computed(() => {
     if (this.agregando()) {
       return 'Agregando...';
@@ -157,6 +212,8 @@ export class ServicioPasajerosForm {
         takeUntilDestroyed(this.destroyRef),
         tap(() => {
           this.cargando.set(true);
+          this.estadoPlanificacion.set(null);
+          this.planificacionConsultada.set(false);
           this.error.set(null);
         }),
         switchMap((inicial) =>
@@ -171,8 +228,23 @@ export class ServicioPasajerosForm {
                 asociaciones: this.pasajerosServicioApi.listar({ idServicio: servicio.idServicio }),
                 ruta: this.rutasApi.obtener(servicio.idRuta),
                 pasajeros: this.pasajerosApi.listar('ACTIVO', servicio.idEmpresa),
+                asignaciones: this.asignacionesApi
+                  .listar({ idServicio: servicio.idServicio, estado: 'ACTIVA' })
+                  .pipe(catchError(() => of([] as AsignacionServicio[]))),
+                vehiculos: this.vehiculosApi.listar().pipe(catchError(() => of([] as Vehiculo[]))),
+                planificacion: this.planificacionesApi
+                  .obtenerPorId(servicio.idPlanificacion)
+                  .pipe(catchError(() => of(null))),
               }).pipe(
-                map(({ asociaciones, ruta, pasajeros }) => ({ servicio, asociaciones, ruta, pasajeros })),
+                map(({ asociaciones, ruta, pasajeros, asignaciones, vehiculos, planificacion }) => ({
+                  servicio,
+                  asociaciones,
+                  ruta,
+                  pasajeros,
+                  asignaciones,
+                  vehiculos,
+                  planificacion,
+                })),
                 catchError((err: unknown) => {
                   this.cargando.set(false);
                   this.error.set(mensajeErrorHttp(err, 'No fue posible cargar los pasajeros del servicio.'));
@@ -183,9 +255,18 @@ export class ServicioPasajerosForm {
           ),
         ),
       )
-      .subscribe(({ servicio, asociaciones, ruta, pasajeros }) => {
+      .subscribe(({ servicio, asociaciones, ruta, pasajeros, asignaciones, vehiculos, planificacion }) => {
+        const asignacion = asignaciones.find((item) => item.estado === 'ACTIVA') ?? null;
+        this.estadoPlanificacion.set(planificacion?.estado ?? null);
+        this.planificacionConsultada.set(true);
         this.servicio.set(servicio);
         this.ruta.set(ruta);
+        this.asignacion.set(asignacion);
+        this.vehiculo.set(
+          asignacion
+            ? vehiculos.find((item) => item.idVehiculo === asignacion.idVehiculo) ?? null
+            : null,
+        );
         this.aplicarDatos(asociaciones, ruta, pasajeros);
         this.cargando.set(false);
       });
@@ -223,15 +304,13 @@ export class ServicioPasajerosForm {
     return `${punto.orden} · ${punto.nombre}`;
   }
 
-  tonoConfirmacion(estado: EstadoConfirmacionViaje): BadgeTone {
-    switch (estado) {
-      case 'CONFIRMADO':
-        return 'green';
-      case 'RECHAZADO':
-        return 'red';
-      case 'PENDIENTE':
-        return 'amber';
+  nombrePunto(idPunto: string | null): string {
+    if (!idPunto) {
+      return 'Sin punto de recogida';
     }
+
+    const punto = this.puntosRuta().find((item) => item.idPunto === idPunto);
+    return punto ? this.etiquetaPunto(punto) : 'Punto no disponible en la ruta';
   }
 
   puntoEdicion(idPasajeroServicio: number): string {
@@ -245,11 +324,22 @@ export class ServicioPasajerosForm {
   cambiarPuntoAsociado(idPasajeroServicio: number, idPuntoRecogida: string): void {
     this.errorAccion.set(null);
     this.puntosEdicion.update((actual) => ({ ...actual, [idPasajeroServicio]: idPuntoRecogida }));
+    const fila = this.asociados().find((item) => item.idPasajeroServicio === idPasajeroServicio);
+    if (!fila || !idPuntoRecogida || !this.puedeAplicarPunto(fila)) {
+      return;
+    }
+
+    if (!this.puntosRuta().some((punto) => punto.idPunto === idPuntoRecogida)) {
+      this.errorAccion.set('El punto de recogida debe pertenecer a la ruta de este servicio.');
+      return;
+    }
+
+    this.aplicarPunto(fila);
   }
 
   puedeAplicarPunto(fila: AsociadoVista): boolean {
     const elegido = this.puntoEdicion(fila.idPasajeroServicio);
-    if (!elegido || this.ocupado()) {
+    if (!this.puedeAsociar() || !elegido || this.ocupado()) {
       return false;
     }
 
@@ -282,7 +372,7 @@ export class ServicioPasajerosForm {
   }
 
   pedirQuitar(fila: AsociadoVista): void {
-    if (this.ocupado()) {
+    if (!this.puedeAsociar() || this.ocupado()) {
       return;
     }
 
@@ -300,7 +390,7 @@ export class ServicioPasajerosForm {
 
   confirmarQuitar(): void {
     const fila = this.pendienteQuitar();
-    if (!fila || this.idQuitando() != null) {
+    if (!this.puedeAsociar() || !fila || this.idQuitando() != null) {
       return;
     }
 
@@ -348,6 +438,17 @@ export class ServicioPasajerosForm {
     const servicio = this.servicio();
     const seleccion = this.seleccionados();
     if (!servicio || seleccion.length === 0) {
+      return;
+    }
+
+    if (!this.vehiculo()) {
+      this.errorAccion.set('Asigna un vehículo antes de agregar pasajeros.');
+      return;
+    }
+
+    const cupos = this.cuposDisponibles();
+    if (cupos != null && seleccion.length > cupos) {
+      this.errorAccion.set('La selección supera la capacidad del vehículo.');
       return;
     }
 
@@ -425,20 +526,22 @@ export class ServicioPasajerosForm {
     const asociados = activos
       .map((asociacion) => {
         const persona = personas.get(asociacion.idPasajero);
-        const idPuntoPersistido = coincidirPuntoRuta(asociacion.idPuntoRecogida, puntos);
-        const tienePunto = !!asociacion.idPuntoRecogida?.trim();
-        const puntoInvalido = tienePunto && !idPuntoPersistido;
+        const crudo = asociacion.idPuntoRecogida?.trim() ?? '';
+        const idPuntoPersistido = coincidirPuntoRuta(crudo, puntos);
+        const idPuntoHabitual = coincidirPuntoRuta(habitualPorId.get(asociacion.idPasajero), puntos);
+        const puntoInvalido = !!crudo && !idPuntoPersistido;
         return {
           idPasajeroServicio: asociacion.idPasajeroServicio,
           idPasajero: asociacion.idPasajero,
           nombre: persona?.nombre ?? `Pasajero #${asociacion.idPasajero}`,
           rut: persona?.rut ?? '—',
-          idPuntoRecogida: asociacion.idPuntoRecogida,
+          idPuntoRecogida: crudo || null,
           estadoConfirmacion: asociacion.estadoConfirmacion,
           estado: asociacion.estado,
-          habitual: habitualPorId.has(asociacion.idPasajero),
+          habitual: !!idPuntoHabitual,
           puntoInvalido,
-          sinPunto: !tienePunto,
+          sinPunto: !crudo && !idPuntoHabitual,
+          usaHabitual: !crudo && !!idPuntoHabitual,
         };
       })
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
@@ -467,7 +570,9 @@ export class ServicioPasajerosForm {
 
     const edicion: Record<number, string> = {};
     for (const fila of asociados) {
-      edicion[fila.idPasajeroServicio] = coincidirPuntoRuta(fila.idPuntoRecogida, puntos);
+      const persistido = coincidirPuntoRuta(fila.idPuntoRecogida, puntos);
+      const habitual = coincidirPuntoRuta(habitualPorId.get(fila.idPasajero), puntos);
+      edicion[fila.idPasajeroServicio] = persistido || (fila.puntoInvalido ? (fila.idPuntoRecogida ?? '') : habitual);
     }
 
     this.asociados.set(asociados);
@@ -477,7 +582,11 @@ export class ServicioPasajerosForm {
 
   private limpiar(): void {
     this.servicio.set(null);
+    this.estadoPlanificacion.set(null);
+    this.planificacionConsultada.set(false);
     this.ruta.set(null);
+    this.asignacion.set(null);
+    this.vehiculo.set(null);
     this.asociados.set([]);
     this.candidatos.set([]);
     this.puntosEdicion.set({});

@@ -2,14 +2,13 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
-import { Icon } from '../../../shared/components/icon/icon';
 
 export const CONCEPTO_TRAYEK =
   'Trayek nace del concepto de trayecto y representa la gestión digital del recorrido completo de un servicio de transporte, desde su planificación hasta su ejecución y control.';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, Icon],
+  imports: [ReactiveFormsModule],
   templateUrl: './login.html',
   styleUrl: './login.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,8 +19,6 @@ export class LoginPage {
   private readonly router = inject(Router);
 
   readonly concepto = CONCEPTO_TRAYEK;
-  readonly conceptoBreve =
-    'Gestión digital del recorrido de un servicio de transporte: de la planificación a la ejecución y el control.';
   readonly bloques = [
     { titulo: 'Planificación', detalle: 'Servicios y rutas' },
     { titulo: 'Operación', detalle: 'Seguimiento de recorridos' },

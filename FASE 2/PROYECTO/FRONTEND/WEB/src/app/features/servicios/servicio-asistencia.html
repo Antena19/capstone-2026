@@ -1,0 +1,66 @@
+<div class="asistencia">
+  @if (cargando()) {
+    <div class="skeleton-list">
+      @for (item of esqueletos; track item) {
+        <div class="skeleton-row"></div>
+      }
+    </div>
+  } @else if (error(); as texto) {
+    <div class="estado-error">
+      <p>{{ texto }}</p>
+      <app-action-button label="Reintentar" variant="secondary" (clicked)="reintentar()" />
+    </div>
+  } @else {
+    <div class="indicadores">
+      <div class="indicador">
+        <p class="etiqueta">Pasajeros asociados</p>
+        <p class="valor">{{ pasajerosAsociados() }}</p>
+      </div>
+      <div class="indicador">
+        <p class="etiqueta">Asistencias registradas</p>
+        <p class="valor">{{ asistenciasRegistradas() }}</p>
+      </div>
+      <div class="indicador">
+        <p class="etiqueta">Porcentaje de registro</p>
+        <p class="valor">{{ porcentajeRegistro() }}</p>
+      </div>
+    </div>
+
+    @if (filas().length === 0) {
+      <p class="vacio">No hay pasajeros con asociación activa en este servicio.</p>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Pasajero</th>
+              <th>Asistencia</th>
+              <th>Fecha y hora</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (fila of filas(); track fila.idPasajero) {
+              <tr>
+                <td class="name">
+                  {{ fila.nombre }}
+                  <span class="meta">{{ fila.rut }}</span>
+                </td>
+                <td>
+                  <app-status-badge [label]="etiquetaAsistencia(fila)" [tone]="tonoAsistencia(fila)" />
+                  @if (fila.estado === 'VALIDA') {
+                    <span class="meta valida">Válida</span>
+                  }
+                </td>
+                <td class="mono">{{ formatearFechaHora(fila.fechaHora) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+  <div class="acciones">
+    <app-action-button label="Cerrar" variant="secondary" (clicked)="cerrado.emit()" />
+  </div>
+</div>

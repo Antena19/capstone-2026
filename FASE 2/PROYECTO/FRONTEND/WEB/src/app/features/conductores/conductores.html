@@ -11,7 +11,7 @@
     [value]="estadoFiltro()"
     (valueChange)="actualizarEstadoFiltro($event)"
   />
-  <app-action-button label="Nuevo conductor" icon="plus" (clicked)="abrirCrear()" />
+  <app-action-button class="principal" label="Nuevo conductor" icon="plus" (clicked)="abrirCrear()" />
 </app-page-header>
 
 @if (error(); as texto) {
@@ -46,7 +46,7 @@
       <table>
         <thead>
           <tr>
-            <th>Conductor</th>
+            <th>Nombre</th>
             <th>RUT</th>
             <th>Teléfono</th>
             <th>Estado</th>
@@ -54,13 +54,15 @@
           </tr>
         </thead>
         <tbody>
-          @for (conductor of visibles(); track conductor.idConductor) {
+          @for (conductor of filas(); track conductor.idConductor) {
             <tr>
               <td class="name">{{ conductor.nombre }}</td>
               <td class="mono">{{ conductor.rut }}</td>
               <td class="mono">{{ conductor.telefono }}</td>
               <td>
                 <app-status-badge
+                  [class.estado-activo]="conductor.estado === 'ACTIVO'"
+                  [class.estado-inactivo]="conductor.estado === 'INACTIVO'"
                   [label]="conductor.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'"
                   [tone]="conductor.estado === 'ACTIVO' ? 'green' : 'slate'"
                 />
@@ -79,15 +81,6 @@
                   @if (conductor.estado === 'ACTIVO') {
                     <button
                       type="button"
-                      class="text-btn"
-                      title="Restablecer contraseña"
-                      [disabled]="estaRestableciendo(conductor.idUsuario)"
-                      (click)="pedirRestablecer(conductor)"
-                    >
-                      Restablecer
-                    </button>
-                    <button
-                      type="button"
                       class="icon-btn is-danger"
                       title="Desactivar conductor"
                       aria-label="Desactivar conductor"
@@ -95,6 +88,16 @@
                       (click)="pedirDesactivar(conductor)"
                     >
                       <app-icon name="ban" [size]="15" />
+                    </button>
+                    <button
+                      type="button"
+                      class="icon-btn"
+                      title="Restablecer contraseña"
+                      aria-label="Restablecer contraseña"
+                      [disabled]="estaRestableciendo(conductor.idUsuario)"
+                      (click)="pedirRestablecer(conductor)"
+                    >
+                      <app-icon name="llave" [size]="15" />
                     </button>
                   } @else {
                     <button
@@ -115,6 +118,13 @@
         </tbody>
       </table>
     </div>
+    <app-paginacion
+      [pagina]="paginacion.pagina()"
+      [tamano]="paginacion.tamano()"
+      [total]="visibles().length"
+      (paginaChange)="paginacion.ir($event)"
+      (tamanoChange)="paginacion.cambiarTamano($event)"
+    />
   }
 </app-card>
 
@@ -141,20 +151,26 @@
 >
   @if (credenciales(); as cuenta) {
     <div class="credenciales">
-      <p class="credenciales-intro">Cuenta de acceso</p>
       <div class="credencial">
-        <span>Correo</span>
-        <p class="mono">{{ cuenta.email }}</p>
+        <span>Correo electrónico</span>
+        <input type="text" readonly [value]="cuenta.email" aria-label="Correo electrónico" />
       </div>
       @if (cuenta.passwordTemporal) {
-        <div class="credencial">
+        <div class="credencial credencial-clave">
           <span>Contraseña temporal</span>
-          <p class="mono">{{ cuenta.passwordTemporal }}</p>
+          <input
+            type="text"
+            readonly
+            [value]="cuenta.passwordTemporal"
+            aria-label="Contraseña temporal"
+            autocomplete="off"
+            spellcheck="false"
+          />
         </div>
         <p class="aviso">
-          Esta contraseña se mostrará una sola vez. Entrégala al conductor de forma segura. Deberá
-          cambiarla al iniciar sesión.
+          Guarda estas credenciales para entregarlas al conductor. La contraseña solo se mostrará una vez.
         </p>
+        <p class="aviso">Deberá cambiarla al iniciar sesión.</p>
       } @else {
         <p class="aviso">
           La operación se completó. El servidor no devolvió una clave temporal para mostrar.

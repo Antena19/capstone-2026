@@ -1,3 +1,5 @@
+@use '../../../styles/ui' as ui;
+
 .panel {
   display: flex;
   flex-direction: column;
@@ -31,6 +33,11 @@
   font-weight: 600;
 }
 
+.sin-asignar {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
 .mono {
   font-variant-numeric: tabular-nums;
 }
@@ -55,14 +62,13 @@
 }
 
 .banner {
-  padding: 10px 12px;
-  color: #991b1b;
-  background: #fef2f2;
-  border-radius: var(--radius-lg);
+  @include ui.banner-error-compacto;
+  margin: 0;
+  font-size: 13px;
 }
 
 .alerta {
-  color: #991b1b;
+  color: var(--color-danger-text);
 }
 
 .confirmar {
@@ -70,8 +76,8 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger-border);
   border-radius: var(--radius-lg);
 }
 
@@ -122,67 +128,47 @@
   font-weight: 600;
 }
 
-.lista {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 240px;
+.table-wrap {
+  max-height: 280px;
   overflow: auto;
 }
 
-.fila {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(140px, 200px) auto;
-  gap: 8px;
-  align-items: center;
-  padding: 8px 10px;
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+@include ui.tabla-datos;
+
+.table-wrap table {
+  table-layout: fixed;
+  min-width: 44rem;
 }
 
-.fila.candidato {
-  grid-template-columns: minmax(0, 1fr) minmax(140px, 200px);
+.table-wrap th,
+.table-wrap td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
 }
 
-.fila.is-invalido {
-  border-color: #fca5a5;
+.col-pasajero {
+  width: 22%;
 }
 
-.fila.is-busy {
-  opacity: 0.7;
+.col-rut {
+  width: 16%;
 }
 
-.identidad,
-.check .identidad {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+.col-punto {
+  width: 42%;
 }
 
-.nombre-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+.col-acciones {
+  width: 15%;
 }
 
-.nombre,
-.identidad strong {
-  font-size: 13px;
-  font-weight: 600;
+tr.is-invalido td {
+  background: #fef2f2;
 }
 
-.meta {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
-.badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+td.name {
+  white-space: normal;
 }
 
 .check {
@@ -200,58 +186,32 @@
   box-shadow: none;
 }
 
+.punto {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .punto select {
+  display: block;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .fila-acciones {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
 }
 
 .enlace {
-  border: 0;
-  background: transparent;
-  padding: 4px 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-primary);
-  border-radius: var(--radius-lg);
+  @include ui.accion-texto;
 }
 
-.enlace.is-danger {
-  color: #dc2626;
-}
-
-.enlace:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.skeleton-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.skeleton-row {
-  height: 44px;
-  border-radius: var(--radius-lg);
-  background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
-  background-size: 200% 100%;
-  animation: pulse 1.4s ease infinite;
-}
-
-@keyframes pulse {
-  0% {
-    background-position: 100% 0;
-  }
-  100% {
-    background-position: -100% 0;
-  }
-}
+@include ui.lista-esqueleto(44px, 0);
 
 .sr-only {
   position: absolute;
@@ -266,9 +226,7 @@
 }
 
 @media (max-width: 720px) {
-  .contexto,
-  .fila,
-  .fila.candidato {
+  .contexto {
     grid-template-columns: 1fr;
   }
 

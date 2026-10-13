@@ -18,10 +18,15 @@ export type IconName =
   | 'plus'
   | 'download'
   | 'alert'
+  | 'ojo'
   | 'edit'
   | 'check'
   | 'close'
-  | 'ban';
+  | 'ban'
+  | 'llave'
+  | 'mover'
+  | 'ubicar'
+  | 'clipboard-check';
 
 export interface NavItem {
   path: string;

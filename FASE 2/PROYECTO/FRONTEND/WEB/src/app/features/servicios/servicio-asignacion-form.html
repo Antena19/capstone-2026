@@ -17,7 +17,11 @@
   }
 
   @if (servicio(); as actual) {
-    <fieldset class="cuerpo" [disabled]="guardando() || cargando()">
+    @if (notaPlanificacion(); as texto) {
+      <p class="nota">{{ texto }}</p>
+    }
+
+    <fieldset class="cuerpo" [disabled]="guardando() || cargando() || !puedeAdministrar()">
       @if (esRecurrente()) {
         <p class="nota">Esta asignación se aplica solo a este servicio.</p>
       }
@@ -68,10 +72,12 @@
       [disabled]="guardando()"
       (clicked)="cerrar()"
     />
-    <app-action-button
-      [label]="etiquetaGuardar()"
-      type="submit"
-      [disabled]="guardando() || cargando() || !servicio() || form.invalid || (esReemplazo() && !hayCambio()) || conductores().length === 0 || vehiculos().length === 0"
-    />
+    @if (puedeAdministrar()) {
+      <app-action-button
+        [label]="etiquetaGuardar()"
+        type="submit"
+        [disabled]="guardando() || cargando() || !servicio() || form.invalid || (esReemplazo() && !hayCambio()) || conductores().length === 0 || vehiculos().length === 0"
+      />
+    }
   </div>
 </form>

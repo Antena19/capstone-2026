@@ -1,0 +1,25 @@
+<nav class="paginacion" aria-label="Paginación">
+  <p class="resumen" aria-live="polite">
+    Mostrando {{ rango().desde }}–{{ rango().hasta }} de {{ total() }} {{ etiquetaTotal() }}
+  </p>
+  <div class="controles">
+    <label class="tamano">
+      <span>Por página</span>
+      <select
+        [value]="'' + tamano()"
+        aria-label="Registros por página"
+        (change)="cambiarTamano($event)"
+      >
+        @for (opcion of tamanos; track opcion) {
+          <option [value]="'' + opcion">{{ opcion }}</option>
+        }
+      </select>
+    </label>
+    <div class="nav">
+      <button type="button" [disabled]="enPrimera()" (click)="anterior()">Anterior</button>
+      <span class="actual" aria-current="page">{{ rango().pagina }}</span>
+      <span class="de">de {{ rango().paginas }}</span>
+      <button type="button" [disabled]="enUltima()" (click)="siguiente()">Siguiente</button>
+    </div>
+  </div>
+</nav>

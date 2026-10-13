@@ -1,0 +1,404 @@
+@mixin control {
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+@mixin control-focus {
+  outline: none;
+  border-color: var(--color-focus-border);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+
+@mixin control-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@mixin control-readonly {
+  background: var(--color-slate-50);
+  color: var(--color-slate-600);
+}
+
+@mixin etiqueta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-slate-600);
+}
+
+@mixin marca-requerida {
+  text-decoration: none;
+  color: var(--color-danger-strong);
+}
+
+@mixin mensaje-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-danger-strong);
+}
+
+@mixin nota {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+@mixin banner-error-compacto {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--color-danger-text);
+  background: var(--color-danger-soft);
+  border-radius: var(--radius-lg);
+}
+
+@mixin banner-error-lista {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: var(--color-danger-text);
+  background: var(--color-danger-soft);
+  border-radius: var(--radius-lg);
+}
+
+@mixin aviso {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--color-warning-text);
+  background: var(--color-warning-soft);
+  border-radius: var(--radius-lg);
+}
+
+@mixin acciones-formulario {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+@mixin acciones-tabla {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@mixin boton-icono {
+  border: 0;
+  background: transparent;
+  color: var(--color-slate-400);
+  padding: 6px;
+  border-radius: var(--radius-lg);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
+  }
+
+  &.is-danger:hover:not(:disabled) {
+    color: var(--color-danger-strong);
+    background: var(--color-danger-soft);
+  }
+
+  &.is-success:hover:not(:disabled) {
+    color: var(--color-success-strong);
+    background: var(--color-success-soft);
+  }
+}
+
+@mixin accion-texto {
+  border: 0;
+  background: transparent;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  border-radius: var(--radius-lg);
+
+  &:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--color-primary-soft);
+  }
+
+  &.is-danger {
+    color: var(--color-danger-strong);
+  }
+
+  &.is-danger:hover:not(:disabled) {
+    background: var(--color-danger-soft);
+  }
+}
+
+@mixin pulso {
+  @keyframes pulse {
+    0% {
+      background-position: 100% 0;
+    }
+
+    100% {
+      background-position: -100% 0;
+    }
+  }
+}
+
+@mixin fila-esqueleto($alto: 36px) {
+  height: $alto;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--color-slate-100) 25%,
+    var(--color-neutral) 50%,
+    var(--color-slate-100) 75%
+  );
+  background-size: 200% 100%;
+  animation: pulse 1.4s ease infinite;
+}
+
+@mixin lista-esqueleto($alto: 36px, $relleno: 12px) {
+  .skeleton-list {
+    padding: $relleno;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .skeleton-row {
+    @include fila-esqueleto($alto);
+  }
+
+  @include pulso;
+}
+
+@mixin formulario {
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field > span {
+    @include etiqueta;
+  }
+
+  abbr {
+    @include marca-requerida;
+  }
+
+  .hint {
+    @include mensaje-error;
+  }
+
+  .banner {
+    @include banner-error-compacto;
+  }
+
+  .actions {
+    @include acciones-formulario;
+  }
+}
+
+@mixin rejilla {
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 720px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+@mixin controles {
+  input,
+  select,
+  textarea {
+    @include control;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    @include control-focus;
+  }
+
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    @include control-disabled;
+  }
+}
+
+@mixin tabla-datos {
+  .table-wrap {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th,
+  td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--color-slate-100);
+  }
+
+  th {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.35;
+    text-transform: uppercase;
+    white-space: normal;
+    vertical-align: bottom;
+    color: #fff;
+    background: #2b161b;
+  }
+
+  td {
+    white-space: nowrap;
+    vertical-align: middle;
+    color: var(--color-text);
+  }
+
+  td.name {
+    font-weight: 500;
+    color: var(--color-text);
+  }
+
+  .num {
+    text-align: right;
+  }
+
+  .mono {
+    font-variant-numeric: tabular-nums;
+    color: var(--color-slate-600);
+  }
+}
+
+@mixin vacio-lista {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 28px 20px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+@mixin listado {
+  .banner {
+    @include banner-error-lista;
+  }
+
+  @include tabla-datos;
+
+  .actions {
+    @include acciones-tabla;
+  }
+
+  .icon-btn {
+    @include boton-icono;
+  }
+
+  .text-btn {
+    @include accion-texto;
+  }
+
+  .empty {
+    @include vacio-lista;
+  }
+
+  @include lista-esqueleto;
+}
+
+@mixin panel-credenciales {
+  .credenciales {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .credenciales-intro {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .credencial {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .credencial > span {
+    @include etiqueta;
+  }
+
+  .credencial > p {
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 14px;
+    background: var(--color-slate-50);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    user-select: all;
+  }
+
+  .aviso {
+    margin: 0;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    line-height: 1.45;
+  }
+
+  .copia-ok {
+    margin: 0;
+    font-size: 13px;
+    color: var(--color-success-text);
+  }
+
+  .credenciales-acciones {
+    @include acciones-formulario;
+  }
+}

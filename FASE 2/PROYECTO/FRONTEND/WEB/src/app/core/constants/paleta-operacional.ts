@@ -1,13 +1,13 @@
 export const PALETA_OPERACIONAL = {
-  programado: '#2563eb',
-  enCurso: '#0d9488',
-  realizado: '#10b981',
-  cancelado: '#ef4444',
-  planificado: '#2563eb',
-  transportado: '#10b981',
-  noPlanificado: '#7c3aed',
-  neutro: '#cbd5e1',
-  pista: '#e2e8f0',
+  programado: '#EF4D48',
+  enCurso: '#9B555B',
+  realizado: '#2B161B',
+  cancelado: '#D90700',
+  planificado: '#EF4D48',
+  transportado: '#453E3E',
+  noPlanificado: '#EF4D48',
+  neutro: '#d9d0d2',
+  pista: '#F6F7F8',
 } as const;
 
 export type ColorOperacional = (typeof PALETA_OPERACIONAL)[keyof typeof PALETA_OPERACIONAL];

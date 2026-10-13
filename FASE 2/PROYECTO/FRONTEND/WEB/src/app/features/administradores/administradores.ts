@@ -12,6 +12,7 @@ import { EstadoRegistro } from '../../core/models/empresa';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { PaginacionLista } from '../../core/utils/paginacion';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
 import { ConfirmDialog } from '../../shared/components/confirm-dialog/confirm-dialog';
@@ -19,6 +20,7 @@ import { FilterOption, FilterSelect } from '../../shared/components/filter-selec
 import { Icon } from '../../shared/components/icon/icon';
 import { Modal } from '../../shared/components/modal/modal';
 import { PageHeader } from '../../shared/components/page-header/page-header';
+import { Paginacion } from '../../shared/components/paginacion/paginacion';
 import { SearchInput } from '../../shared/components/search-input/search-input';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 import { AdministradorForm } from './administrador-form';
@@ -39,6 +41,7 @@ type ModoFormulario = 'crear' | 'editar';
     Modal,
     ConfirmDialog,
     AdministradorForm,
+    Paginacion,
   ],
   templateUrl: './administradores.html',
   styleUrl: './administradores.scss',
@@ -94,6 +97,12 @@ export class AdministradoresPage {
       [administrador.email, administrador.telefono ?? ''].join(' ').toLowerCase().includes(texto),
     );
   });
+
+  readonly paginacion = new PaginacionLista(
+    () => this.visibles(),
+    () => `${this.busqueda()}|${this.estadoFiltro()}`,
+  );
+  readonly filas = computed(() => this.paginacion.recortar());
 
   readonly subtitulo = computed(
     () => 'Gestiona las cuentas administrativas con acceso a la plataforma.',

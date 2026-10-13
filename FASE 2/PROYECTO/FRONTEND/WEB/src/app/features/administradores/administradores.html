@@ -6,12 +6,12 @@
   />
   <app-filter-select
     label="Estado"
-    blankLabel="Todos"
+    blankLabel="Todos los estados"
     [items]="opcionesEstado"
     [value]="estadoFiltro()"
     (valueChange)="actualizarEstadoFiltro($event)"
   />
-  <app-action-button label="Nuevo administrador" icon="plus" (clicked)="abrirCrear()" />
+  <app-action-button class="principal" label="Nuevo administrador" icon="plus" (clicked)="abrirCrear()" />
 </app-page-header>
 
 @if (error(); as texto) {
@@ -33,9 +33,9 @@
   } @else if (administradores().length === 0) {
     <div class="empty">
       @if (estadoFiltro()) {
-        <p>No hay administradores para mostrar.</p>
+        <p>No hay administradores con el estado seleccionado.</p>
       } @else {
-        <p>No hay administradores para mostrar.</p>
+        <p>No hay administradores registrados.</p>
         <app-action-button label="Registrar primer administrador" icon="plus" (clicked)="abrirCrear()" />
       }
     </div>
@@ -55,12 +55,14 @@
           </tr>
         </thead>
         <tbody>
-          @for (administrador of visibles(); track administrador.idUsuario) {
+          @for (administrador of filas(); track administrador.idUsuario) {
             <tr>
               <td class="name">{{ administrador.email }}</td>
               <td class="mono">{{ administrador.telefono || '—' }}</td>
               <td>
                 <app-status-badge
+                  [class.estado-activo]="administrador.estado === 'ACTIVO'"
+                  [class.estado-inactivo]="administrador.estado === 'INACTIVO'"
                   [label]="administrador.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'"
                   [tone]="administrador.estado === 'ACTIVO' ? 'green' : 'slate'"
                 />
@@ -83,19 +85,20 @@
                   @if (administrador.estado === 'ACTIVO') {
                     <button
                       type="button"
-                      class="text-btn"
+                      class="icon-btn"
                       title="Restablecer contraseña"
+                      aria-label="Restablecer contraseña"
                       [disabled]="estaRestableciendo(administrador.idUsuario)"
                       (click)="pedirRestablecer(administrador)"
                     >
-                      Restablecer
+                      <app-icon name="llave" [size]="15" />
                     </button>
                     @if (!esCuentaPropia(administrador)) {
                       <button
                         type="button"
                         class="icon-btn is-danger"
-                        title="Inactivar administrador"
-                        aria-label="Inactivar administrador"
+                        title="Desactivar administrador"
+                        aria-label="Desactivar administrador"
                         [disabled]="estaCambiandoEstado(administrador.idUsuario)"
                         (click)="pedirInactivar(administrador)"
                       >
@@ -121,6 +124,13 @@
         </tbody>
       </table>
     </div>
+    <app-paginacion
+      [pagina]="paginacion.pagina()"
+      [tamano]="paginacion.tamano()"
+      [total]="visibles().length"
+      (paginaChange)="paginacion.ir($event)"
+      (tamanoChange)="paginacion.cambiarTamano($event)"
+    />
   }
 </app-card>
 
@@ -142,10 +152,9 @@
 
 <app-confirm-dialog
   [open]="confirmacionAbierta()"
-  titulo="Inactivar administrador"
+  titulo="Desactivar administrador"
   [mensaje]="mensajeConfirmacion()"
-  confirmLabel="Inactivar"
-  cancelLabel="Cancelar"
+  confirmLabel="Desactivar"
   [danger]="true"
   [confirmDisabled]="idUsuarioCambiandoEstado() !== null"
   (confirmed)="confirmarInactivar()"
@@ -157,7 +166,6 @@
   titulo="Restablecer contraseña"
   [mensaje]="mensajeReset()"
   confirmLabel="Restablecer"
-  cancelLabel="Cancelar"
   [danger]="true"
   [confirmDisabled]="idUsuarioRestableciendo() !== null"
   (confirmed)="confirmarRestablecer()"
@@ -171,16 +179,25 @@
 >
   @if (credencialesReset(); as cuenta) {
     <div class="credenciales">
-      <p class="credenciales-intro">Entrega estas credenciales de forma segura. No se volverán a mostrar.</p>
       <div class="credencial">
-        <span>Correo</span>
-        <p class="mono">{{ cuenta.email }}</p>
+        <span>Correo electrónico</span>
+        <input type="text" readonly [value]="cuenta.email" aria-label="Correo electrónico" />
       </div>
       @if (cuenta.passwordTemporal) {
-        <div class="credencial">
+        <div class="credencial credencial-clave">
           <span>Contraseña temporal</span>
-          <p class="mono">{{ cuenta.passwordTemporal }}</p>
+          <input
+            type="text"
+            readonly
+            [value]="cuenta.passwordTemporal"
+            aria-label="Contraseña temporal"
+            autocomplete="off"
+            spellcheck="false"
+          />
         </div>
+        <p class="aviso">
+          Guarda estas credenciales para entregarlas. La contraseña solo se mostrará una vez.
+        </p>
       } @else {
         <p class="aviso">La contraseña se restableció. El servidor no devolvió una clave temporal para mostrar.</p>
       }

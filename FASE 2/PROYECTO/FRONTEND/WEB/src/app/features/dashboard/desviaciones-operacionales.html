@@ -1,0 +1,31 @@
+@if (esqueleto()) {
+  <div class="fila" aria-hidden="true">
+    <div class="esqueleto"></div>
+    <div class="esqueleto"></div>
+    <div class="esqueleto"></div>
+  </div>
+} @else {
+  <div class="fila">
+    <div class="tarjeta tono-ambar">
+      <span class="icono">
+        <app-icon name="alert" [size]="16" />
+      </span>
+      <p class="etiqueta">Sin asistencia en servicios finalizados</p>
+      <p class="valor">{{ formatoEntero(sinAsistencia()) }}</p>
+    </div>
+    <div class="tarjeta tono-violeta">
+      <span class="icono">
+        <app-icon name="pasajeros" [size]="16" />
+      </span>
+      <p class="etiqueta">Pasajeros no planificados transportados</p>
+      <p class="valor">{{ formatoEntero(noPlanificados()) }}</p>
+    </div>
+    <div class="tarjeta tono-rojo">
+      <span class="icono">
+        <app-icon name="servicios" [size]="16" />
+      </span>
+      <p class="etiqueta">Servicios cancelados</p>
+      <p class="valor">{{ formatoEntero(cancelados()) }}</p>
+    </div>
+  </div>
+}

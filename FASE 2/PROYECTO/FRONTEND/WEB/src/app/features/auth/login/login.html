@@ -1,16 +1,18 @@
 <div class="login">
-  <section class="panel-brand" aria-label="Identidad Trayek">
-    <div class="brand">
-      <div class="logo">
-        <app-icon name="bus" [size]="20" />
+  <section class="panel-marca" aria-label="Identidad Trayek">
+    <div class="identidad">
+      <div class="logo-pista">
+        <div class="logo-marco">
+          <img class="logo" src="logo_blanco.svg" alt="" />
+        </div>
       </div>
-      <span>Trayek</span>
+      <p class="nombre">TRAYEK</p>
+      <p class="rubro">GESTIÓN DE TRANSPORTE DE PERSONAL</p>
     </div>
-
-    <div class="brand-footer">
+    <div class="marca-pie">
       <div class="bloques">
         @for (bloque of bloques; track bloque.titulo) {
-          <article class="bloque">
+          <article>
             <h2>{{ bloque.titulo }}</h2>
             <p>{{ bloque.detalle }}</p>
           </article>
@@ -21,31 +23,42 @@
   </section>
 
   <section class="panel-form">
-    <div class="form-wrap">
-      <div class="heading">
-        <div class="brand brand-mobile">
-          <div class="logo">
-            <app-icon name="bus" [size]="18" />
-          </div>
-          <span>Trayek</span>
-        </div>
+    <div class="tarjeta">
+      <header>
         <h1>Iniciar sesión</h1>
         <p>Sistema de gestión de transporte de personal</p>
-        <p class="concepto-mobile">{{ conceptoBreve }}</p>
-      </div>
+      </header>
 
-      <form [formGroup]="form" (ngSubmit)="enviar()">
+      <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
         <label>
           Correo electrónico
-          <input type="email" formControlName="email" autocomplete="username" />
+          <input
+            type="email"
+            formControlName="email"
+            autocomplete="username"
+            [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
+          />
+          @if (form.controls.email.touched && form.controls.email.invalid) {
+            <span class="campo-error">
+              {{ form.controls.email.hasError('email') ? 'Ingrese un correo válido.' : 'Ingrese su correo electrónico.' }}
+            </span>
+          }
         </label>
 
         <label>
           Contraseña
-          <input type="password" formControlName="password" autocomplete="current-password" />
+          <input
+            type="password"
+            formControlName="password"
+            autocomplete="current-password"
+            [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
+          />
+          @if (form.controls.password.touched && form.controls.password.invalid) {
+            <span class="campo-error">Ingrese su contraseña.</span>
+          }
         </label>
 
-        <label class="remember">
+        <label class="recordar">
           <input type="checkbox" formControlName="recordar" />
           Recordar sesión
         </label>

@@ -13,6 +13,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { HttpErrorResponse } from '@angular/common/http';
+import { ActivatedRoute } from '@angular/router';
 import { fromEvent } from 'rxjs';
 import { LngLatBounds, Map as MapaLibre, MapMouseEvent, Marker, NavigationControl, Popup } from 'maplibre-gl';
 import type { GeoJSONSource } from 'maplibre-gl';
@@ -26,8 +27,8 @@ import { mensajeErrorHttp } from '../../core/utils/http-error';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { ConfirmDialog } from '../../shared/components/confirm-dialog/confirm-dialog';
 import { FilterOption, FilterSelect } from '../../shared/components/filter-select/filter-select';
+import { Icon } from '../../shared/components/icon/icon';
 import { Modal } from '../../shared/components/modal/modal';
-import { PageHeader } from '../../shared/components/page-header/page-header';
 import { SearchInput } from '../../shared/components/search-input/search-input';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 import { coincidePasajero } from './buscar-pasajeros';
@@ -42,13 +43,13 @@ type TipoExtremo = 'origen' | 'destino';
 @Component({
   selector: 'app-rutas',
   imports: [
-    PageHeader,
     FilterSelect,
     ActionButton,
     StatusBadge,
     ConfirmDialog,
     SearchInput,
     Modal,
+    Icon,
     CdkDropList,
     CdkDrag,
     CdkDragHandle,
@@ -63,6 +64,7 @@ export class RutasPage {
   private readonly feedback = inject(FeedbackService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly zona = inject(NgZone);
+  private readonly consulta = inject(ActivatedRoute);
   private readonly contenedorMapa = viewChild<ElementRef<HTMLDivElement>>('mapa');
   private readonly cuerpoPanel = viewChild<ElementRef<HTMLElement>>('cuerpo');
 
@@ -71,6 +73,8 @@ export class RutasPage {
   private marcadoresPuntos = new Map<string, Marker>();
   private marcadorOrigen: Marker | null = null;
   private marcadorDestino: Marker | null = null;
+  private calculoEpoch = 0;
+  private rutaPendiente = '';
   private manejarClickMapa = (evento: MapMouseEvent) => {
     this.zona.run(() => this.alClickMapa(evento));
   };
@@ -83,7 +87,7 @@ export class RutasPage {
   readonly idRuta = signal('');
   readonly bloque = signal<BloqueRuta>('informacion');
   readonly mostrarFormNueva = signal(false);
-  readonly pasajerosAbiertos = signal(false);
+  readonly vista = signal<'rutas' | 'pasajeros'>('rutas');
   readonly recorridoPendienteRecalculo = signal(false);
   readonly busqueda = signal('');
   readonly filtroAsignacion = signal<FiltroAsignacion>('todos');
@@ -108,6 +112,7 @@ export class RutasPage {
   readonly nombreExtremo = signal('');
   readonly referenciaExtremo = signal('');
   readonly calcularEnCurso = signal(false);
+  readonly calculoFallido = signal(false);
   readonly nombreRuta = signal('');
   readonly sectorRuta = signal('');
   readonly modalAsignarAbierto = signal(false);
@@ -145,9 +150,12 @@ export class RutasPage {
 
   readonly asignacionPorPasajero = computed(() => {
     const mapa = new Map<string, PuntoRecogida>();
-    for (const punto of this.ruta()?.puntosRecogida ?? []) {
+    for (const punto of [...(this.ruta()?.puntosRecogida ?? [])].sort((a, b) => a.orden - b.orden)) {
       for (const id of punto.pasajerosIds ?? []) {
-        mapa.set(String(id), punto);
+        const clave = String(id);
+        if (!mapa.has(clave)) {
+          mapa.set(clave, punto);
+        }
       }
     }
 
@@ -162,10 +170,6 @@ export class RutasPage {
     const ruta = this.ruta();
     return !!ruta?.origen && !!ruta.destino && !this.calcularEnCurso() && !this.guardando();
   });
-
-  readonly etiquetaCalcular = computed(() =>
-    this.ruta()?.trazado ? 'Recalcular recorrido' : 'Calcular recorrido',
-  );
 
   readonly nombreEmpresa = computed(() => {
     const id = Number(this.idEmpresa());
@@ -185,26 +189,6 @@ export class RutasPage {
   readonly pasajerosSinPunto = computed(() =>
     Math.max(0, this.totalActivos() - this.pasajerosAsignados()),
   );
-
-  readonly textoPasajerosAsignados = computed(() => {
-    if (!this.idEmpresa() || this.cargando()) {
-      return 'Cargando pasajeros';
-    }
-
-    return `${this.pasajerosAsignados()} de ${this.totalActivos()}`;
-  });
-
-  readonly textoPasajerosUbicados = computed(() => {
-    if (!this.idEmpresa()) {
-      return '';
-    }
-
-    if (this.cargando()) {
-      return 'Cargando pasajeros';
-    }
-
-    return `${this.geocodificados()} de ${this.totalActivos()} pasajeros ubicados en el mapa`;
-  });
 
   readonly rutaConfigurada = computed(() => {
     const ruta = this.ruta();
@@ -236,74 +220,35 @@ export class RutasPage {
       return 'bloqueado';
     }
 
-    if (this.puntosOrdenados().length > 0 || this.ruta()?.trazado) {
+    if (this.puntosOrdenados().length > 0) {
       return 'completo';
     }
 
     return 'pendiente';
   });
 
-  readonly notaInformacion = computed(() => {
-    if (this.ruta()) {
-      return 'Lista';
+  readonly indicacionMapa = computed(() => {
+    if (this.modalExtremoAbierto() || this.modalPuntoAbierto()) {
+      return null;
     }
 
-    return this.bloque() === 'informacion' ? 'En curso' : 'Pendiente';
-  });
-
-  readonly notaExtremos = computed(() => {
-    if (this.bloque() === 'extremos' && this.estadoExtremos() !== 'completo') {
-      return 'En curso';
+    if (this.modoDefinirExtremo() === 'origen') {
+      return 'Haz clic en el mapa para ubicar el origen.';
     }
 
-    switch (this.estadoExtremos()) {
-      case 'completo':
-        return 'Definidos';
-      case 'atencion':
-        return 'Incompleto';
-      case 'bloqueado':
-        return 'Tras crear la ruta';
-      default:
-        return 'Pendiente';
-    }
-  });
-
-  readonly notaPuntos = computed(() => {
-    if (!this.ruta()) {
-      return 'Tras crear la ruta';
+    if (this.modoDefinirExtremo() === 'destino') {
+      return 'Haz clic en el mapa para ubicar el destino.';
     }
 
-    if (this.bloque() === 'puntos' && this.estadoPuntos() !== 'completo') {
-      return 'En curso';
+    if (this.modoCrearPunto()) {
+      return 'Haz clic en el mapa para ubicar el punto de recogida.';
     }
 
-    const cantidad = this.puntosOrdenados().length;
-    if (cantidad === 1) {
-      return '1 punto';
+    if (this.modoMoverPunto() || this.modoMoverExtremo()) {
+      return 'Arrastra el marcador y confirma la nueva ubicación.';
     }
 
-    if (cantidad > 1) {
-      return `${cantidad} puntos`;
-    }
-
-    return this.ruta()?.trazado ? 'Sin puntos' : 'Opcional';
-  });
-
-  readonly notaRevision = computed(() => {
-    if (this.bloque() === 'revision' && this.estadoRevision() !== 'completo') {
-      return 'En curso';
-    }
-
-    switch (this.estadoRevision()) {
-      case 'completo':
-        return 'Calculado';
-      case 'atencion':
-        return this.recorridoPendienteRecalculo() ? 'Recalcular' : 'Incompleto';
-      case 'bloqueado':
-        return 'Tras crear la ruta';
-      default:
-        return 'Pendiente';
-    }
+    return null;
   });
 
   readonly estadoRevision = computed<EstadoBloque>(() => {
@@ -429,6 +374,13 @@ export class RutasPage {
   });
 
   constructor() {
+    const empresa = this.consulta.snapshot.queryParamMap.get('empresa');
+    const ruta = this.consulta.snapshot.queryParamMap.get('ruta');
+    if (empresa && ruta) {
+      this.rutaPendiente = ruta;
+      this.seleccionarEmpresa(empresa);
+    }
+
     this.empresasApi.listar('ACTIVO').subscribe({
       next: (empresas) => this.empresas.set(empresas),
       error: (err: unknown) => {
@@ -445,7 +397,7 @@ export class RutasPage {
     fromEvent<KeyboardEvent>(document, 'keydown')
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((evento) => {
-        if (evento.key !== 'Escape') {
+        if (evento.key !== 'Escape' || evento.shiftKey || evento.ctrlKey || evento.altKey || evento.metaKey) {
           return;
         }
 
@@ -479,16 +431,18 @@ export class RutasPage {
     this.bloque.set('informacion');
     this.mostrarFormNueva.set(false);
     this.recorridoPendienteRecalculo.set(false);
-    this.pasajerosAbiertos.set(false);
+    this.calculoFallido.set(false);
+    this.vista.set('rutas');
     this.seleccionadoId.set(null);
     this.puntoSeleccionadoId.set(null);
     this.busqueda.set('');
     this.filtroAsignacion.set('todos');
+    this.pasajeros.set([]);
     this.limpiarMarcadoresPuntos();
     this.actualizarTrazadoMapa(null);
+    this.actualizarMarcadoresPasajeros(true);
     if (!valor) {
-      this.pasajeros.set([]);
-      this.actualizarMarcadoresPasajeros(true);
+      this.cargando.set(false);
       return;
     }
 
@@ -502,6 +456,7 @@ export class RutasPage {
     this.puntoSeleccionadoId.set(null);
     this.mostrarFormNueva.set(false);
     this.recorridoPendienteRecalculo.set(false);
+    this.calculoFallido.set(false);
     if (!valor) {
       this.ruta.set(null);
       this.bloque.set('informacion');
@@ -537,11 +492,19 @@ export class RutasPage {
     this.error.set(null);
     this.api.listarPasajeros(idEmpresa).subscribe({
       next: (pasajeros) => {
+        if (Number(this.idEmpresa()) !== idEmpresa) {
+          return;
+        }
+
         this.cargando.set(false);
         this.pasajeros.set(pasajeros);
         this.actualizarMarcadoresPasajeros(true);
       },
       error: (err: unknown) => {
+        if (Number(this.idEmpresa()) !== idEmpresa) {
+          return;
+        }
+
         this.cargando.set(false);
         this.pasajeros.set([]);
         this.actualizarMarcadoresPasajeros(true);
@@ -557,8 +520,23 @@ export class RutasPage {
     }
 
     this.api.listar(idEmpresa, 'ACTIVO').subscribe({
-      next: (rutas) => this.rutas.set(rutas),
+      next: (rutas) => {
+        if (Number(this.idEmpresa()) !== idEmpresa) {
+          return;
+        }
+
+        this.rutas.set(rutas);
+        const pendiente = this.rutaPendiente;
+        if (pendiente) {
+          this.rutaPendiente = '';
+          this.seleccionarRuta(pendiente);
+        }
+      },
       error: (err: unknown) => {
+        if (Number(this.idEmpresa()) !== idEmpresa) {
+          return;
+        }
+
         this.error.set(mensajeErrorHttp(err, 'No fue posible cargar las rutas.'));
       },
     });
@@ -582,12 +560,76 @@ export class RutasPage {
       return;
     }
 
+    if (bloque === 'puntos' && (!this.ruta()?.origen || !this.ruta()?.destino)) {
+      return;
+    }
+
+    if (bloque === 'revision' && this.puntosOrdenados().length === 0) {
+      return;
+    }
+
     if (bloque !== this.bloque()) {
       this.cancelarModosMapa();
     }
 
+    this.vista.set('rutas');
     this.bloque.set(bloque);
     this.enfocarBloque();
+    this.ajustarMapa();
+    if (bloque === 'revision') {
+      this.solicitarCalculoSiCorresponde();
+    }
+  }
+
+  verRutas(): void {
+    if (this.vista() === 'rutas') {
+      return;
+    }
+
+    this.vista.set('rutas');
+    this.ajustarMapa();
+  }
+
+  verPasajeros(): void {
+    if (!this.idEmpresa() || this.vista() === 'pasajeros') {
+      return;
+    }
+
+    this.vista.set('pasajeros');
+    this.ajustarMapa();
+  }
+
+  nombreVisibleExtremo(extremo: { nombre: string; referencia: string | null } | null, rol: string): string | null {
+    const nombre = extremo?.nombre.trim() ?? '';
+    if (!nombre || nombre.localeCompare(rol, 'es', { sensitivity: 'accent' }) === 0) {
+      return null;
+    }
+
+    return nombre;
+  }
+
+  referenciaVisible(extremo: { nombre: string; referencia: string | null } | null): string | null {
+    const referencia = extremo?.referencia?.trim() ?? '';
+    if (!referencia || referencia.localeCompare(extremo?.nombre.trim() ?? '', 'es', { sensitivity: 'accent' }) === 0) {
+      return null;
+    }
+
+    return referencia;
+  }
+
+  editarDesdeListado(idRuta: string): void {
+    this.verRutas();
+    if (this.idRuta() !== idRuta) {
+      this.seleccionarRuta(idRuta);
+    }
+    this.elegirBloque('extremos');
+  }
+
+  gestionarPasajeros(idRuta: string): void {
+    if (this.idRuta() !== idRuta) {
+      this.seleccionarRuta(idRuta);
+    }
+    this.verPasajeros();
   }
 
   finalizarConfiguracion(): void {
@@ -609,8 +651,8 @@ export class RutasPage {
     this.enfocarBloque();
   }
 
-  alternarPasajeros(): void {
-    this.pasajerosAbiertos.update((abierto) => !abierto);
+  private ajustarMapa(): void {
+    setTimeout(() => this.mapa?.resize());
   }
 
   guardarRuta(): void {
@@ -805,26 +847,69 @@ export class RutasPage {
     });
   }
 
-  calcularRuta(): void {
+  calcularRuta(manual = false): void {
     const ruta = this.ruta();
-    if (!ruta || !this.puedeCalcular()) {
+    if (!ruta || !this.puedeCalcular() || this.puntosOrdenados().length === 0) {
       return;
     }
 
+    const epoch = this.calculoEpoch;
+    const idRuta = ruta.idRuta;
+    const conservaVigente = !!ruta.trazado && !this.recorridoPendienteRecalculo();
     this.calcularEnCurso.set(true);
+    this.calculoFallido.set(false);
     this.error.set(null);
-    this.api.calcularTrazado(ruta.idRuta).subscribe({
+    if (!conservaVigente) {
+      this.actualizarTrazadoMapa(null);
+    }
+
+    this.api.calcularTrazado(idRuta).subscribe({
       next: (actualizada) => {
         this.calcularEnCurso.set(false);
+        if (this.idRuta() !== idRuta || epoch !== this.calculoEpoch) {
+          this.reintentarCalculoSiSigueEnResumen();
+          return;
+        }
+
         this.aplicarRuta(actualizada, true);
-        this.actualizarTrazadoMapa(actualizada.trazado);
-        this.feedback.mostrar('Recorrido calculado.');
+        if (manual) {
+          this.feedback.mostrar('Recorrido calculado.');
+        }
       },
       error: (err: unknown) => {
         this.calcularEnCurso.set(false);
-        this.error.set(mensajeErrorHttp(err, 'No fue posible calcular el recorrido.'));
+        if (this.idRuta() !== idRuta || epoch !== this.calculoEpoch) {
+          this.reintentarCalculoSiSigueEnResumen();
+          return;
+        }
+
+        if (!conservaVigente) {
+          this.actualizarTrazadoMapa(null);
+        }
+
+        this.calculoFallido.set(true);
+        this.error.set(mensajeErrorHttp(err, 'No fue posible calcular el recorrido. Puedes reintentar.'));
       },
     });
+  }
+
+  private solicitarCalculoSiCorresponde(): void {
+    const ruta = this.ruta();
+    if (!ruta?.origen || !ruta.destino || this.puntosOrdenados().length === 0 || this.calcularEnCurso()) {
+      return;
+    }
+
+    if (ruta.trazado && !this.recorridoPendienteRecalculo()) {
+      return;
+    }
+
+    this.calcularRuta(false);
+  }
+
+  private reintentarCalculoSiSigueEnResumen(): void {
+    if (this.bloque() === 'revision' && this.vista() === 'rutas') {
+      this.solicitarCalculoSiCorresponde();
+    }
   }
 
   tituloModalExtremo(): string {
@@ -956,6 +1041,18 @@ export class RutasPage {
   }
 
   cancelarConfirmacion(): void {
+    if (this.tipoConfirmacion() === 'mover') {
+      const movidos = new Set(this.pasajerosAMover());
+      this.idsAsignados.update((actual) => {
+        const siguiente = new Set(actual);
+        for (const id of movidos) {
+          siguiente.delete(id);
+        }
+
+        return siguiente;
+      });
+    }
+
     this.confirmacionAbierta.set(false);
     this.puntoAEliminar.set(null);
   }
@@ -1124,6 +1221,7 @@ export class RutasPage {
       && !!anterior.trazado
       && !normalizada.trazado
     ) {
+      this.calculoEpoch += 1;
       this.recorridoPendienteRecalculo.set(true);
     } else if (normalizada.trazado) {
       this.recorridoPendienteRecalculo.set(false);
@@ -1165,6 +1263,11 @@ export class RutasPage {
     };
   }
 
+  numeroVisiblePunto(punto: PuntoRecogida): number {
+    const indice = this.puntosOrdenados().findIndex((item) => item.idPunto === punto.idPunto);
+    return indice < 0 ? 1 : indice + 1;
+  }
+
   puntoActual(): PuntoRecogida | undefined {
     const id = this.puntoSeleccionadoId();
     return this.puntosOrdenados().find((punto) => punto.idPunto === id);
@@ -1188,7 +1291,7 @@ export class RutasPage {
 
     this.guardando.set(true);
     this.api.asignarPasajeros(ruta.idRuta, puntoId, {
-      pasajerosIds: [...this.idsAsignados()],
+      pasajerosIds: [...new Set(this.idsAsignados())],
     }).subscribe({
       next: (actualizada) => {
         this.guardando.set(false);
@@ -1343,7 +1446,7 @@ export class RutasPage {
 
       const lngLat: [number, number] = [Number(pasajero.longitud), Number(pasajero.latitud)];
       puntos.push(lngLat);
-      const marcador = new Marker({ color: '#64748b', scale: 0.75 })
+      const marcador = new Marker({ color: '#453e3e', scale: 0.75 })
         .setLngLat(lngLat)
         .setPopup(new Popup({ offset: 16 }).setDOMContent(this.crearPopupPasajero(pasajero)))
         .addTo(mapa);
@@ -1363,7 +1466,7 @@ export class RutasPage {
 
     this.limpiarMarcadoresPuntos();
     const extras: [number, number][] = [];
-    for (const punto of this.puntosOrdenados()) {
+    for (const [indice, punto] of this.puntosOrdenados().entries()) {
       if (punto.latitud == null || punto.longitud == null) {
         continue;
       }
@@ -1372,7 +1475,7 @@ export class RutasPage {
       extras.push(lngLat);
       const elemento = document.createElement('div');
       elemento.className = 'marcador-punto';
-      elemento.textContent = String(punto.orden);
+      elemento.textContent = String(indice + 1);
       const marcador = new Marker({ element: elemento, draggable: this.modoMoverPunto() && this.puntoSeleccionadoId() === punto.idPunto })
         .setLngLat(lngLat)
         .setPopup(new Popup({ offset: 18 }).setDOMContent(this.crearPopupPunto(punto)))
@@ -1527,7 +1630,7 @@ export class RutasPage {
           'line-cap': 'round',
         },
         paint: {
-          'line-color': '#2563eb',
+          'line-color': '#9b555b',
           'line-width': 5,
           'line-opacity': 0.95,
         },
@@ -1647,7 +1750,7 @@ export class RutasPage {
     }
 
     const orden = document.createElement('p');
-    orden.textContent = `Orden: ${punto.orden}`;
+    orden.textContent = `Orden: ${this.numeroVisiblePunto(punto)}`;
     contenedor.appendChild(orden);
     const pasajeros = document.createElement('p');
     pasajeros.textContent = `Pasajeros: ${punto.cantidadPasajeros ?? (punto.pasajerosIds ?? []).length}`;

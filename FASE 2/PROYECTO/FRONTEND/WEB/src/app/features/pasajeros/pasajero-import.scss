@@ -1,7 +1,34 @@
+@use '../../../styles/ui' as ui;
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
 .import {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
+}
+
+.plantilla {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  background: var(--color-primary-soft);
+  border: 1px solid #f8d7d3;
+  border-radius: 12px;
+}
+
+.plantilla-titulo {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: #2b161b;
 }
 
 .step {
@@ -14,12 +41,7 @@
 }
 
 .banner {
-  margin: 0;
-  padding: 10px 12px;
-  font-size: 13px;
-  color: #991b1b;
-  background: #fef2f2;
-  border-radius: var(--radius-lg);
+  @include ui.banner-error-compacto;
 }
 
 .field {
@@ -29,37 +51,74 @@
 }
 
 .field > span {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-slate-600);
+  @include ui.etiqueta;
 }
 
 abbr {
-  text-decoration: none;
-  color: #dc2626;
+  @include ui.marca-requerida;
 }
 
 input,
 select {
-  padding: 8px 12px;
-  font-size: 14px;
-  color: var(--color-text);
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  @include ui.control;
+  width: 100%;
+  max-width: 100%;
+}
+
+input:focus,
+select:focus {
+  @include ui.control-focus;
+}
+
+input:disabled,
+select:disabled {
+  @include ui.control-disabled;
 }
 
 .help {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  line-height: 1.4;
+  @include ui.nota;
 }
 
 .map-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+.resumen {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.resumen p {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 12px;
+  background: var(--color-surface);
+  border-radius: 8px;
+}
+
+.resumen strong {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.1;
+  color: var(--color-text);
+}
+
+.resumen span {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.resumen .valido {
+  background: var(--color-success-soft);
+}
+
+.resumen .con-error {
+  background: var(--color-danger-soft);
 }
 
 .summary {
@@ -74,6 +133,7 @@ select {
 
 .filters {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -90,33 +150,41 @@ select {
   color: var(--color-primary);
 }
 
+@include ui.tabla-datos;
+
 .table-wrap {
-  max-height: 360px;
+  max-height: min(52vh, 28rem);
   overflow: auto;
 }
 
 table {
-  width: 100%;
-  border-collapse: collapse;
   font-size: 12px;
 }
 
 th,
 td {
   padding: 8px 10px;
-  text-align: left;
-  border-bottom: 1px solid var(--color-slate-100);
+}
+
+td {
   vertical-align: top;
 }
 
-.mono {
-  font-variant-numeric: tabular-nums;
+.detalle-error td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  background: var(--color-danger-soft);
+  color: var(--color-danger-text);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
-.errores {
-  margin: 6px 0 0;
-  font-size: 11px;
-  color: #991b1b;
+.detalle-error p {
+  margin: 0;
+}
+
+.detalle-error p + p {
+  margin-top: 4px;
 }
 
 .detalle {
@@ -127,11 +195,18 @@ td {
 }
 
 .actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   display: flex;
   justify-content: flex-end;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  margin: 0 -20px -20px;
+  padding: 12px 20px;
+  background: #fff;
+  border-top: 1px solid var(--color-border);
 }
 
 .spacer {
@@ -139,7 +214,11 @@ td {
 }
 
 @media (max-width: 720px) {
-  .map-grid {
+  .map-grid,
+  .resumen,
+  .plantilla {
     grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
   }
 }

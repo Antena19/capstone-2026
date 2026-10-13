@@ -70,3 +70,115 @@
   background: #f0fdfa;
   color: #0d9488;
 }
+
+:host(.ops) {
+  height: 100%;
+}
+
+:host(.ops) .kpi {
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+  padding: 16px 16px 14px;
+  box-sizing: border-box;
+}
+
+:host(.ops) .kpi > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+:host(.ops) .label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+:host(.ops) .sub {
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+:host(.ops) .value {
+  font-size: 28px;
+  letter-spacing: -0.03em;
+}
+
+:host(.ops) .icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+}
+
+:host(.ops) .icon[data-tone='blue'] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+:host(.ops) .icon[data-tone='green'] {
+  background: var(--color-neutral);
+  color: var(--color-text);
+}
+
+:host(.ops) .icon[data-tone='teal'] {
+  background: #f4e8e9;
+  color: #9b555b;
+}
+
+:host(.ops) .icon[data-tone='amber'] {
+  background: #fdecea;
+  color: #ef4d48;
+}
+
+:host(.ops) .icon[data-tone='red'] {
+  background: #f8e6e4;
+  color: #d90700;
+}
+
+:host(.ops) .icon[data-tone='sky'] {
+  background: #f7f3f5;
+  color: #453e3e;
+}
+
+:host(.ops) {
+  transition: transform 200ms ease;
+}
+
+:host(.ops):hover {
+  transform: translateY(-3px);
+}
+
+:host(.ops) ::ng-deep .card {
+  transition: background-color 200ms ease, box-shadow 200ms ease;
+}
+
+:host(.ops):hover ::ng-deep .card {
+  background: #fff7f6;
+  box-shadow: 0 6px 16px rgb(43 22 27 / 9%);
+}
+
+:host(.ops.destacado) .kpi {
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+:host(.ops.destacado) .value {
+  font-size: 32px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host(.ops),
+  :host(.ops) ::ng-deep .card {
+    transition: none;
+  }
+
+  :host(.ops):hover {
+    transform: none;
+  }
+}

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, injec
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { catchError, EMPTY, forkJoin, of, Subject, switchMap, tap } from 'rxjs';
+import { Conductor } from '../../core/models/conductor';
 import { Empresa } from '../../core/models/empresa';
 import { Pasajero } from '../../core/models/pasajero';
 import { Planificacion } from '../../core/models/planificacion';
@@ -13,11 +14,14 @@ import {
   PasajeroServicioInicial,
   TipoServicio,
 } from '../../core/models/servicio';
+import { Vehiculo } from '../../core/models/vehiculo';
+import { ConductoresService } from '../../core/services/conductores.service';
 import { EmpresasService } from '../../core/services/empresas.service';
 import { PasajerosService } from '../../core/services/pasajeros.service';
 import { PlanificacionesService } from '../../core/services/planificaciones.service';
 import { RutasService } from '../../core/services/rutas.service';
-import { formatearIso, hoyLocal } from '../../core/utils/fechas';
+import { VehiculosService } from '../../core/services/vehiculos.service';
+import { formatearIso, hoyLocal, parsearIso } from '../../core/utils/fechas';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { SearchInput } from '../../shared/components/search-input/search-input';
@@ -55,6 +59,12 @@ export class ServicioForm {
   readonly abierto = input(false);
   readonly guardando = input(false);
   readonly error = input<string | null>(null);
+  readonly idEmpresaInicial = input('');
+  readonly empresaNombre = input('');
+  readonly soloAsignacion = input(false);
+  readonly fase = input<'crear' | 'asignar' | ''>('');
+  readonly avisoAbandono = input(false);
+  readonly progreso = input('');
   readonly guardado = output<AltaServicio>();
   readonly cancelado = output<void>();
 
@@ -64,6 +74,8 @@ export class ServicioForm {
   private readonly planificacionesApi = inject(PlanificacionesService);
   private readonly rutasApi = inject(RutasService);
   private readonly pasajerosApi = inject(PasajerosService);
+  private readonly conductoresApi = inject(ConductoresService);
+  private readonly vehiculosApi = inject(VehiculosService);
   private readonly recargaPasajeros = new Subject<string>();
 
   readonly diasSemana = DIAS;
@@ -71,6 +83,13 @@ export class ServicioForm {
   readonly esqueletosPasajeros = [1, 2, 3];
 
   readonly empresas = signal<Empresa[]>([]);
+  readonly conductores = signal<Conductor[]>([]);
+  readonly vehiculos = signal<Vehiculo[]>([]);
+  readonly idVehiculoActual = signal('');
+  readonly fechaDesdeActual = signal('');
+  readonly fechaHastaActual = signal('');
+  private readonly seleccionPasajeros = new Map<number, { seleccionado: boolean; idPuntoRecogida: string }>();
+  private rutaPasajerosCargada = '';
   readonly planificaciones = signal<Planificacion[]>([]);
   readonly rutas = signal<Ruta[]>([]);
   readonly cargandoPlanificaciones = signal(false);
@@ -94,6 +113,8 @@ export class ServicioForm {
       idEmpresa: ['', Validators.required],
       idPlanificacion: ['', Validators.required],
       idRuta: ['', Validators.required],
+      idConductor: ['', Validators.required],
+      idVehiculo: ['', Validators.required],
       horaInicio: ['', Validators.required],
       horaFin: ['', Validators.required],
       tipoServicio: ['', Validators.required],
@@ -117,6 +138,15 @@ export class ServicioForm {
     return this.planificaciones().find((item) => item.idPlanificacion === id) ?? null;
   });
 
+  readonly sinDiasEnPeriodo = computed(() => {
+    const periodo = this.planificacionSeleccionada()?.periodo;
+    if (!periodo) {
+      return false;
+    }
+
+    return formatearIso(hoyLocal()) > ultimoDiaPeriodo(periodo);
+  });
+
   readonly fechaMinima = computed(() => {
     const hoy = formatearIso(hoyLocal());
     const periodo = this.planificacionSeleccionada()?.periodo;
@@ -125,6 +155,11 @@ export class ServicioForm {
     }
 
     const inicio = `${periodo}-01`;
+    const fin = ultimoDiaPeriodo(periodo);
+    if (hoy > fin) {
+      return inicio;
+    }
+
     return hoy > inicio ? hoy : inicio;
   });
 
@@ -135,19 +170,79 @@ export class ServicioForm {
 
   readonly etiquetaGuardar = computed(() => {
     if (this.guardando()) {
-      return 'Creando...';
+      return this.fase() === 'asignar' ? 'Asignando...' : 'Creando...';
+    }
+
+    if (this.soloAsignacion()) {
+      return 'Reintentar asignación';
     }
 
     return this.modalidadActual() === 'recurrente' ? 'Crear serie' : 'Crear servicio';
   });
 
-  readonly rangoFechasEtiqueta = computed(() => {
-    const planificacion = this.planificacionSeleccionada();
-    if (!planificacion) {
+  readonly vehiculoSeleccionado = computed(
+    () => this.vehiculos().find((item) => String(item.idVehiculo) === this.idVehiculoActual()) ?? null,
+  );
+
+  readonly detalleVehiculo = computed(() => {
+    const vehiculo = this.vehiculoSeleccionado();
+    if (!vehiculo) {
+      return '';
+    }
+
+    return `${vehiculo.patente} · ${vehiculo.tipo} ${vehiculo.marca} ${vehiculo.modelo} · Capacidad ${vehiculo.capacidad}`;
+  });
+
+  readonly avisoPlanificacion = computed(() => {
+    const periodo = this.planificacionSeleccionada()?.periodo;
+    if (!periodo) {
       return null;
     }
 
-    return `Período ${planificacion.periodo} (${planificacion.estado}): ${formatearFechaUi(this.fechaMinima())} a ${formatearFechaUi(this.fechaMaxima())}.`;
+    const mes = etiquetaMesPeriodo(periodo);
+    if (this.sinDiasEnPeriodo()) {
+      return `La planificación de ${mes} ya no tiene fechas disponibles a partir de hoy. No es posible crear servicios en ese mes.`;
+    }
+
+    return `Planificación: ${mes}. Solo puedes programar servicios dentro de este mes.`;
+  });
+
+  readonly fechasSerie = computed(() => {
+    if (this.modalidadActual() !== 'recurrente') {
+      return null;
+    }
+
+    return fechasDeSerie(
+      this.fechaDesdeActual(),
+      this.fechaHastaActual(),
+      this.diasSeleccionados(),
+      this.planificacionSeleccionada()?.periodo ?? '',
+      formatearIso(hoyLocal()),
+    );
+  });
+
+  readonly sinCoincidencias = computed(() => this.fechasSerie()?.length === 0);
+
+  readonly avisoSerie = computed(() => {
+    const fechas = this.fechasSerie();
+    if (!fechas) {
+      return null;
+    }
+
+    if (fechas.length === 0) {
+      return 'No hay fechas que coincidan con los días seleccionados';
+    }
+
+    return `Se generarán ${fechas.length} servicios`;
+  });
+
+  readonly excedeCapacidad = computed(() => {
+    const capacidad = this.vehiculoSeleccionado()?.capacidad;
+    if (typeof capacidad !== 'number') {
+      return false;
+    }
+
+    return this.cantidadSeleccionados() > capacidad;
   });
 
   readonly cantidadSeleccionados = computed(
@@ -167,11 +262,39 @@ export class ServicioForm {
   constructor() {
     this.form.controls.idPlanificacion.disable({ emitEvent: false });
     this.form.controls.idRuta.disable({ emitEvent: false });
+    this.cargarConductoresYVehiculos();
+
+    this.form.controls.idVehiculo.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((id) => {
+      this.idVehiculoActual.set(id);
+    });
+
+    effect(() => {
+      if (!this.soloAsignacion()) {
+        return;
+      }
+
+      untracked(() => this.bloquearProgramacion());
+    });
+
+    effect(() => {
+      const sinDias = this.sinDiasEnPeriodo();
+      const soloAsignacion = this.soloAsignacion();
+      untracked(() => this.ajustarFechasDisponibles(sinDias, soloAsignacion));
+    });
 
     this.form.controls.modalidad.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((modalidad) => {
       this.modalidadActual.set(modalidad);
+      this.conservarFechas(modalidad);
       this.actualizarValidadoresFecha();
     });
+
+    for (const control of [
+      this.form.controls.fecha,
+      this.form.controls.fechaDesde,
+      this.form.controls.fechaHasta,
+    ]) {
+      control.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.sincronizarFechas());
+    }
 
     this.form.controls.idEmpresa.valueChanges
       .pipe(
@@ -216,10 +339,11 @@ export class ServicioForm {
         takeUntilDestroyed(this.destroyRef),
         tap((id) => {
           this.idPlanificacionActual.set(id);
-          this.form.controls.idRuta.setValue('', { emitEvent: false });
-          this.idRutaActual.set('');
-          this.rutas.set([]);
-          this.recargaPasajeros.next('');
+          const idPlanificacion = Number(id);
+          if (!Number.isInteger(idPlanificacion) || idPlanificacion <= 0) {
+            this.form.controls.idRuta.disable({ emitEvent: false });
+          }
+          this.actualizarValidadoresFecha();
         }),
         switchMap((id) => {
           const idPlanificacion = Number(id);
@@ -243,6 +367,10 @@ export class ServicioForm {
       .subscribe((rutas) => {
         this.rutas.set(rutas);
         this.cargandoRutas.set(false);
+        const actual = this.form.controls.idRuta.value;
+        if (actual && !rutas.some((ruta) => ruta.idRuta === actual)) {
+          this.form.controls.idRuta.setValue('');
+        }
       });
 
     this.form.controls.idRuta.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((idRuta) => {
@@ -253,7 +381,22 @@ export class ServicioForm {
     this.recargaPasajeros
       .pipe(
         takeUntilDestroyed(this.destroyRef),
-        tap(() => this.reiniciarPasajeros()),
+        tap((idRuta) => {
+          const mismaRuta = !!idRuta && idRuta === this.rutaPasajerosCargada;
+          if (!mismaRuta) {
+            this.seleccionPasajeros.clear();
+          } else if (this.candidatos().length > 0) {
+            this.seleccionPasajeros.clear();
+            for (const item of this.candidatos()) {
+              this.seleccionPasajeros.set(item.idPasajero, {
+                seleccionado: item.seleccionado,
+                idPuntoRecogida: item.idPuntoRecogida,
+              });
+            }
+          }
+          this.rutaPasajerosCargada = idRuta;
+          this.reiniciarPasajeros();
+        }),
         switchMap((idRuta) => this.obtenerPasajeros$(idRuta)),
       )
       .subscribe((datos) => this.aplicarPasajeros(datos));
@@ -267,10 +410,6 @@ export class ServicioForm {
 
       untracked(() => this.reiniciar());
     });
-  }
-
-  seleccionarModalidad(modalidad: ModalidadServicio): void {
-    this.form.controls.modalidad.setValue(modalidad);
   }
 
   alternarDia(dia: DiaSemana): void {
@@ -336,7 +475,10 @@ export class ServicioForm {
   }
 
   enviar(): void {
-    if (this.guardando()) {
+    if (
+      this.guardando()
+      || (!this.soloAsignacion() && (this.sinDiasEnPeriodo() || this.sinCoincidencias() || this.excedeCapacidad()))
+    ) {
       return;
     }
 
@@ -346,12 +488,19 @@ export class ServicioForm {
       return;
     }
 
-    const pasajeros = this.pasajerosParaEnvio();
+    const pasajeros = this.soloAsignacion() ? [] : this.pasajerosParaEnvio();
     if (pasajeros === null) {
       return;
     }
 
     const valores = this.form.getRawValue();
+    const idConductor = Number(valores.idConductor);
+    const idVehiculo = Number(valores.idVehiculo);
+    if (!Number.isInteger(idConductor) || idConductor <= 0 || !Number.isInteger(idVehiculo) || idVehiculo <= 0) {
+      this.form.controls.idConductor.markAsTouched();
+      this.form.controls.idVehiculo.markAsTouched();
+      return;
+    }
     const horaInicio = aHoraApi(valores.horaInicio);
     const horaFin = aHoraApi(valores.horaFin);
     const tipoServicio = valores.tipoServicio as TipoServicio;
@@ -369,6 +518,8 @@ export class ServicioForm {
           tipoServicio,
         },
         pasajeros,
+        idConductor,
+        idVehiculo,
       });
       return;
     }
@@ -387,6 +538,8 @@ export class ServicioForm {
         tipoServicio,
         pasajeros,
       },
+      idConductor,
+      idVehiculo,
     });
   }
 
@@ -395,6 +548,8 @@ export class ServicioForm {
       | 'idEmpresa'
       | 'idPlanificacion'
       | 'idRuta'
+      | 'idConductor'
+      | 'idVehiculo'
       | 'horaInicio'
       | 'horaFin'
       | 'tipoServicio'
@@ -426,6 +581,10 @@ export class ServicioForm {
 
     if (campo.hasError('fechaAnterior')) {
       return 'La fecha no puede ser anterior al día actual.';
+    }
+
+    if (campo.hasError('fueraDePeriodo')) {
+      return 'La fecha debe pertenecer al mes de la planificación.';
     }
 
     if (campo.hasError('diasVacios')) {
@@ -460,13 +619,43 @@ export class ServicioForm {
     }));
   }
 
+  private bloquearProgramacion(): void {
+    this.form.controls.modalidad.disable({ emitEvent: false });
+    this.form.controls.idEmpresa.disable({ emitEvent: false });
+    this.form.controls.idPlanificacion.disable({ emitEvent: false });
+    this.form.controls.idRuta.disable({ emitEvent: false });
+    this.form.controls.horaInicio.disable({ emitEvent: false });
+    this.form.controls.horaFin.disable({ emitEvent: false });
+    this.form.controls.tipoServicio.disable({ emitEvent: false });
+    this.form.controls.fecha.disable({ emitEvent: false });
+    this.form.controls.fechaDesde.disable({ emitEvent: false });
+    this.form.controls.fechaHasta.disable({ emitEvent: false });
+    this.form.controls.diasSemana.disable({ emitEvent: false });
+    this.form.controls.idConductor.enable({ emitEvent: false });
+    this.form.controls.idVehiculo.enable({ emitEvent: false });
+  }
+
+  private cargarConductoresYVehiculos(): void {
+    this.conductoresApi.listar('ACTIVO').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (lista) => this.conductores.set(lista),
+      error: () => this.conductores.set([]),
+    });
+    this.vehiculosApi.listar('ACTIVO').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (lista) => this.vehiculos.set(lista),
+      error: () => this.vehiculos.set([]),
+    });
+  }
+
   private reiniciar(): void {
+    const empresa = this.idEmpresaInicial();
     this.form.reset(
       {
         modalidad: 'individual',
-        idEmpresa: '',
+        idEmpresa: empresa,
         idPlanificacion: '',
         idRuta: '',
+        idConductor: '',
+        idVehiculo: '',
         horaInicio: '',
         horaFin: '',
         tipoServicio: '',
@@ -477,20 +666,38 @@ export class ServicioForm {
       },
       { emitEvent: false },
     );
-    this.idEmpresaActual.set('');
+    this.idEmpresaActual.set(empresa);
     this.idPlanificacionActual.set('');
     this.idRutaActual.set('');
+    this.idVehiculoActual.set('');
     this.modalidadActual.set('individual');
     this.diasSeleccionados.set([]);
     this.planificaciones.set([]);
     this.rutas.set([]);
     this.cargandoPlanificaciones.set(false);
     this.cargandoRutas.set(false);
+    this.form.controls.modalidad.enable({ emitEvent: false });
+    this.form.controls.idEmpresa.enable({ emitEvent: false });
+    this.form.controls.idConductor.enable({ emitEvent: false });
+    this.form.controls.idVehiculo.enable({ emitEvent: false });
+    this.form.controls.horaInicio.enable({ emitEvent: false });
+    this.form.controls.horaFin.enable({ emitEvent: false });
+    this.form.controls.tipoServicio.enable({ emitEvent: false });
+    this.form.controls.fecha.enable({ emitEvent: false });
+    this.form.controls.fechaDesde.enable({ emitEvent: false });
+    this.form.controls.fechaHasta.enable({ emitEvent: false });
+    this.form.controls.diasSemana.enable({ emitEvent: false });
     this.form.controls.idPlanificacion.disable({ emitEvent: false });
     this.form.controls.idRuta.disable({ emitEvent: false });
     this.reiniciarPasajeros();
+    this.seleccionPasajeros.clear();
+    this.rutaPasajerosCargada = '';
+    this.sincronizarFechas();
     this.actualizarValidadoresFecha();
     this.cargarEmpresas();
+    if (empresa) {
+      this.form.controls.idEmpresa.setValue(empresa);
+    }
   }
 
   private reiniciarPasajeros(): void {
@@ -540,6 +747,10 @@ export class ServicioForm {
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
       .map((pasajero) => {
         const idPuntoHabitual = habitualPorId.get(pasajero.idPasajero) ?? null;
+        const previa = this.seleccionPasajeros.get(pasajero.idPasajero);
+        const puntoPrevio = previa && puntoSigueEnRuta(previa.idPuntoRecogida, puntos)
+          ? previa.idPuntoRecogida
+          : null;
         return {
           idPasajero: pasajero.idPasajero,
           nombre: pasajero.nombre,
@@ -547,8 +758,8 @@ export class ServicioForm {
           telefono: pasajero.telefono,
           habitual: idPuntoHabitual != null,
           idPuntoHabitual,
-          seleccionado: idPuntoHabitual != null,
-          idPuntoRecogida: idPuntoHabitual ?? '',
+          seleccionado: previa ? previa.seleccionado : idPuntoHabitual != null,
+          idPuntoRecogida: previa ? (puntoPrevio ?? idPuntoHabitual ?? '') : (idPuntoHabitual ?? ''),
         };
       });
 
@@ -557,19 +768,64 @@ export class ServicioForm {
     this.cargandoPasajeros.set(false);
   }
 
+  private conservarFechas(modalidad: ModalidadServicio): void {
+    const fecha = this.form.controls.fecha;
+    const desde = this.form.controls.fechaDesde;
+    const hasta = this.form.controls.fechaHasta;
+    if (modalidad === 'recurrente') {
+      if (!desde.value && fecha.value) {
+        desde.setValue(fecha.value, { emitEvent: false });
+      }
+
+      if (!hasta.value && fecha.value) {
+        hasta.setValue(fecha.value, { emitEvent: false });
+      }
+
+      this.sincronizarFechas();
+      return;
+    }
+
+    if (!fecha.value && desde.value) {
+      fecha.setValue(desde.value, { emitEvent: false });
+    }
+
+    this.sincronizarFechas();
+  }
+
+  private sincronizarFechas(): void {
+    const valores = this.form.getRawValue();
+    this.fechaDesdeActual.set(valores.fechaDesde);
+    this.fechaHastaActual.set(valores.fechaHasta);
+  }
+
+  private ajustarFechasDisponibles(sinDias: boolean, soloAsignacion: boolean): void {
+    if (soloAsignacion) {
+      return;
+    }
+
+    for (const control of [this.form.controls.fecha, this.form.controls.fechaDesde, this.form.controls.fechaHasta]) {
+      if (sinDias) {
+        control.disable({ emitEvent: false });
+      } else if (control.disabled) {
+        control.enable({ emitEvent: false });
+      }
+    }
+  }
+
   private actualizarValidadoresFecha(): void {
     const individual = this.form.controls.modalidad.value === 'individual';
-    const hoy = formatearIso(hoyLocal());
+    const periodo = this.planificacionSeleccionada()?.periodo ?? '';
+    const validador = fechaProgramable(formatearIso(hoyLocal()), periodo);
 
     if (individual) {
-      this.form.controls.fecha.setValidators([Validators.required, fechaNoAnterior(hoy)]);
+      this.form.controls.fecha.setValidators([Validators.required, validador]);
       this.form.controls.fechaDesde.clearValidators();
       this.form.controls.fechaHasta.clearValidators();
       this.form.controls.diasSemana.clearValidators();
     } else {
       this.form.controls.fecha.clearValidators();
-      this.form.controls.fechaDesde.setValidators([Validators.required, fechaNoAnterior(hoy)]);
-      this.form.controls.fechaHasta.setValidators([Validators.required, fechaNoAnterior(hoy)]);
+      this.form.controls.fechaDesde.setValidators([Validators.required, validador]);
+      this.form.controls.fechaHasta.setValidators([Validators.required, validador]);
       this.form.controls.diasSemana.setValidators([alMenosUnDia]);
     }
 
@@ -611,20 +867,79 @@ function rangoFechasRecurrente(grupo: AbstractControl): ValidationErrors | null 
   return desde > hasta ? { rangoFechas: true } : null;
 }
 
-function fechaNoAnterior(hoy: string) {
+function fechaProgramable(hoy: string, periodo: string) {
+  const inicio = periodo ? `${periodo}-01` : '';
+  const fin = periodo ? ultimoDiaPeriodo(periodo) : '';
+
   return (control: AbstractControl): ValidationErrors | null => {
     const valor = String(control.value ?? '');
     if (!valor) {
       return null;
     }
 
-    return valor < hoy ? { fechaAnterior: true } : null;
+    if (valor < hoy) {
+      return { fechaAnterior: true };
+    }
+
+    if (inicio && fin && (valor < inicio || valor > fin)) {
+      return { fueraDePeriodo: true };
+    }
+
+    return null;
   };
 }
 
 function alMenosUnDia(control: AbstractControl): ValidationErrors | null {
   const dias = control.value as DiaSemana[] | null;
   return dias && dias.length > 0 ? null : { diasVacios: true };
+}
+
+const DIA_JS: Record<DiaSemana, number> = {
+  DOMINGO: 0,
+  LUNES: 1,
+  MARTES: 2,
+  MIERCOLES: 3,
+  JUEVES: 4,
+  VIERNES: 5,
+  SABADO: 6,
+};
+
+function fechasDeSerie(
+  desde: string,
+  hasta: string,
+  dias: readonly DiaSemana[],
+  periodo: string,
+  hoy: string,
+): string[] | null {
+  if (!desde || !hasta || dias.length === 0 || desde > hasta) {
+    return null;
+  }
+
+  const inicio = periodo ? `${periodo}-01` : '';
+  const fin = periodo ? ultimoDiaPeriodo(periodo) : '';
+  const semana = new Set(dias.map((dia) => DIA_JS[dia]));
+  const fechas: string[] = [];
+  let cursor = desde;
+
+  for (let guardia = 0; cursor <= hasta && guardia < 400; guardia += 1) {
+    const fecha = parsearIso(cursor);
+    if (!fecha) {
+      break;
+    }
+
+    const enMes = !inicio || !fin || (cursor >= inicio && cursor <= fin);
+    if (semana.has(fecha.getDay()) && cursor >= hoy && enMes) {
+      fechas.push(cursor);
+    }
+
+    cursor = formatearIso(new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate() + 1));
+  }
+
+  return fechas;
+}
+
+function puntoSigueEnRuta(idPunto: string, puntos: readonly { idPunto: string }[]): boolean {
+  return !idPunto || puntos.some((punto) => punto.idPunto === idPunto);
 }
 
 function ultimoDiaPeriodo(periodo: string): string {
@@ -637,9 +952,25 @@ function aHoraApi(valor: string): string {
   return /^\d{2}:\d{2}$/.test(valor) ? `${valor}:00` : valor;
 }
 
-function formatearFechaUi(iso: string): string {
-  const partes = iso.slice(0, 10).split('-');
-  return partes.length === 3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : iso;
+const MESES = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
+
+function etiquetaMesPeriodo(periodo: string): string {
+  const [anio, mes] = periodo.split('-');
+  const nombre = MESES[Number(mes) - 1];
+  return nombre && anio ? `${nombre} de ${anio}` : periodo;
 }
 
 function coincideCandidato(candidato: CandidatoPasajeroServicio, termino: string): boolean {

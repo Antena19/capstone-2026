@@ -1,0 +1,26 @@
+@if (variante() === 'servicios') {
+  <div>
+    <p class="etiqueta">Servicios finalizados</p>
+    @if (evaluables() === 0) {
+      <p class="detalle">Sin servicios evaluables</p>
+    } @else {
+      <p class="detalle">{{ formatoEntero(finalizados()) }} de {{ formatoEntero(evaluables()) }} evaluables</p>
+    }
+  </div>
+  @if (evaluables() > 0) {
+    <p class="porcentaje">{{ formatoPorcentaje(porcentaje() ?? 0) }}</p>
+  }
+} @else {
+  <div>
+    <span class="etiqueta">Pasajeros planificados en servicios finalizados</span>
+    <strong class="valor">{{ formatoEntero(planificados()) }}</strong>
+  </div>
+  <div>
+    <span class="etiqueta">Planificados transportados</span>
+    <strong class="valor">{{ formatoEntero(planificadosTransportados()) }}</strong>
+  </div>
+  <div>
+    <span class="etiqueta">No planificados transportados</span>
+    <strong class="valor">{{ formatoEntero(noPlanificadosTransportados()) }}</strong>
+  </div>
+}
