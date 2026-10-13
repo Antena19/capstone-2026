@@ -22,6 +22,10 @@ import {
   parsearIso,
 } from '../../core/utils/fechas';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import {
+  formatearFechaInstanteChile,
+  formatearHoraInstanteChile,
+} from '../../core/utils/instantes';
 import { PaginacionLista } from '../../core/utils/paginacion';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
@@ -324,34 +328,15 @@ export class ReportesPage {
   }
 
   formatearFechaAsistencia(valor: string | null): string {
-    const fecha = this.fechaAsistencia(valor);
-    if (!fecha) {
-      return valor?.trim() ? valor : '—';
-    }
-
-    const dd = String(fecha.getDate()).padStart(2, '0');
-    const mm = String(fecha.getMonth() + 1).padStart(2, '0');
-    return `${dd}/${mm}/${fecha.getFullYear()}`;
-  }
-
-  formatearHoraAsistencia(valor: string | null): string {
-    const fecha = this.fechaAsistencia(valor);
-    if (!fecha) {
+    if (!valor?.trim()) {
       return '—';
     }
 
-    const hh = String(fecha.getHours()).padStart(2, '0');
-    const min = String(fecha.getMinutes()).padStart(2, '0');
-    return `${hh}:${min}`;
+    return formatearFechaInstanteChile(valor, '/') ?? valor;
   }
 
-  private fechaAsistencia(valor: string | null): Date | null {
-    if (!valor?.trim()) {
-      return null;
-    }
-
-    const fecha = new Date(valor);
-    return Number.isNaN(fecha.getTime()) ? null : fecha;
+  formatearHoraAsistencia(valor: string | null): string {
+    return formatearHoraInstanteChile(valor) ?? '—';
   }
 
   etiquetaEstado(estado: EstadoServicio): string {

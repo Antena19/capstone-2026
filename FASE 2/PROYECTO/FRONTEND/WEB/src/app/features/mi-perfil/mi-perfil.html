@@ -54,12 +54,12 @@
           </div>
           <div class="dato">
             <span>Fecha de creación</span>
-            <strong class="mono">{{ actual.fechaCreacion | date: 'dd-MM-yyyy' }}</strong>
+            <strong class="mono">{{ formatearFechaCreacion(actual.fechaCreacion) }}</strong>
           </div>
           <div class="dato">
             <span>Último acceso</span>
             <strong class="mono">
-              {{ actual.ultimoAcceso ? (actual.ultimoAcceso | date: 'dd-MM-yyyy HH:mm') : 'Nunca' }}
+              {{ actual.ultimoAcceso ? formatearUltimoAcceso(actual.ultimoAcceso) : 'Nunca' }}
             </strong>
           </div>
         </div>

@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AuthService } from '../../core/auth/auth.service';
 import { CambiarPasswordSolicitud } from '../../core/models/autenticacion';
@@ -6,6 +5,7 @@ import { EditarAdministradorSolicitud, Usuario } from '../../core/models/usuario
 import { FeedbackService } from '../../core/services/feedback.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { formatearFechaHoraInstanteChile, formatearFechaInstanteChile } from '../../core/utils/instantes';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
 import { Modal } from '../../shared/components/modal/modal';
@@ -16,7 +16,7 @@ import { PerfilForm } from './perfil-form';
 
 @Component({
   selector: 'app-mi-perfil',
-  imports: [DatePipe, PageHeader, ActionButton, AppCard, StatusBadge, Modal, PerfilForm, PasswordForm],
+  imports: [PageHeader, ActionButton, AppCard, StatusBadge, Modal, PerfilForm, PasswordForm],
   templateUrl: './mi-perfil.html',
   styleUrl: './mi-perfil.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,6 +47,14 @@ export class MiPerfilPage {
 
   constructor() {
     this.cargar();
+  }
+
+  formatearFechaCreacion(valor: string): string {
+    return formatearFechaInstanteChile(valor, '-') ?? valor;
+  }
+
+  formatearUltimoAcceso(valor: string): string {
+    return formatearFechaHoraInstanteChile(valor, '-') ?? valor;
   }
 
   cargar(): void {

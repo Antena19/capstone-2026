@@ -67,9 +67,9 @@
                   [tone]="administrador.estado === 'ACTIVO' ? 'green' : 'slate'"
                 />
               </td>
-              <td class="mono">{{ administrador.fechaCreacion | date: 'dd-MM-yyyy' }}</td>
+              <td class="mono">{{ formatearFechaCreacion(administrador.fechaCreacion) }}</td>
               <td class="mono">
-                {{ administrador.ultimoAcceso ? (administrador.ultimoAcceso | date: 'dd-MM-yyyy HH:mm') : 'Nunca' }}
+                {{ administrador.ultimoAcceso ? formatearUltimoAcceso(administrador.ultimoAcceso) : 'Nunca' }}
               </td>
               <td>
                 <div class="actions">

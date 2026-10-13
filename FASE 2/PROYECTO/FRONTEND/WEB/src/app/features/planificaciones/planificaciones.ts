@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { EmpresasService } from '../../core/services/empresas.service';
@@ -12,6 +11,7 @@ import {
   Planificacion,
 } from '../../core/models/planificacion';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { formatearFechaInstanteChile } from '../../core/utils/instantes';
 import { PaginacionLista } from '../../core/utils/paginacion';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
@@ -29,7 +29,6 @@ type DestinoEstado = CambiarEstadoPlanificacionSolicitud['estado'];
 @Component({
   selector: 'app-planificaciones',
   imports: [
-    DatePipe,
     ActionButton,
     FilterSelect,
     AppCard,
@@ -332,6 +331,10 @@ export class PlanificacionesPage {
 
   admiteServicios(estado: EstadoPlanificacion): boolean {
     return estado === 'BORRADOR' || estado === 'ACTIVA';
+  }
+
+  formatearFechaCreacion(valor: string): string {
+    return formatearFechaInstanteChile(valor, '-') ?? valor;
   }
 
   textoEstado(estado: EstadoPlanificacion): string {

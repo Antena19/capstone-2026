@@ -19,6 +19,7 @@ import { RutasService } from '../../core/services/rutas.service';
 import { ServiciosService } from '../../core/services/servicios.service';
 import { VehiculosService } from '../../core/services/vehiculos.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { formatearFechaHoraInstanteChile } from '../../core/utils/instantes';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
 import { planificacionPermiteAdministrar } from './planificacion-administrable';
@@ -323,17 +324,7 @@ export class ServicioDetalle {
   }
 
   formatearFechaHora(valor: string): string {
-    const fecha = new Date(valor);
-    if (Number.isNaN(fecha.getTime())) {
-      return valor;
-    }
-
-    const dd = String(fecha.getDate()).padStart(2, '0');
-    const mm = String(fecha.getMonth() + 1).padStart(2, '0');
-    const yyyy = fecha.getFullYear();
-    const hh = String(fecha.getHours()).padStart(2, '0');
-    const min = String(fecha.getMinutes()).padStart(2, '0');
-    return `${dd}-${mm}-${yyyy} ${hh}:${min}`;
+    return formatearFechaHoraInstanteChile(valor, '-') ?? valor;
   }
 
   formatearFecha(fecha: string): string {

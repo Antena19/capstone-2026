@@ -165,7 +165,7 @@
                 </div>
               </td>
               <td>{{ planificacion.emailUsuarioCreador || '—' }}</td>
-              <td class="mono">{{ planificacion.fechaCreacion | date: 'dd-MM-yyyy' }}</td>
+              <td class="mono">{{ formatearFechaCreacion(planificacion.fechaCreacion) }}</td>
             </tr>
           }
         </tbody>

@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -12,6 +11,7 @@ import { EstadoRegistro } from '../../core/models/empresa';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { UsuariosService } from '../../core/services/usuarios.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { formatearFechaHoraInstanteChile, formatearFechaInstanteChile } from '../../core/utils/instantes';
 import { PaginacionLista } from '../../core/utils/paginacion';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { AppCard } from '../../shared/components/app-card/app-card';
@@ -30,7 +30,6 @@ type ModoFormulario = 'crear' | 'editar';
 @Component({
   selector: 'app-administradores',
   imports: [
-    DatePipe,
     PageHeader,
     ActionButton,
     SearchInput,
@@ -158,6 +157,14 @@ export class AdministradoresPage {
   actualizarEstadoFiltro(valor: string): void {
     this.estadoFiltro.set(valor);
     this.cargar();
+  }
+
+  formatearFechaCreacion(valor: string): string {
+    return formatearFechaInstanteChile(valor, '-') ?? valor;
+  }
+
+  formatearUltimoAcceso(valor: string): string {
+    return formatearFechaHoraInstanteChile(valor, '-') ?? valor;
   }
 
   esCuentaPropia(administrador: Usuario): boolean {
