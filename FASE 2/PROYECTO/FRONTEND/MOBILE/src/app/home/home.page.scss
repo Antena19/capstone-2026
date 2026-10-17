@@ -20,13 +20,14 @@
 
 .seccion-head h2 {
   margin: 0;
+  font-family: var(--font-display);
   font-size: 18px;
   font-weight: 600;
 }
 
 .seccion-head p {
   margin: 4px 0 0;
-  color: var(--ion-color-medium);
+  color: var(--color-text-muted);
   font-size: 14px;
 }
 
@@ -45,7 +46,8 @@ ion-card {
 
 .id-servicio {
   margin: 0 0 4px;
-  font-size: 14px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -64,13 +66,17 @@ ion-badge + ion-badge {
 
 .meta {
   margin: 4px 0 8px;
-  color: var(--ion-color-medium);
+  color: var(--color-text-muted);
   font-size: 14px;
+}
+
+.vacio {
+  text-align: center;
 }
 
 .vacio p {
   margin: 8px 0;
-  color: var(--ion-color-medium);
+  color: var(--color-text-muted);
 }
 
 ion-note {

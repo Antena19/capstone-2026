@@ -54,6 +54,19 @@ namespace BACKEND.Modelos
         [Column("estado")]
         public EstadoServicio Estado { get; set; } = EstadoServicio.PROGRAMADO;
 
+        /// <summary>
+        /// Código de cancelación. Nulo en servicios no cancelados y en cancelaciones antiguas.
+        /// </summary>
+        [MaxLength(50)]
+        [Column("motivo_cancelacion")]
+        public string? MotivoCancelacion { get; set; }
+
+        /// <summary>
+        /// Instante UTC en que se registró la cancelación. No es la hora de vencimiento del plazo.
+        /// </summary>
+        [Column("fecha_hora_cancelacion")]
+        public DateTime? FechaHoraCancelacion { get; set; }
+
         [ForeignKey(nameof(IdEmpresa))]
         public EmpresaCliente Empresa { get; set; } = null!;
 

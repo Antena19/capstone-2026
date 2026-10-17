@@ -10,18 +10,24 @@
 
 .id-servicio {
   margin: 0 0 4px;
-  font-size: 15px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
   font-weight: 600;
 }
 
 .fecha {
   margin: 0 0 4px;
-  color: var(--ion-color-medium);
+  color: var(--color-text-muted);
 }
 
 h1 {
   margin: 0 0 12px;
+  font-family: var(--font-display);
   font-size: 28px;
+}
+
+ion-badge + ion-badge {
+  margin-left: 6px;
 }
 
 ion-note {
@@ -35,8 +41,15 @@ ion-item h2 {
 
 .en-curso {
   margin: 10px 0 0;
+  color: #0f766e;
   font-size: 16px;
   font-weight: 600;
+}
+
+.aviso-inicio {
+  margin: 10px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 15px;
 }
 
 .acciones {
@@ -51,4 +64,25 @@ ion-item h2 {
   width: 20px;
   height: 20px;
   margin-right: 8px;
+}
+
+.boton-iniciar {
+  --background: #d90700;
+  --background-activated: #b00600;
+  --color: #fff;
+}
+
+.boton-qr {
+  --background: #2b161b;
+  --background-activated: #1a0d10;
+  --color: #f7f3f5;
+}
+
+.boton-finalizar {
+  --background: #fff;
+  --background-activated: #fff6f6;
+  --border-width: 1px;
+  --border-style: solid;
+  --border-color: #d90700;
+  --color: #d90700;
 }

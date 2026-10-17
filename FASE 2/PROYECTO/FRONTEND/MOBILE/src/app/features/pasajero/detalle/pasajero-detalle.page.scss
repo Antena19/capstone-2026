@@ -10,18 +10,27 @@
 
 .id-servicio {
   margin: 0 0 4px;
-  font-size: 15px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
   font-weight: 600;
 }
 
 .fecha {
   margin: 0 0 4px;
-  color: var(--ion-color-medium);
+  color: var(--color-text-muted);
 }
 
 h1 {
   margin: 0 0 12px;
+  font-family: var(--font-display);
   font-size: 28px;
+}
+
+.aviso-inicio {
+  margin: 10px 0 0;
+  color: var(--color-text);
+  font-size: 16px;
+  font-weight: 600;
 }
 
 ion-badge + ion-badge {

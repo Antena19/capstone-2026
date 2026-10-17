@@ -6,20 +6,19 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   IonButton,
   IonContent,
   IonHeader,
   IonInput,
-  IonItem,
-  IonList,
   IonNote,
   IonSpinner,
   IonTitle,
   IonToolbar,
 } from '@ionic/angular';
 import { AuthService } from '../../../core/auth/auth.service';
+import { CampoPasswordComponent } from '../../../shared/campo-password/campo-password.component';
 import { MENSAJE_PASSWORD, PATRON_PASSWORD } from '../../../core/constants/auth';
 
 function confirmarPassword(grupo: AbstractControl): ValidationErrors | null {
@@ -42,18 +41,19 @@ function confirmarPassword(grupo: AbstractControl): ValidationErrors | null {
     IonToolbar,
     IonTitle,
     IonContent,
-    IonList,
-    IonItem,
-    IonInput,
     IonButton,
     IonNote,
     IonSpinner,
+    CampoPasswordComponent,
   ],
 })
 export class CambiarPasswordPage {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly ruta = inject(ActivatedRoute);
+
+  readonly voluntario = this.ruta.snapshot.data['voluntario'] === true;
 
   readonly enviando = signal(false);
   readonly error = signal<string | null>(null);
@@ -93,5 +93,9 @@ export class CambiarPasswordPage {
   cerrarSesion(): void {
     this.auth.cerrarSesion();
     void this.router.navigateByUrl('/login');
+  }
+
+  volver(): void {
+    void this.router.navigateByUrl('/perfil');
   }
 }

@@ -11,6 +11,7 @@
 
 /* Core CSS required for Ionic components to work properly */
 @import "@ionic/angular/css/core.css";
+@import "maplibre-gl/dist/maplibre-gl.css";
 
 /* Basic CSS for apps built with Ionic */
 @import "@ionic/angular/css/normalize.css";
@@ -32,6 +33,375 @@
  * https://ionicframework.com/docs/theming/dark-mode
  */
 
-/* @import "@ionic/angular/css/palettes/dark.always.css"; */
-/* @import "@ionic/angular/css/palettes/dark.class.css"; */
-@import '@ionic/angular/css/palettes/dark.system.css';
+ion-content {
+  --background: var(--color-surface);
+}
+
+ion-header,
+ion-toolbar {
+  --background: var(--color-sidebar);
+  --color: #f7f3f5;
+  --border-width: 0;
+}
+
+ion-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+ion-back-button {
+  --color: #f7f3f5;
+}
+
+ion-toolbar ion-button {
+  --color: #f7f3f5;
+  font-weight: 500;
+}
+
+.logo-toolbar {
+  width: 28px;
+  height: 28px;
+  margin-inline: 12px 4px;
+  object-fit: contain;
+}
+
+ion-button.accion-toolbar {
+  --padding-start: 6px;
+  --padding-end: 6px;
+  font-size: 13px;
+}
+
+ion-button {
+  --border-radius: var(--radius-lg);
+  min-height: 44px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+ion-button::part(native) {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+ion-button[fill='outline']:not([color='danger']) {
+  --background: var(--color-card);
+  --background-activated: #f6f7f8;
+  --border-color: var(--color-border);
+  --color: #453e3e;
+}
+
+ion-content ion-button[fill='clear'] {
+  --color: var(--color-primary);
+  font-weight: 600;
+}
+
+ion-card {
+  margin: 0 0 12px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+ion-card-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+ion-card-subtitle {
+  color: var(--color-text-muted);
+}
+
+ion-list {
+  background: transparent;
+}
+
+ion-item {
+  --background: var(--color-card);
+  --color: var(--color-text);
+  --border-color: #efe8ea;
+}
+
+ion-input {
+  --background: var(--color-card);
+  --color: var(--color-text);
+  --placeholder-color: #9a9092;
+  --border-color: var(--color-border);
+  --border-radius: var(--radius-lg);
+  --highlight-color: #ef4d48;
+  --padding-start: 14px;
+  --padding-end: 14px;
+}
+
+ion-badge {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+}
+
+ion-badge[color='programado'] {
+  --background: var(--color-estado-programado-fondo);
+  --color: var(--color-estado-programado-texto);
+  background: var(--color-estado-programado-fondo);
+  color: var(--color-estado-programado-texto);
+  border-color: var(--color-estado-programado-borde);
+}
+
+ion-badge[color='encurso'] {
+  --background: var(--color-estado-encurso-fondo);
+  --color: var(--color-estado-encurso-texto);
+  background: var(--color-estado-encurso-fondo);
+  color: var(--color-estado-encurso-texto);
+  border-color: var(--color-estado-encurso-borde);
+}
+
+ion-badge[color='realizado'],
+ion-badge[color='success'] {
+  --background: var(--color-estado-realizado-fondo);
+  --color: var(--color-estado-realizado-texto);
+  background: var(--color-estado-realizado-fondo);
+  color: var(--color-estado-realizado-texto);
+  border-color: var(--color-estado-realizado-borde);
+}
+
+ion-badge[color='cancelado'],
+ion-badge[color='danger'] {
+  --background: var(--color-estado-cancelado-fondo);
+  --color: var(--color-estado-cancelado-texto);
+  background: var(--color-estado-cancelado-fondo);
+  color: var(--color-estado-cancelado-texto);
+  border-color: var(--color-estado-cancelado-borde);
+}
+
+ion-badge[color='warning'] {
+  --background: var(--color-warning-soft);
+  --color: #b45309;
+  border-color: #fde68a;
+}
+
+ion-badge[color='medium'] {
+  --background: #efe8ea;
+  --color: #5a5353;
+  border-color: #dddddd;
+}
+
+ion-note[color='danger'] {
+  display: block;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  color: var(--color-danger-text);
+  background: var(--color-danger-soft);
+  border-radius: var(--radius-lg);
+}
+
+ion-note[color='success'] {
+  display: block;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  color: var(--color-success-text);
+  background: var(--color-success-soft);
+  border-radius: var(--radius-lg);
+}
+
+.centro ion-spinner {
+  color: var(--color-primary);
+}
+
+ion-button ion-spinner {
+  color: currentcolor;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  color: var(--color-text);
+}
+
+a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-marca {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(20px + var(--ion-safe-area-top, env(safe-area-inset-top))) 24px 20px;
+  background: var(--color-sidebar);
+  text-align: center;
+}
+
+.auth-marca img {
+  width: min(120px, 42vw);
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+
+.auth-marca .nombre {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: #fff;
+}
+
+.auth-marca .rubro {
+  margin: 6px 0 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: rgb(255 255 255 / 72%);
+}
+
+.auth-panel {
+  padding: 24px 16px calc(40px + var(--ion-safe-area-bottom, env(safe-area-inset-bottom)));
+}
+
+.auth-tarjeta {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgb(43 22 27 / 6%);
+}
+
+.auth-tarjeta h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.auth-tarjeta .lead {
+  margin: 6px 0 20px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.auth-tarjeta form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-tarjeta ion-button[type='submit'],
+.auth-tarjeta ion-button[expand='block'] {
+  margin-top: 4px;
+}
+
+.auth-enlace {
+  margin: 20px 0 0;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.acceso-recorrido {
+  padding: 0 16px 8px;
+}
+
+.boton-recorrido {
+  --background: #2b161b;
+  --background-hover: #3a2228;
+  --background-activated: #1a0d10;
+  --color: #f7f3f5;
+}
+
+.trayek-marcador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  font-family: 'Montserrat', sans-serif;
+  line-height: 1;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.trayek-marca {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #d90700;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgb(43 22 27 / 35%);
+}
+
+.trayek-marca svg {
+  width: 18px;
+  height: 18px;
+}
+
+.trayek-marca-inicio {
+  border-radius: 8px;
+  background: #2b161b;
+}
+
+.trayek-marca-destino {
+  border-radius: 50% 50% 50% 4px;
+  background: #d90700;
+}
+
+.trayek-marca-asignado {
+  box-shadow:
+    0 0 0 3px #fff,
+    0 0 0 6px #d90700;
+}
+
+.lienzo .maplibregl-canvas,
+.lienzo .maplibregl-canvas-container {
+  touch-action: none;
+}
+
+.trayek-marcador-seleccionado .trayek-marca {
+  outline: 2px solid #2b161b;
+  outline-offset: 3px;
+}
+
+.trayek-mapa-popup {
+  min-width: 140px;
+  color: #2b161b;
+}
+
+.trayek-mapa-popup strong,
+.trayek-mapa-popup p {
+  margin: 0;
+}
+
+.trayek-mapa-popup .rol {
+  margin-bottom: 2px;
+  color: #d90700;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.trayek-mapa-popup p {
+  margin-top: 4px;
+  color: #4b4f58;
+  font-size: 13px;
+}

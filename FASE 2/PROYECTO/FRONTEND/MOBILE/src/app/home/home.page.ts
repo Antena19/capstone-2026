@@ -45,9 +45,11 @@ import {
   fechaLocalHoy,
   formatearFechaChile,
   formatearHoraPlanificada,
+  textoCancelacion,
   referenciaPuntoAporta,
   tieneTexto,
 } from '../core/utils/formato-servicio';
+import { BienvenidaModalComponent } from '../shared/bienvenida/bienvenida-modal.component';
 
 const DIAS_HISTORIAL = 14;
 
@@ -72,6 +74,7 @@ const DIAS_HISTORIAL = 14;
     IonCardSubtitle,
     IonCardContent,
     IonBadge,
+    BienvenidaModalComponent,
   ],
 })
 export class HomePage implements ViewWillEnter {
@@ -87,6 +90,7 @@ export class HomePage implements ViewWillEnter {
   private cicloConAviso = 0;
 
   readonly cargando = signal(true);
+  readonly bienvenidaAbierta = signal(false);
   readonly escaneando = signal(false);
   readonly error = signal<string | null>(null);
   readonly listadoListo = signal(false);
@@ -100,6 +104,7 @@ export class HomePage implements ViewWillEnter {
   readonly diasHistorial = DIAS_HISTORIAL;
 
   readonly formatearFecha = formatearFechaChile;
+  readonly textoCancelacion = textoCancelacion;
   readonly formatearHora = formatearHoraPlanificada;
   readonly etiquetaEstado = etiquetaEstadoServicio;
   readonly colorEstado = colorEstadoServicio;
@@ -155,6 +160,7 @@ export class HomePage implements ViewWillEnter {
         this.actuales.set([...actuales].sort(compararMasAntiguoPrimero));
         this.listadoListo.set(true);
         this.cargando.set(false);
+        this.mostrarBienvenida();
         if (this.historialVisible()) {
           this.cargarHistorial(alTerminar, true);
           return;
@@ -169,6 +175,7 @@ export class HomePage implements ViewWillEnter {
         }
 
         this.cargando.set(false);
+        this.mostrarBienvenida();
         if (!this.listadoListo()) {
           this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar tus servicios.'));
         } else {
@@ -238,6 +245,38 @@ export class HomePage implements ViewWillEnter {
   cerrarSesion(): void {
     this.auth.cerrarSesion();
     void this.router.navigateByUrl('/login');
+  }
+
+  abrirPerfil(): void {
+    void this.router.navigateByUrl('/perfil');
+  }
+
+  nombreBienvenida(): string | null {
+    return this.auth.nombreCompleto();
+  }
+
+  fechaBienvenida(): string | null {
+    const proximo = this.proximo();
+    return proximo ? formatearFechaChile(proximo.fecha) : null;
+  }
+
+  horarioBienvenida(): string | null {
+    const proximo = this.proximo();
+    if (!proximo) {
+      return null;
+    }
+
+    return `${formatearHoraPlanificada(proximo.horaInicio)} – ${formatearHoraPlanificada(proximo.horaFin)}`;
+  }
+
+  cerrarBienvenida(): void {
+    this.bienvenidaAbierta.set(false);
+  }
+
+  private mostrarBienvenida(): void {
+    if (this.auth.consumirBienvenida()) {
+      this.bienvenidaAbierta.set(true);
+    }
   }
 
   private cargarHistorial(alTerminar?: () => void, silencioso = false): void {

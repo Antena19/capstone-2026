@@ -48,6 +48,12 @@ namespace BACKEND.Negocio.Servicios
         Task<ServicioRespuestaDto> IniciarComoConductorAsync(int idServicio, int idUsuario);
 
         Task<ServicioRespuestaDto> FinalizarComoConductorAsync(int idServicio, int idUsuario);
+
+        /// <summary>
+        /// Cancela los servicios que siguen PROGRAMADO al cumplirse 30 minutos de la hora de inicio.
+        /// No modifica servicios EN_CURSO.
+        /// </summary>
+        Task CancelarPorFaltaDeInicioAsync();
     }
 
     /// <summary>
@@ -57,11 +63,6 @@ namespace BACKEND.Negocio.Servicios
     /// </summary>
     public class ServicioServicios : IServicioServicios
     {
-        /// <summary>
-        /// Ventana operacional para que el CONDUCTOR inicie: ±30 minutos respecto de horaInicio.
-        /// </summary>
-        private static readonly TimeSpan VentanaInicioConductor = TimeSpan.FromMinutes(30);
-
         private static readonly HashSet<(EstadoServicio Origen, EstadoServicio Destino)> TransicionesPermitidas =
         [
             (EstadoServicio.PROGRAMADO, EstadoServicio.EN_CURSO),
@@ -445,20 +446,35 @@ namespace BACKEND.Negocio.Servicios
             }
 
             var (ahoraChile, hoyChile, _) = RelojChile.ObtenerInstante();
+            var disponibilidad = ReglaInicioConductor.Evaluar(servicio.Fecha, servicio.HoraInicio, ahoraChile);
 
-            if (servicio.Fecha != hoyChile)
+            if (disponibilidad == ReglaInicioConductor.Disponibilidad.Vencido)
             {
-                throw new ExcepcionNegocio("El servicio solo puede iniciarse en su fecha programada.");
+                var cancelados = await CancelarCondicionalAsync([servicio.IdServicio]);
+                if (cancelados == 1)
+                {
+                    servicio.Estado = EstadoServicio.CANCELADO;
+                    servicio.MotivoCancelacion = ReglaInicioConductor.MotivoFaltaDeInicio;
+                    _contexto.Entry(servicio).Property(item => item.Estado).IsModified = false;
+                    _contexto.Entry(servicio).Property(item => item.MotivoCancelacion).IsModified = false;
+                    _contexto.Entry(servicio).Property(item => item.FechaHoraCancelacion).IsModified = false;
+                    throw new ExcepcionNegocio("El servicio se canceló por falta de inicio.");
+                }
+
+                await _contexto.Entry(servicio).ReloadAsync();
+                throw new ExcepcionNegocio(
+                    $"No está permitido cambiar el estado de {servicio.Estado} a {EstadoServicio.EN_CURSO}.");
             }
 
-            var inicioPlanificado = servicio.Fecha.ToDateTime(servicio.HoraInicio);
-            var desde = inicioPlanificado.Subtract(VentanaInicioConductor);
-            var hasta = inicioPlanificado.Add(VentanaInicioConductor);
-
-            if (ahoraChile < desde || ahoraChile > hasta)
+            if (disponibilidad == ReglaInicioConductor.Disponibilidad.Antes)
             {
+                if (servicio.Fecha != hoyChile)
+                {
+                    throw new ExcepcionNegocio("El servicio solo puede iniciarse en su fecha programada.");
+                }
+
                 throw new ExcepcionNegocio(
-                    "El servicio solo puede iniciarse entre 30 minutos antes y 30 minutos después de la hora de inicio programada.");
+                    "El servicio solo puede iniciarse desde 10 minutos antes de la hora programada y hasta antes de 30 minutos después.");
             }
 
             var otroEnCurso = await _contexto.AsignacionesServicio
@@ -477,6 +493,59 @@ namespace BACKEND.Negocio.Servicios
             }
         }
 
+        public async Task CancelarPorFaltaDeInicioAsync()
+        {
+            var (ahoraChile, hoyChile, _) = RelojChile.ObtenerInstante();
+            var desde = hoyChile.AddDays(-1);
+            var candidatos = await _contexto.Servicios
+                .AsNoTracking()
+                .Where(servicio =>
+                    servicio.Estado == EstadoServicio.PROGRAMADO
+                    && servicio.Fecha >= desde
+                    && servicio.Fecha <= hoyChile)
+                .ToListAsync();
+
+            var ids = candidatos
+                .Where(servicio => ReglaInicioConductor.DebeCancelarPorFaltaDeInicio(
+                    servicio.Estado,
+                    servicio.Fecha,
+                    servicio.HoraInicio,
+                    ahoraChile))
+                .Select(servicio => servicio.IdServicio)
+                .ToList();
+
+            await CancelarCondicionalAsync(ids);
+        }
+
+        private async Task<int> CancelarCondicionalAsync(IReadOnlyCollection<int> ids)
+        {
+            if (ids.Count == 0)
+            {
+                return 0;
+            }
+
+            var registradaEn = DateTime.UtcNow;
+            var cancelados = await _contexto.Servicios
+                .Where(servicio =>
+                    ids.Contains(servicio.IdServicio)
+                    && servicio.Estado == EstadoServicio.PROGRAMADO)
+                .ExecuteUpdateAsync(servicio => servicio
+                    .SetProperty(item => item.Estado, EstadoServicio.CANCELADO)
+                    .SetProperty(item => item.MotivoCancelacion, ReglaInicioConductor.MotivoFaltaDeInicio)
+                    .SetProperty(item => item.FechaHoraCancelacion, registradaEn));
+
+            if (cancelados > 0)
+            {
+                _logger.LogInformation(
+                    "Cancelación automática de {Cantidad} servicio(s) por {Motivo}. Identificadores evaluados: {Ids}.",
+                    cancelados,
+                    ReglaInicioConductor.MotivoFaltaDeInicio,
+                    string.Join(',', ids));
+            }
+
+            return cancelados;
+        }
+
         private async Task<ServicioRespuestaDto> IniciarServicioAsync(
             Servicio servicio,
             int idActor,
@@ -491,9 +560,29 @@ namespace BACKEND.Negocio.Servicios
 
             await using var transaccion = await _contexto.Database.BeginTransactionAsync();
 
-            await _servicioAsistencias.ResolverProvisionalesAlIniciarAsync(servicio.IdServicio);
-            servicio.FechaHoraInicioReal = DateTime.UtcNow;
+            var inicioReal = DateTime.UtcNow;
+            var reservados = await _contexto.Servicios
+                .Where(item =>
+                    item.IdServicio == servicio.IdServicio
+                    && item.Estado == EstadoServicio.PROGRAMADO)
+                .ExecuteUpdateAsync(item => item
+                    .SetProperty(actual => actual.Estado, EstadoServicio.EN_CURSO)
+                    .SetProperty(actual => actual.FechaHoraInicioReal, inicioReal));
+
+            if (reservados == 0)
+            {
+                await transaccion.RollbackAsync();
+                throw new ExcepcionNegocio(
+                    "El servicio ya no está programado y no puede iniciarse.",
+                    StatusCodes.Status409Conflict);
+            }
+
+            servicio.FechaHoraInicioReal = inicioReal;
             servicio.Estado = EstadoServicio.EN_CURSO;
+            _contexto.Entry(servicio).Property(item => item.Estado).IsModified = false;
+            _contexto.Entry(servicio).Property(item => item.FechaHoraInicioReal).IsModified = false;
+
+            await _servicioAsistencias.ResolverProvisionalesAlIniciarAsync(servicio.IdServicio);
 
             if (generarQr)
             {
@@ -889,7 +978,9 @@ namespace BACKEND.Negocio.Servicios
                 FechaHoraInicioReal = servicio.FechaHoraInicioReal,
                 FechaHoraFinReal = servicio.FechaHoraFinReal,
                 TipoServicio = servicio.TipoServicio,
-                Estado = servicio.Estado
+                Estado = servicio.Estado,
+                MotivoCancelacion = servicio.MotivoCancelacion,
+                FechaHoraCancelacion = servicio.FechaHoraCancelacion
             };
         }
 

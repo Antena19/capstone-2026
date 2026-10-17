@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { Routes } from '@angular/router';
 import { AuthService } from './core/auth/auth.service';
-import { guestGuard, rolGuard, cambiarPasswordGuard } from './core/auth/auth.guard';
+import { guestGuard, rolGuard, cambiarPasswordGuard, sesionMobileGuard } from './core/auth/auth.guard';
 import { ROL_CONDUCTOR, ROL_PASAJERO } from './core/constants/auth';
 
 export const routes: Routes = [
@@ -23,10 +23,31 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'perfil',
+    canActivate: [sesionMobileGuard],
+    loadComponent: () => import('./features/perfil/perfil.page').then((m) => m.PerfilPage),
+  },
+  {
+    path: 'perfil/cambiar-password',
+    canActivate: [sesionMobileGuard],
+    data: { voluntario: true },
+    loadComponent: () =>
+      import('./features/auth/cambiar-password/cambiar-password.page').then(
+        (m) => m.CambiarPasswordPage,
+      ),
+  },
+  {
     path: 'pasajero',
     pathMatch: 'full',
     canActivate: [rolGuard(ROL_PASAJERO)],
     loadComponent: () => import('./home/home.page').then((m) => m.HomePage),
+  },
+  {
+    path: 'pasajero/servicios/:idServicio/recorrido',
+    canActivate: [rolGuard(ROL_PASAJERO)],
+    data: { perfil: 'pasajero' },
+    loadComponent: () =>
+      import('./features/recorrido/recorrido.page').then((m) => m.RecorridoPage),
   },
   {
     path: 'pasajero/servicios/:idServicio',
@@ -48,6 +69,13 @@ export const routes: Routes = [
     canActivate: [rolGuard(ROL_CONDUCTOR)],
     loadComponent: () =>
       import('./features/conductor/qr/conductor-qr.page').then((m) => m.ConductorQrPage),
+  },
+  {
+    path: 'conductor/servicios/:idServicio/recorrido',
+    canActivate: [rolGuard(ROL_CONDUCTOR)],
+    data: { perfil: 'conductor' },
+    loadComponent: () =>
+      import('./features/recorrido/recorrido.page').then((m) => m.RecorridoPage),
   },
   {
     path: 'conductor/servicios/:idServicio/pasajeros',

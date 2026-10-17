@@ -11,6 +11,7 @@ export interface LoginRespuesta {
   token: string;
   idUsuario: number;
   email: string;
+  nombre: string | null;
   telefono: string | null;
   rol: string;
   expiracion: string;
@@ -21,6 +22,7 @@ export interface SesionUsuario {
   token: string;
   idUsuario: number;
   email: string;
+  nombre: string | null;
   telefono: string | null;
   rol: string;
   expiracion: string;

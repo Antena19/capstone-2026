@@ -167,6 +167,7 @@ namespace BACKEND.Negocio.Servicios
                 HoraInicio = elegido.Servicio.HoraInicio,
                 HoraFin = elegido.Servicio.HoraFin,
                 EstadoServicio = elegido.Servicio.Estado,
+                MotivoCancelacion = elegido.Servicio.MotivoCancelacion,
                 TipoServicio = elegido.Servicio.TipoServicio,
                 NombreRuta = ruta?.Nombre,
                 SectorRuta = ruta?.Sector,
@@ -205,6 +206,8 @@ namespace BACKEND.Negocio.Servicios
                 FechaHoraFinReal = servicio.FechaHoraFinReal,
                 TipoServicio = servicio.TipoServicio,
                 Estado = servicio.Estado,
+                MotivoCancelacion = servicio.MotivoCancelacion,
+                FechaHoraCancelacion = servicio.FechaHoraCancelacion,
                 Empresa = new EmpresaServicioPasajeroDto
                 {
                     IdEmpresa = servicio.Empresa.IdEmpresa,
@@ -418,6 +421,7 @@ namespace BACKEND.Negocio.Servicios
                 HoraFin = asociacion.Servicio.HoraFin,
                 TipoServicio = asociacion.Servicio.TipoServicio,
                 EstadoServicio = asociacion.Servicio.Estado,
+                MotivoCancelacion = asociacion.Servicio.MotivoCancelacion,
                 EstadoConfirmacion = asociacion.EstadoConfirmacion,
                 FechaConfirmacion = asociacion.FechaConfirmacion,
                 IdRuta = asociacion.Servicio.IdRuta,

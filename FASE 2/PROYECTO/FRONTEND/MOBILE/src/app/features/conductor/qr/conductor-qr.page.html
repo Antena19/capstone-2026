@@ -1,4 +1,4 @@
-<ion-header [translucent]="true">
+<ion-header class="ion-no-border">
   <ion-toolbar>
     <ion-buttons slot="start">
       <ion-back-button [defaultHref]="'/conductor/servicios/' + idServicio" text="Detalle" />
@@ -38,7 +38,8 @@
       }
       @if (puedeGestionarQr()) {
         <ion-button
-          fill="clear"
+          expand="block"
+          fill="outline"
           [disabled]="generando()"
           (click)="pedirGeneracion(true)"
         >
@@ -56,7 +57,7 @@
       @if (resumenServicio(); as resumen) {
         <p class="resumen">{{ resumen }}</p>
       }
-      <p class="instruccion">No hay un código QR activo para este servicio.</p>
+      <p class="instruccion">No hay un código QR activo para el servicio #{{ idServicio }}.</p>
       @if (errorGeneracion()) {
         <ion-note color="danger">{{ errorGeneracion() }}</ion-note>
       }

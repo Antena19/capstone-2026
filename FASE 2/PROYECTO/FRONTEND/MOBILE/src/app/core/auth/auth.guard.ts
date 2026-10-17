@@ -59,6 +59,20 @@ export const cambiarPasswordGuard: CanActivateFn = () => {
   return inject(Router).parseUrl(auth.rutaInicio());
 };
 
+export const sesionMobileGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  if (!auth.autenticado() || !auth.esRolMobile(auth.sesion()?.rol)) {
+    return router.parseUrl('/login');
+  }
+
+  if (auth.debeCambiarPassword()) {
+    return router.parseUrl('/cambiar-password');
+  }
+
+  return true;
+};
+
 export const guestGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
   if (auth.autenticado() && auth.esRolMobile(auth.sesion()?.rol)) {

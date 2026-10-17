@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'http://localhost:5220',
+  apiUrl: 'https://capstone-2026-production-d3b6.up.railway.app',
 };

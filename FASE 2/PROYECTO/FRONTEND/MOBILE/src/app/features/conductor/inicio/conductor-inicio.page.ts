@@ -23,7 +23,7 @@ import {
 } from '@ionic/angular';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
-import { ServicioConductorResumen } from '../../../core/models/conductor';
+import { EstadoServicio, ServicioConductorResumen } from '../../../core/models/conductor';
 import { MisServiciosService } from '../../../core/services/mis-servicios.service';
 import {
   colorEstadoServicio,
@@ -32,8 +32,11 @@ import {
   fechaLocalHoy,
   formatearFechaChile,
   formatearHoraPlanificada,
+  textoCancelacion,
   tieneTexto,
 } from '../../../core/utils/formato-servicio';
+import { evaluarInicioConductor, horaAperturaInicio } from '../../../core/utils/inicio-conductor';
+import { BienvenidaModalComponent } from '../../../shared/bienvenida/bienvenida-modal.component';
 
 const DIAS_HISTORIAL = 14;
 
@@ -58,6 +61,7 @@ const DIAS_HISTORIAL = 14;
     IonCardSubtitle,
     IonCardContent,
     IonBadge,
+    BienvenidaModalComponent,
   ],
 })
 export class ConductorInicioPage implements ViewWillEnter {
@@ -71,6 +75,7 @@ export class ConductorInicioPage implements ViewWillEnter {
   private cicloConAviso = 0;
 
   readonly cargando = signal(true);
+  readonly bienvenidaAbierta = signal(false);
   readonly error = signal<string | null>(null);
   readonly listadoListo = signal(false);
   readonly actuales = signal<ServicioConductorResumen[]>([]);
@@ -115,6 +120,7 @@ export class ConductorInicioPage implements ViewWillEnter {
         this.aplicarOperativos(actuales, anteriores, hoy);
         this.listadoListo.set(true);
         this.cargando.set(false);
+        this.mostrarBienvenida();
         if (this.historialVisible()) {
           this.cargarHistorial(alTerminar, true);
           return;
@@ -129,6 +135,7 @@ export class ConductorInicioPage implements ViewWillEnter {
         }
 
         this.cargando.set(false);
+        this.mostrarBienvenida();
         if (!this.listadoListo()) {
           this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar tus servicios.'));
         } else {
@@ -158,13 +165,85 @@ export class ConductorInicioPage implements ViewWillEnter {
     this.cargar(() => evento.target.complete());
   }
 
+  proximo(): ServicioConductorResumen | null {
+    const enCurso = [...this.pendientesAnteriores(), ...this.actuales()].find(
+      (servicio) => servicio.estado === 'EN_CURSO',
+    );
+    if (enCurso) {
+      return enCurso;
+    }
+
+    return this.actuales().find((servicio) => servicio.estado === 'PROGRAMADO') ?? null;
+  }
+
+  actualesVisibles(): ServicioConductorResumen[] {
+    return this.sinProximo(this.actuales());
+  }
+
+  pendientesVisibles(): ServicioConductorResumen[] {
+    return this.sinProximo(this.pendientesAnteriores());
+  }
+
+  avisoInicio(servicio: ServicioConductorResumen): string | null {
+    if (servicio.estado !== 'PROGRAMADO') {
+      return null;
+    }
+
+    const disponibilidad = evaluarInicioConductor(servicio.fecha, servicio.horaInicio);
+    if (disponibilidad === 'antes') {
+      return `Podrás iniciar desde las ${horaAperturaInicio(servicio.horaInicio)}.`;
+    }
+
+    if (disponibilidad === 'vencido') {
+      return 'El plazo de inicio ya terminó.';
+    }
+
+    return null;
+  }
+
   abrirDetalle(idServicio: number): void {
     void this.router.navigate(['/conductor/servicios', idServicio]);
+  }
+
+  abrirQr(idServicio: number): void {
+    void this.router.navigate(['/conductor/servicios', idServicio, 'qr']);
   }
 
   cerrarSesion(): void {
     this.auth.cerrarSesion();
     void this.router.navigateByUrl('/login');
+  }
+
+  abrirPerfil(): void {
+    void this.router.navigateByUrl('/perfil');
+  }
+
+  nombreBienvenida(): string | null {
+    return this.auth.nombreCompleto();
+  }
+
+  fechaBienvenida(): string | null {
+    const proximo = this.proximo();
+    return proximo ? formatearFechaChile(proximo.fecha) : null;
+  }
+
+  horarioBienvenida(): string | null {
+    const proximo = this.proximo();
+    if (!proximo) {
+      return null;
+    }
+
+    return `${formatearHoraPlanificada(proximo.horaInicio)} – ${formatearHoraPlanificada(proximo.horaFin)}`;
+  }
+
+  cerrarBienvenida(): void {
+    this.bienvenidaAbierta.set(false);
+  }
+
+  private mostrarBienvenida(): void {
+    if (this.auth.consumirBienvenida()) {
+      this.bienvenidaAbierta.set(true);
+    }
   }
 
   private cargarHistorial(alTerminar?: () => void, silencioso = false): void {
@@ -215,11 +294,19 @@ export class ConductorInicioPage implements ViewWillEnter {
       return 'Fecha anterior · pendiente de finalizar';
     }
 
-    if (servicio.estado === 'PROGRAMADO') {
-      return 'Fecha anterior · pendiente de iniciar';
+    if (servicio.estado !== 'PROGRAMADO') {
+      return null;
     }
 
-    return null;
+    if (evaluarInicioConductor(servicio.fecha, servicio.horaInicio) === 'vencido') {
+      return 'El plazo de inicio ya terminó.';
+    }
+
+    return 'Fecha anterior · pendiente de iniciar';
+  }
+
+  textoCancelado(estado: EstadoServicio, motivo: string | null | undefined): string | null {
+    return textoCancelacion(estado, motivo);
   }
 
   private aplicarOperativos(
@@ -240,6 +327,15 @@ export class ConductorInicioPage implements ViewWillEnter {
     this.actuales.set(actuales);
     this.pendientesAnteriores.set(pendientes);
     this.historial.update((lista) => this.filtrarHistorial(lista));
+  }
+
+  private sinProximo(servicios: ServicioConductorResumen[]): ServicioConductorResumen[] {
+    const idProximo = this.proximo()?.idServicio;
+    if (!idProximo) {
+      return servicios;
+    }
+
+    return servicios.filter((servicio) => servicio.idServicio !== idProximo);
   }
 
   private filtrarHistorial(servicios: ServicioConductorResumen[]): ServicioConductorResumen[] {

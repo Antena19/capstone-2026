@@ -260,6 +260,7 @@ builder.Services.AddScoped<IServicioVehiculos, ServicioVehiculos>();
 builder.Services.AddScoped<IServicioRutas, ServicioRutas>();
 builder.Services.AddScoped<IServicioPlanificaciones, ServicioPlanificaciones>();
 builder.Services.AddScoped<IServicioServicios, ServicioServicios>();
+builder.Services.AddHostedService<CancelacionFaltaInicioWorker>();
 builder.Services.AddScoped<IServicioAsignaciones, ServicioAsignaciones>();
 builder.Services.AddScoped<IServicioPasajerosServicio, ServicioPasajerosServicio>();
 builder.Services.AddScoped<IServicioQr, ServicioQr>();

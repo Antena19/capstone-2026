@@ -20,16 +20,19 @@ import {
   RefresherCustomEvent,
   ToastController,
   ViewWillEnter,
+  ViewWillLeave,
 } from '@ionic/angular';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ServicioConductorDetalle } from '../../../core/models/conductor';
 import { MisServiciosService } from '../../../core/services/mis-servicios.service';
+import { evaluarInicioConductor, horaAperturaInicio } from '../../../core/utils/inicio-conductor';
 import {
   colorEstadoServicio,
   etiquetaEstadoServicio,
   formatearFechaChile,
   formatearFechaHoraLocal,
   formatearHoraPlanificada,
+  textoCancelacion,
   tieneTexto,
 } from '../../../core/utils/formato-servicio';
 
@@ -55,7 +58,7 @@ import {
     IonRefresherContent,
   ],
 })
-export class ConductorDetallePage implements ViewWillEnter {
+export class ConductorDetallePage implements ViewWillEnter, ViewWillLeave {
   private readonly api = inject(MisServiciosService);
   private readonly auth = inject(AuthService);
   private readonly ruta = inject(ActivatedRoute);
@@ -63,8 +66,13 @@ export class ConductorDetallePage implements ViewWillEnter {
   private readonly alertas = inject(AlertController);
   private readonly avisos = inject(ToastController);
   private pedidoDetalle = 0;
+  private idVisto = 0;
+  private temporizador: ReturnType<typeof setInterval> | null = null;
+  private recargaPorVencimiento = false;
+  private readonly instante = signal(Date.now());
 
   readonly cargando = signal(true);
+  readonly canceladoPorFalta = signal(false);
   readonly error = signal<string | null>(null);
   readonly errorInicio = signal<string | null>(null);
   readonly errorFin = signal<string | null>(null);
@@ -75,12 +83,53 @@ export class ConductorDetallePage implements ViewWillEnter {
   readonly formatearFecha = formatearFechaChile;
   readonly formatearHora = formatearHoraPlanificada;
   readonly formatearFechaHora = formatearFechaHoraLocal;
+  readonly textoCancelacion = textoCancelacion;
   readonly etiquetaEstado = etiquetaEstadoServicio;
   readonly colorEstado = colorEstadoServicio;
   readonly tieneTexto = tieneTexto;
 
   ionViewWillEnter(): void {
+    this.recargaPorVencimiento = false;
+    this.iniciarReloj();
     this.cargar();
+  }
+
+  ionViewWillLeave(): void {
+    this.detenerReloj();
+  }
+
+  puedeIniciar(): boolean {
+    const servicio = this.detalle();
+    if (!servicio || servicio.estado !== 'PROGRAMADO' || this.iniciando()) {
+      return false;
+    }
+
+    return (
+      evaluarInicioConductor(servicio.fecha, servicio.horaInicio, new Date(this.instante())) ===
+      'disponible'
+    );
+  }
+
+  avisoInicio(): string | null {
+    const servicio = this.detalle();
+    if (!servicio || servicio.estado !== 'PROGRAMADO') {
+      return null;
+    }
+
+    const disponibilidad = evaluarInicioConductor(
+      servicio.fecha,
+      servicio.horaInicio,
+      new Date(this.instante()),
+    );
+    if (disponibilidad === 'antes') {
+      return `Podrás iniciar desde las ${horaAperturaInicio(servicio.horaInicio)}.`;
+    }
+
+    if (disponibilidad === 'vencido') {
+      return 'El plazo de inicio ya terminó. El servicio se cancelará por falta de inicio.';
+    }
+
+    return null;
   }
 
   cargar(alTerminar?: () => void): void {
@@ -91,6 +140,12 @@ export class ConductorDetallePage implements ViewWillEnter {
       this.error.set('El servicio indicado no es válido.');
       alTerminar?.();
       return;
+    }
+
+    if (idServicio !== this.idVisto) {
+      this.idVisto = idServicio;
+      this.recargaPorVencimiento = false;
+      this.canceladoPorFalta.set(false);
     }
 
     const pedido = ++this.pedidoDetalle;
@@ -111,6 +166,10 @@ export class ConductorDetallePage implements ViewWillEnter {
         this.cargando.set(false);
         this.iniciando.set(false);
         this.finalizando.set(false);
+        if (this.recargaPorVencimiento && detalle.estado === 'CANCELADO') {
+          this.canceladoPorFalta.set(true);
+        }
+        this.vigilarPlazo();
         alTerminar?.();
       },
       error: (err: unknown) => {
@@ -137,7 +196,7 @@ export class ConductorDetallePage implements ViewWillEnter {
   }
 
   async confirmarInicio(): Promise<void> {
-    if (this.iniciando() || this.detalle()?.estado !== 'PROGRAMADO') {
+    if (!this.puedeIniciar()) {
       return;
     }
 
@@ -195,6 +254,15 @@ export class ConductorDetallePage implements ViewWillEnter {
     void this.router.navigate(['/conductor/servicios', idServicio, 'qr']);
   }
 
+  verRecorrido(): void {
+    const idServicio = this.detalle()?.idServicio;
+    if (!idServicio) {
+      return;
+    }
+
+    void this.router.navigate(['/conductor/servicios', idServicio, 'recorrido']);
+  }
+
   abrirPasajeros(): void {
     const idServicio = this.detalle()?.idServicio;
     if (!idServicio) {
@@ -202,6 +270,39 @@ export class ConductorDetallePage implements ViewWillEnter {
     }
 
     void this.router.navigate(['/conductor/servicios', idServicio, 'pasajeros']);
+  }
+
+  private iniciarReloj(): void {
+    this.detenerReloj();
+    this.instante.set(Date.now());
+    this.temporizador = setInterval(() => {
+      this.instante.set(Date.now());
+      this.vigilarPlazo();
+    }, 15000);
+  }
+
+  private detenerReloj(): void {
+    if (this.temporizador !== null) {
+      clearInterval(this.temporizador);
+      this.temporizador = null;
+    }
+  }
+
+  private vigilarPlazo(): void {
+    const servicio = this.detalle();
+    if (!servicio || servicio.estado !== 'PROGRAMADO' || this.recargaPorVencimiento) {
+      return;
+    }
+
+    if (
+      evaluarInicioConductor(servicio.fecha, servicio.horaInicio, new Date(this.instante())) !==
+      'vencido'
+    ) {
+      return;
+    }
+
+    this.recargaPorVencimiento = true;
+    this.cargar();
   }
 
   private iniciar(): void {

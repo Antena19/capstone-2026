@@ -33,15 +33,18 @@ namespace BACKEND.Negocio.Servicios
     {
         private readonly TransporteContext _contexto;
         private readonly IMongoCollection<Ruta> _rutas;
+        private readonly IServicioServicios _servicioServicios;
         private readonly ILogger<ServicioOperacionConductor> _logger;
 
         public ServicioOperacionConductor(
             TransporteContext contexto,
             IMongoCollection<Ruta> rutas,
+            IServicioServicios servicioServicios,
             ILogger<ServicioOperacionConductor> logger)
         {
             _contexto = contexto;
             _rutas = rutas;
+            _servicioServicios = servicioServicios;
             _logger = logger;
         }
 
@@ -52,6 +55,7 @@ namespace BACKEND.Negocio.Servicios
             DateOnly? desde,
             DateOnly? hasta)
         {
+            await _servicioServicios.CancelarPorFaltaDeInicioAsync();
             var conductor = await ObtenerConductorAsync(idUsuario);
 
             if (desde.HasValue && hasta.HasValue && desde.Value > hasta.Value)
@@ -105,6 +109,7 @@ namespace BACKEND.Negocio.Servicios
                     HoraFin = asignacion.Servicio.HoraFin,
                     TipoServicio = asignacion.Servicio.TipoServicio,
                     Estado = asignacion.Servicio.Estado,
+                    MotivoCancelacion = asignacion.Servicio.MotivoCancelacion,
                     IdRuta = asignacion.Servicio.IdRuta,
                     NombreRuta = ruta?.Nombre,
                     SectorRuta = ruta?.Sector,
@@ -117,6 +122,7 @@ namespace BACKEND.Negocio.Servicios
 
         public async Task<ServicioConductorDetalleDto> ObtenerDetalleAsync(int idServicio, int idUsuario)
         {
+            await _servicioServicios.CancelarPorFaltaDeInicioAsync();
             var asignacion = await ObtenerAsignacionOperativaAsync(idServicio, idUsuario);
             var servicio = asignacion.Servicio;
             var ruta = await ObtenerRutaOpcionalAsync(servicio.IdRuta);
@@ -143,6 +149,8 @@ namespace BACKEND.Negocio.Servicios
                 FechaHoraFinReal = servicio.FechaHoraFinReal,
                 TipoServicio = servicio.TipoServicio,
                 Estado = servicio.Estado,
+                MotivoCancelacion = servicio.MotivoCancelacion,
+                FechaHoraCancelacion = servicio.FechaHoraCancelacion,
                 Empresa = new EmpresaServicioConductorDto
                 {
                     IdEmpresa = servicio.Empresa.IdEmpresa,

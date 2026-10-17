@@ -1,0 +1,141 @@
+<div class="marco">
+  <div class="lienzo" #lienzo role="application" aria-label="Mapa del recorrido"></div>
+
+  <section class="panel">
+    <article class="tarjeta">
+      <header class="encabezado-ruta">
+        <h2>{{ nombreRuta() }}</h2>
+        @if (ruta().sector.trim()) {
+          <p>{{ ruta().sector }}</p>
+        }
+      </header>
+
+      <p class="leyenda">
+        <span class="leyenda-item">
+          <span class="muestra inicio" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 3.2h1.7v17.6H6zm1.7.6h10.1l-2.5 4.3 2.5 4.3H7.7z" /></svg>
+          </span>
+          Inicio
+        </span>
+        <span class="leyenda-item">
+          <span class="muestra destino" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.2a6.3 6.3 0 0 0-6.3 6.3c0 4.7 6.3 12.1 6.3 12.1s6.3-7.4 6.3-12.1A6.3 6.3 0 0 0 12 2.2zm0 8.5a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4z" /></svg>
+          </span>
+          Destino
+        </span>
+        <span class="leyenda-item">
+          <span class="muestra recogida" aria-hidden="true">1</span>
+          Parada
+        </span>
+        @if (perfil() === 'pasajero') {
+          <span class="leyenda-item">
+            <span class="muestra recogida asignado" aria-hidden="true">2</span>
+            Tu punto
+          </span>
+        }
+      </p>
+
+      @if (distanciaVisible() || duracionVisible()) {
+        <dl class="metricas">
+          @if (distanciaVisible()) {
+            <div>
+              <dt>Distancia estimada</dt>
+              <dd>{{ distanciaTexto() }} km</dd>
+            </div>
+          }
+          @if (duracionVisible()) {
+            <div>
+              <dt>Duración estimada</dt>
+              <dd>{{ ruta().duracionEstimadaMin }} min</dd>
+            </div>
+          }
+        </dl>
+      }
+
+      @if (!trazadoDisponible()) {
+        <p class="aviso">Los puntos con coordenadas están en el mapa. Este servicio no incluye un trazado calculado.</p>
+      }
+      @if (puntosSinCoordenadas().length > 0) {
+        <p class="aviso">
+          Sin coordenadas para mostrar en el mapa: {{ textoSinCoordenadas() }}.
+        </p>
+      }
+    </article>
+
+    <section class="tarjeta recorrido" aria-labelledby="titulo-recorrido">
+      <h3 id="titulo-recorrido">Tu recorrido</h3>
+      <ol class="parada-lista">
+        @for (punto of puntos(); track punto.id) {
+          <li>
+            <button
+              type="button"
+              class="parada"
+              [disabled]="punto.lngLat == null"
+              [class.asignado]="punto.asignado"
+              [class.activo]="seleccionadoId() === punto.id"
+              [attr.aria-pressed]="seleccionadoId() === punto.id"
+              (click)="elegir(punto.id)"
+            >
+              <span
+                class="parada-icono"
+                [class.inicio]="punto.tipo === 'origen'"
+                [class.destino]="punto.tipo === 'destino'"
+                [class.asignado]="punto.asignado"
+                aria-hidden="true"
+              >
+                @if (punto.tipo === 'origen') {
+                  <svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 3.2h1.7v17.6H6zm1.7.6h10.1l-2.5 4.3 2.5 4.3H7.7z" /></svg>
+                } @else if (punto.tipo === 'destino') {
+                  <svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.2a6.3 6.3 0 0 0-6.3 6.3c0 4.7 6.3 12.1 6.3 12.1s6.3-7.4 6.3-12.1A6.3 6.3 0 0 0 12 2.2zm0 8.5a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4z" /></svg>
+                } @else {
+                  {{ punto.numero }}
+                }
+              </span>
+              <span class="texto">
+                <span class="parada-titulo">
+                  <strong>{{ punto.nombre }}</strong>
+                  @if (punto.asignado) {
+                    <span class="tu-punto">Tu punto</span>
+                  }
+                </span>
+                @if (punto.referencia) {
+                  <small>{{ punto.referencia }}</small>
+                }
+                @if (punto.lngLat == null) {
+                  <small>Sin coordenadas</small>
+                }
+              </span>
+            </button>
+          </li>
+        }
+      </ol>
+      @if (perfil() === 'pasajero' && estadoAsignacion() === 'sin-coordenadas') {
+        <p class="aviso">Tu punto no tiene coordenadas, así que no aparece en el mapa ni se pueden abrir indicaciones.</p>
+      }
+      @if (perfil() === 'pasajero' && estadoAsignacion() === 'no-encontrado') {
+        <p class="aviso">El punto de recogida asignado no está en esta ruta.</p>
+      }
+      @if (perfil() === 'pasajero' && estadoAsignacion() === 'sin-asignar') {
+        <p class="aviso">No hay un punto de recogida asignado en este recorrido.</p>
+      }
+      @if (perfil() === 'conductor' && seleccionado() == null) {
+        <p class="ayuda">Selecciona una parada para centrarla y usarla como destino en Google Maps.</p>
+      }
+    </section>
+
+    <div class="acciones">
+      <ion-button expand="block" fill="outline" (click)="centrarRecorrido()">Centrar recorrido</ion-button>
+      @if (perfil() === 'conductor') {
+        <p class="aviso">
+          Google Maps abre indicaciones de manejo hasta el punto seleccionado. El trazado planificado de Trayek se ve en este mapa.
+        </p>
+      }
+      @if (errorNavegacion()) {
+        <p class="aviso">{{ errorNavegacion() }}</p>
+      }
+      <ion-button expand="block" [disabled]="destinoNavegacion() == null || abriendo()" (click)="abrirNavegacion()">
+        {{ perfil() === 'pasajero' ? 'Cómo llegar a mi punto' : 'Navegar con Google Maps' }}
+      </ion-button>
+    </div>
+  </section>
+</div>

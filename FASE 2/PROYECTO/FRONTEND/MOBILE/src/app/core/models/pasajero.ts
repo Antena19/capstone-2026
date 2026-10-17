@@ -23,6 +23,7 @@ export interface ServicioPasajeroResumen {
   horaFin: string;
   tipoServicio: string;
   estadoServicio: EstadoServicio;
+  motivoCancelacion?: string | null;
   estadoConfirmacion: EstadoConfirmacionViaje;
   fechaConfirmacion: string | null;
   idRuta: string;
@@ -45,6 +46,7 @@ export interface ProximoServicioPasajero {
   horaInicio: string;
   horaFin: string;
   estadoServicio: EstadoServicio;
+  motivoCancelacion?: string | null;
   tipoServicio: string;
   nombreRuta: string | null;
   sectorRuta: string | null;
@@ -92,6 +94,8 @@ export interface ServicioPasajeroDetalle {
   fechaHoraFinReal: string | null;
   tipoServicio: string;
   estado: EstadoServicio;
+  motivoCancelacion?: string | null;
+  fechaHoraCancelacion?: string | null;
   empresa: EmpresaServicioPasajero;
   ruta: RutaServicioPasajeroResumen | null;
   puntoRecogida: PuntoRecogidaPasajero | null;

@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using BACKEND.Datos.MySQL;
 using BACKEND.DTOs.Autenticacion;
 using BACKEND.Modelos;
+using BACKEND.Negocio.Constantes;
 using BACKEND.Negocio.Excepciones;
 using BACKEND.Negocio.Validacion;
 using Microsoft.EntityFrameworkCore;
@@ -79,11 +80,38 @@ namespace BACKEND.Negocio.Servicios
                 Token = token,
                 IdUsuario = usuario.IdUsuario,
                 Email = usuario.Email ?? string.Empty,
+                Nombre = await ObtenerNombrePropioAsync(usuario),
                 Telefono = usuario.Telefono,
                 Rol = usuario.Rol.Nombre,
                 Expiracion = expiracion,
                 DebeCambiarPassword = usuario.DebeCambiarPassword
             };
+        }
+
+        private async Task<string?> ObtenerNombrePropioAsync(Usuario usuario)
+        {
+            var rol = usuario.Rol.Nombre?.Trim();
+            string? nombre = null;
+
+            if (string.Equals(rol, NombresRol.Pasajero, StringComparison.OrdinalIgnoreCase))
+            {
+                nombre = await _contexto.Pasajeros
+                    .AsNoTracking()
+                    .Where(p => p.IdUsuario == usuario.IdUsuario && p.Estado == EstadoRegistro.ACTIVO)
+                    .Select(p => p.Nombre)
+                    .FirstOrDefaultAsync();
+            }
+            else if (string.Equals(rol, NombresRol.Conductor, StringComparison.OrdinalIgnoreCase))
+            {
+                nombre = await _contexto.Conductores
+                    .AsNoTracking()
+                    .Where(c => c.IdUsuario == usuario.IdUsuario && c.Estado == EstadoRegistro.ACTIVO)
+                    .Select(c => c.Nombre)
+                    .FirstOrDefaultAsync();
+            }
+
+            var valor = nombre?.Trim();
+            return string.IsNullOrEmpty(valor) ? null : valor;
         }
 
         public async Task CambiarPasswordAsync(int idUsuario, CambiarPasswordSolicitudDto solicitud)
