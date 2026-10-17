@@ -1,0 +1,14 @@
+<ion-modal class="bienvenida" [isOpen]="abierta()" (didDismiss)="cerrar()">
+  <ng-template>
+  <div class="tarjeta">
+    <p class="marca">TRAYEK</p>
+    <h2>{{ saludo() }}</h2>
+    <p>Qué bueno tenerte de vuelta.</p>
+    @if (fecha() && horario()) {
+      <p class="proximo">Próximo recorrido: {{ fecha() }} · {{ horario() }}</p>
+    }
+    <ion-button expand="block" (click)="irARecorridos()">Ver mis recorridos</ion-button>
+    <ion-button expand="block" fill="outline" (click)="cerrar()">Cerrar</ion-button>
+  </div>
+  </ng-template>
+</ion-modal>

@@ -10,18 +10,23 @@
 
 .seccion-head h2 {
   margin: 0;
+  font-family: var(--font-display);
   font-size: 18px;
   font-weight: 600;
 }
 
 .seccion-head p {
   margin: 4px 0 0;
-  color: var(--ion-color-medium);
+  color: var(--color-text-muted);
   font-size: 14px;
 }
 
 .lista {
-  padding: 8px 12px 24px;
+  padding: 8px 12px 16px;
+}
+
+ion-badge + ion-badge {
+  margin-left: 6px;
 }
 
 .historial-acciones {
@@ -35,7 +40,8 @@ ion-card {
 
 .id-servicio {
   margin: 0 0 4px;
-  font-size: 14px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -50,23 +56,38 @@ ion-card-title {
 
 .meta {
   margin: 4px 0 0;
-  color: var(--ion-color-medium);
+  color: var(--color-text-muted);
   font-size: 14px;
 }
 
 .alerta {
   margin: 10px 0 0;
-  color: var(--ion-color-warning-shade);
+  padding: 10px 12px;
+  color: var(--color-warning-text);
+  background: var(--color-warning-soft);
+  border-radius: var(--radius-lg);
   font-size: 14px;
   font-weight: 600;
 }
 
+.vacio {
+  text-align: center;
+}
+
 .vacio p {
   margin: 8px 0;
-  color: var(--ion-color-medium);
+  color: var(--color-text-muted);
 }
 
 ion-note {
   display: block;
   margin-bottom: 16px;
+}
+
+ion-card-content ion-button {
+  margin-top: 12px;
+}
+
+ion-card.destacado {
+  border-color: #2b161b;
 }

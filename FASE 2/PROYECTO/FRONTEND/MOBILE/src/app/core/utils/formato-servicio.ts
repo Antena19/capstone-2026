@@ -8,10 +8,10 @@ const ETIQUETAS_ESTADO: Record<EstadoServicio, string> = {
 };
 
 const COLORES_ESTADO: Record<EstadoServicio, string> = {
-  PROGRAMADO: 'primary',
-  EN_CURSO: 'success',
-  FINALIZADO: 'medium',
-  CANCELADO: 'danger',
+  PROGRAMADO: 'programado',
+  EN_CURSO: 'encurso',
+  FINALIZADO: 'realizado',
+  CANCELADO: 'cancelado',
 };
 
 export function fechaLocalHoy(fecha = new Date()): string {
@@ -220,6 +220,23 @@ export function etiquetaTipoAsistencia(tipo: string | null | undefined): string 
   }
 
   return null;
+}
+
+export const MOTIVO_FALTA_DE_INICIO = 'FALTA_DE_INICIO';
+
+export function textoCancelacion(
+  estado: string | null | undefined,
+  motivo: string | null | undefined,
+): string | null {
+  if (estado !== 'CANCELADO') {
+    return null;
+  }
+
+  if (motivo === MOTIVO_FALTA_DE_INICIO) {
+    return 'Recorrido cancelado por falta de inicio.';
+  }
+
+  return 'Recorrido cancelado';
 }
 
 export function etiquetaMetodoAsistencia(metodo: string | null | undefined): string | null {

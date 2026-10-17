@@ -1,0 +1,30 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button [defaultHref]="volver()" text="Detalle" />
+    </ion-buttons>
+    <ion-title>Recorrido</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="contenido-recorrido">
+  @if (cargando()) {
+    <div class="centro">
+      <ion-spinner name="crescent" />
+    </div>
+  } @else if (error()) {
+    <div class="estado ion-padding">
+      <ion-note color="danger">{{ error() }}</ion-note>
+      <ion-button expand="block" fill="outline" (click)="cargar()">Reintentar</ion-button>
+    </div>
+  } @else if (ruta(); as datos) {
+    @if (!tieneGeometria(datos)) {
+      <div class="estado ion-padding">
+        <h1>Sin recorrido en el mapa</h1>
+        <p>Este servicio no tiene coordenadas de origen, destino, puntos de recogida ni trazado para mostrar.</p>
+      </div>
+    } @else {
+      <app-mapa-recorrido [ruta]="datos" [perfil]="perfil()" />
+    }
+  }
+</ion-content>

@@ -1,7 +1,9 @@
-<ion-header [translucent]="true">
+<ion-header class="ion-no-border">
   <ion-toolbar>
+    <img slot="start" class="logo-toolbar" src="assets/brand/logo_blanco.svg" alt="" />
     <ion-title>Mis servicios</ion-title>
-    <ion-button slot="end" fill="clear" (click)="cerrarSesion()">Cerrar sesión</ion-button>
+    <ion-button class="accion-toolbar" slot="end" fill="clear" (click)="abrirPerfil()">Perfil</ion-button>
+    <ion-button class="accion-toolbar" slot="end" fill="clear" (click)="cerrarSesion()">Salir</ion-button>
   </ion-toolbar>
 </ion-header>
 
@@ -16,7 +18,7 @@
         <ion-spinner name="crescent" />
         Registrando...
       } @else {
-        ESCANEAR QR
+        Escanear QR
       }
     </ion-button>
   </div>
@@ -60,6 +62,9 @@
                 <ion-badge [color]="colorAsistenciaEstado(servicio.estadoAsistencia)">
                   {{ asistencia }}
                 </ion-badge>
+              }
+              @if (textoCancelacion(servicio.estadoServicio, servicio.motivoCancelacion); as cancelado) {
+                <p class="dato">{{ cancelado }}</p>
               }
               @if (tieneTexto(servicio.nombreRuta)) {
                 <p class="dato">{{ servicio.nombreRuta }}</p>
@@ -182,6 +187,9 @@
             {{ asistencia }}
           </ion-badge>
         }
+        @if (textoCancelacion(servicio.estadoServicio, servicio.motivoCancelacion); as cancelado) {
+          <p class="dato">{{ cancelado }}</p>
+        }
         @if (tieneTexto(servicio.nombreRuta)) {
           <p class="dato">{{ servicio.nombreRuta }}</p>
         }
@@ -202,4 +210,13 @@
       </ion-card-content>
     </ion-card>
   </ng-template>
+
+  <app-bienvenida-modal
+    [abierta]="bienvenidaAbierta()"
+    [nombre]="nombreBienvenida()"
+    [fecha]="fechaBienvenida()"
+    [horario]="horarioBienvenida()"
+    (cerrada)="cerrarBienvenida()"
+    (verRecorridos)="cerrarBienvenida()"
+  />
 </ion-content>

@@ -1,4 +1,4 @@
-<ion-header [translucent]="true">
+<ion-header class="ion-no-border">
   <ion-toolbar>
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/conductor" text="Servicios" />
@@ -36,6 +36,17 @@
       @if (servicio.estado === 'EN_CURSO') {
         <p class="en-curso">Servicio en curso</p>
       }
+      @if (textoCancelacion(servicio.estado, servicio.motivoCancelacion); as cancelado) {
+        <p class="aviso-inicio">{{ cancelado }}</p>
+      } @else if (canceladoPorFalta()) {
+        <p class="aviso-inicio">El servicio se canceló por falta de inicio.</p>
+      }
+    </div>
+
+    <div class="acceso-recorrido">
+      <ion-button expand="block" class="boton-recorrido" (click)="verRecorrido()">
+        Ver recorrido
+      </ion-button>
     </div>
 
     <ion-list [inset]="true">
@@ -136,8 +147,8 @@
         <ion-label>
           <p>Pasajeros</p>
           <h2>Planificados: {{ servicio.resumenPasajeros.totalPlanificados }}</h2>
-          <p>Confirmados: {{ servicio.resumenPasajeros.totalConfirmados }}</p>
-          <p>Asistencias registradas: {{ servicio.resumenPasajeros.totalAsistenciasValidas }}</p>
+          <p>Intención de viaje confirmada: {{ servicio.resumenPasajeros.totalConfirmados }}</p>
+          <p>Asistencia efectiva: {{ servicio.resumenPasajeros.totalAsistenciasValidas }}</p>
         </ion-label>
       </ion-item>
     </ion-list>
@@ -145,10 +156,13 @@
     @if (servicio.estado !== 'CANCELADO') {
       <div class="acciones ion-padding">
         @if (servicio.estado === 'PROGRAMADO') {
+          @if (avisoInicio(); as aviso) {
+            <ion-note>{{ aviso }}</ion-note>
+          }
           @if (errorInicio()) {
             <ion-note color="danger">{{ errorInicio() }}</ion-note>
           }
-          <ion-button expand="block" [disabled]="iniciando()" (click)="confirmarInicio()">
+          <ion-button expand="block" class="boton-iniciar" [disabled]="!puedeIniciar()" (click)="confirmarInicio()">
             @if (iniciando()) {
               <ion-spinner name="crescent" />
               Iniciando...
@@ -162,13 +176,13 @@
           @if (errorFin()) {
             <ion-note color="danger">{{ errorFin() }}</ion-note>
           }
-          <ion-button expand="block" (click)="abrirQr()">Mostrar QR</ion-button>
-          <ion-button expand="block" [disabled]="finalizando()" (click)="confirmarFinalizacion()">
+          <ion-button expand="block" class="boton-qr" (click)="abrirQr()">Mostrar QR</ion-button>
+          <ion-button expand="block" class="boton-finalizar" [disabled]="finalizando()" (click)="confirmarFinalizacion()">
             @if (finalizando()) {
               <ion-spinner name="crescent" />
               Finalizando...
             } @else {
-              FINALIZAR SERVICIO
+              Finalizar servicio
             }
           </ion-button>
         }

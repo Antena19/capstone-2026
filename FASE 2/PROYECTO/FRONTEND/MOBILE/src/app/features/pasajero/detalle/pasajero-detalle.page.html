@@ -1,4 +1,4 @@
-<ion-header [translucent]="true">
+<ion-header class="ion-no-border">
   <ion-toolbar>
     <ion-buttons slot="start">
       <ion-back-button defaultHref="/pasajero" text="Servicios" />
@@ -31,11 +31,20 @@
           {{ etiquetaEstado(estado) }}
         </ion-badge>
       }
+      @if (textoCancelacion(servicio.estado, servicio.motivoCancelacion); as cancelado) {
+        <p class="aviso-inicio">{{ cancelado }}</p>
+      }
       @if (etiquetaConfirmacion(servicio.estadoConfirmacion); as confirmacion) {
         <ion-badge [color]="colorConfirmacion(servicio.estadoConfirmacion)">
           {{ confirmacion }}
         </ion-badge>
       }
+    </div>
+
+    <div class="acceso-recorrido">
+      <ion-button expand="block" class="boton-recorrido" (click)="verRecorrido()">
+        Ver recorrido
+      </ion-button>
     </div>
 
     <ion-list [inset]="true">

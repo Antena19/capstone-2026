@@ -1,0 +1,45 @@
+ion-modal.bienvenida {
+  --width: min(92vw, 380px);
+  --height: auto;
+  --border-radius: 16px;
+  --box-shadow: 0 12px 32px rgb(43 22 27 / 24%);
+}
+
+.tarjeta {
+  padding: 24px 20px 20px;
+  background: #fff;
+  color: var(--color-text);
+}
+
+.marca {
+  margin: 0 0 8px;
+  color: #d90700;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.proximo {
+  margin-top: 14px;
+  padding: 12px;
+  background: #f7f3f5;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+ion-button {
+  margin-top: 12px;
+}

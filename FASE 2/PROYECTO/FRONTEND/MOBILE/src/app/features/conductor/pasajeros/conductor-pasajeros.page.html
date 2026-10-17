@@ -1,4 +1,4 @@
-<ion-header [translucent]="true">
+<ion-header class="ion-no-border">
   <ion-toolbar>
     <ion-buttons slot="start">
       <ion-back-button [defaultHref]="'/conductor/servicios/' + idServicio" text="Detalle" />
@@ -26,41 +26,40 @@
       <p>No hay pasajeros registrados para este servicio.</p>
     </div>
   } @else {
-    <div class="resumen ion-padding">
+    <div class="resumen">
       <p>Total: {{ resumen().total }}</p>
-      <p>Con asistencia válida: {{ resumen().validas }}</p>
+      <p>Intención de viaje confirmada: {{ resumen().confirmados }}</p>
+      <p>Asistencia efectiva: {{ resumen().validas }}</p>
       <p>Sin asistencia: {{ resumen().sinAsistencia }}</p>
       @if (resumen().provisionales > 0) {
-        <p>Provisionales: {{ resumen().provisionales }}</p>
+        <p>Asistencia pendiente: {{ resumen().provisionales }}</p>
       }
       @if (resumen().anuladas > 0) {
-        <p>Anuladas: {{ resumen().anuladas }}</p>
+        <p>Asistencia anulada: {{ resumen().anuladas }}</p>
       }
     </div>
 
-    <ion-list [inset]="true">
+    <div class="lista">
       @for (pasajero of pasajeros(); track pasajero.idPasajero) {
-        <ion-item>
-          <ion-label>
-            <h2>{{ pasajero.nombre }}</h2>
-            <p>{{ etiquetaParticipacion(pasajero.tipoParticipacion) }}</p>
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>{{ pasajero.nombre }}</ion-card-title>
+            <ion-card-subtitle>{{ etiquetaParticipacion(pasajero.tipoParticipacion) }}</ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content>
             @if (textoPuntoRecogida(pasajero.nombrePuntoRecogida, pasajero.referenciaPuntoRecogida); as recogida) {
-              <p class="secundario">{{ recogida }}</p>
+              <p class="dato">{{ recogida }}</p>
             }
             @if (etiquetaConfirmacion(pasajero.estadoConfirmacion); as confirmacion) {
-              <p class="secundario">{{ confirmacion }}</p>
+              <p class="dato">Intención de viaje: {{ confirmacion }}</p>
             }
+            <p class="dato">Asistencia: {{ etiquetaAsistencia(pasajero.estadoAsistencia) }}</p>
             @if (pasajero.fechaHoraAsistencia) {
-              <p class="secundario">{{ formatearHoraAsistencia(pasajero.fechaHoraAsistencia) }}</p>
+              <p class="meta">Registrada a las {{ formatearHoraAsistencia(pasajero.fechaHoraAsistencia) }}</p>
             }
-          </ion-label>
-          @for (estado of [pasajero.estadoAsistencia]; track estado ?? 'sin') {
-            <ion-badge slot="end" [color]="colorAsistencia(estado)">
-              {{ etiquetaAsistencia(estado) }}
-            </ion-badge>
-          }
-        </ion-item>
+          </ion-card-content>
+        </ion-card>
       }
-    </ion-list>
+    </div>
   }
 </ion-content>

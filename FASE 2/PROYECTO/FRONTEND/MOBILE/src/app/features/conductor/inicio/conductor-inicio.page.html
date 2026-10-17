@@ -1,7 +1,9 @@
-<ion-header [translucent]="true">
+<ion-header class="ion-no-border">
   <ion-toolbar>
+    <img slot="start" class="logo-toolbar" src="assets/brand/logo_blanco.svg" alt="" />
     <ion-title>Mis servicios</ion-title>
-    <ion-button slot="end" fill="clear" (click)="cerrarSesion()">Cerrar sesión</ion-button>
+    <ion-button class="accion-toolbar" slot="end" fill="clear" (click)="abrirPerfil()">Perfil</ion-button>
+    <ion-button class="accion-toolbar" slot="end" fill="clear" (click)="cerrarSesion()">Salir</ion-button>
   </ion-toolbar>
 </ion-header>
 
@@ -20,14 +22,79 @@
       <ion-button expand="block" fill="outline" (click)="cargar()">Reintentar</ion-button>
     </div>
   } @else {
-    @if (pendientesAnteriores().length > 0) {
+    <section class="seccion">
+      <div class="seccion-head">
+        <h2>Próximo servicio</h2>
+      </div>
+      @if (proximo(); as servicio) {
+        <div class="lista">
+          <ion-card class="destacado">
+            <ion-card-header>
+              <p class="id-servicio">Servicio #{{ servicio.idServicio }}</p>
+              <ion-card-title>
+                {{ formatearHora(servicio.horaInicio) }} – {{ formatearHora(servicio.horaFin) }}
+              </ion-card-title>
+              <ion-card-subtitle>{{ formatearFecha(servicio.fecha) }}</ion-card-subtitle>
+            </ion-card-header>
+            <ion-card-content>
+              @for (estado of [servicio.estado]; track estado) {
+                <ion-badge [color]="colorEstado(estado)">
+                  {{ etiquetaEstado(estado) }}
+                </ion-badge>
+              }
+              @if (textoCancelado(servicio.estado, servicio.motivoCancelacion); as cancelado) {
+                <p class="dato">{{ cancelado }}</p>
+              }
+              @if (avisoInicio(servicio); as aviso) {
+                <p class="alerta">{{ aviso }}</p>
+              } @else if (avisoPendiente(servicio); as aviso) {
+                <p class="alerta">{{ aviso }}</p>
+              }
+              @if (tieneTexto(servicio.nombreRuta)) {
+                <p class="dato">{{ servicio.nombreRuta }}</p>
+              }
+              @if (tieneTexto(servicio.sectorRuta)) {
+                <p class="meta">{{ servicio.sectorRuta }}</p>
+              }
+              @if (tieneTexto(servicio.patenteVehiculo)) {
+                <p class="meta">
+                  @if (tieneTexto(servicio.tipoVehiculo)) {
+                    {{ servicio.tipoVehiculo }} ·
+                  }
+                  {{ servicio.patenteVehiculo }}
+                </p>
+              }
+              @if (servicio.estado === 'EN_CURSO') {
+                <ion-button expand="block" (click)="abrirQr(servicio.idServicio)">
+                  Mostrar QR
+                </ion-button>
+              }
+              @if (servicio.estado === 'PROGRAMADO' && !avisoInicio(servicio)) {
+                <ion-button expand="block" (click)="abrirDetalle(servicio.idServicio)">
+                  Iniciar servicio
+                </ion-button>
+              }
+              <ion-button expand="block" fill="outline" (click)="abrirDetalle(servicio.idServicio)">
+                Ver detalle
+              </ion-button>
+            </ion-card-content>
+          </ion-card>
+        </div>
+      } @else {
+        <div class="ion-padding vacio">
+          <p>No tienes servicios próximos.</p>
+        </div>
+      }
+    </section>
+
+    @if (pendientesVisibles().length > 0) {
       <section class="seccion">
         <div class="seccion-head">
           <h2>Pendientes de días anteriores</h2>
           <p>Servicios anteriores que aún debes iniciar o finalizar.</p>
         </div>
         <div class="lista">
-          @for (servicio of pendientesAnteriores(); track servicio.idServicio) {
+          @for (servicio of pendientesVisibles(); track servicio.idServicio) {
             <ng-container
               [ngTemplateOutlet]="tarjetaServicio"
               [ngTemplateOutletContext]="{ $implicit: servicio, aviso: avisoPendiente(servicio) }"
@@ -41,13 +108,13 @@
       <div class="seccion-head">
         <h2>Hoy y próximos</h2>
       </div>
-      @if (actuales().length === 0) {
+      @if (actualesVisibles().length === 0) {
         <div class="ion-padding vacio">
-          <p>No tienes servicios para hoy ni próximos.</p>
+          <p>No hay otros servicios para mostrar.</p>
         </div>
       } @else {
         <div class="lista">
-          @for (servicio of actuales(); track servicio.idServicio) {
+          @for (servicio of actualesVisibles(); track servicio.idServicio) {
             <ng-container
               [ngTemplateOutlet]="tarjetaServicio"
               [ngTemplateOutletContext]="{ $implicit: servicio }"
@@ -103,7 +170,7 @@
   }
 
   <ng-template #tarjetaServicio let-servicio let-aviso="aviso">
-    <ion-card button="true" (click)="abrirDetalle(servicio.idServicio)">
+    <ion-card>
       <ion-card-header>
         <p class="id-servicio">Servicio #{{ servicio.idServicio }}</p>
         <ion-card-title>
@@ -116,6 +183,9 @@
           <ion-badge [color]="colorEstado(estado)">
             {{ etiquetaEstado(estado) }}
           </ion-badge>
+        }
+        @if (textoCancelado(servicio.estado, servicio.motivoCancelacion); as cancelado) {
+          <p class="dato">{{ cancelado }}</p>
         }
         @if (aviso) {
           <p class="alerta">{{ aviso }}</p>
@@ -137,7 +207,19 @@
             {{ servicio.patenteVehiculo }}
           </p>
         }
+        <ion-button expand="block" fill="outline" (click)="abrirDetalle(servicio.idServicio)">
+          Ver detalle
+        </ion-button>
       </ion-card-content>
     </ion-card>
   </ng-template>
+
+  <app-bienvenida-modal
+    [abierta]="bienvenidaAbierta()"
+    [nombre]="nombreBienvenida()"
+    [fecha]="fechaBienvenida()"
+    [horario]="horarioBienvenida()"
+    (cerrada)="cerrarBienvenida()"
+    (verRecorridos)="cerrarBienvenida()"
+  />
 </ion-content>

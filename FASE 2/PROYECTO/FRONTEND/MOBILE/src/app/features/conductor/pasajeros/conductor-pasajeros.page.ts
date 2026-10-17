@@ -2,14 +2,15 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {
   IonBackButton,
-  IonBadge,
   IonButton,
   IonButtons,
   IonContent,
   IonHeader,
-  IonItem,
-  IonLabel,
-  IonList,
+  IonCard,
+  IonCardContent,
+  IonCardHeader,
+  IonCardSubtitle,
+  IonCardTitle,
   IonNote,
   IonRefresher,
   IonRefresherContent,
@@ -23,7 +24,6 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { PasajeroServicioConductor } from '../../../core/models/conductor';
 import { MisServiciosService } from '../../../core/services/mis-servicios.service';
 import {
-  colorEstadoAsistencia,
   etiquetaConfirmacion,
   etiquetaEstadoAsistencia,
   etiquetaParticipacion,
@@ -47,10 +47,11 @@ import {
     IonNote,
     IonRefresher,
     IonRefresherContent,
-    IonList,
-    IonItem,
-    IonLabel,
-    IonBadge,
+    IonCard,
+    IonCardHeader,
+    IonCardTitle,
+    IonCardSubtitle,
+    IonCardContent,
   ],
 })
 export class ConductorPasajerosPage implements ViewWillEnter {
@@ -67,7 +68,6 @@ export class ConductorPasajerosPage implements ViewWillEnter {
   readonly idServicio = Number(this.ruta.snapshot.paramMap.get('idServicio'));
 
   readonly etiquetaAsistencia = etiquetaEstadoAsistencia;
-  readonly colorAsistencia = colorEstadoAsistencia;
   readonly etiquetaParticipacion = etiquetaParticipacion;
   readonly etiquetaConfirmacion = etiquetaConfirmacion;
   readonly textoPuntoRecogida = textoPuntoRecogida;
@@ -77,6 +77,7 @@ export class ConductorPasajerosPage implements ViewWillEnter {
     const lista = this.pasajeros();
     return {
       total: lista.length,
+      confirmados: lista.filter((pasajero) => pasajero.estadoConfirmacion === 'CONFIRMADO').length,
       validas: lista.filter((pasajero) => pasajero.estadoAsistencia === 'VALIDA').length,
       sinAsistencia: lista.filter((pasajero) => pasajero.estadoAsistencia === null).length,
       provisionales: lista.filter((pasajero) => pasajero.estadoAsistencia === 'PROVISIONAL').length,

@@ -5,7 +5,12 @@
 }
 
 .resumen {
-  padding-bottom: 4px;
+  margin: 16px 16px 4px;
+  padding: 16px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
 }
 
 .resumen p {
@@ -13,26 +18,35 @@
   font-size: 15px;
 }
 
+.vacio {
+  text-align: center;
+}
+
 .vacio p {
   margin: 8px 0;
-  color: var(--ion-color-medium);
+  color: var(--color-text-muted);
 }
 
-ion-item h2 {
-  font-size: 17px;
+.lista {
+  padding: 8px 12px 24px;
 }
 
-ion-item p.secundario {
-  color: var(--ion-color-medium);
+ion-card-title {
+  font-size: 18px;
+}
+
+.dato {
+  margin: 8px 0 0;
+  font-size: 16px;
+}
+
+.meta {
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: 14px;
 }
 
 ion-note {
   display: block;
   margin-bottom: 16px;
-}
-
-ion-badge {
-  max-width: 42%;
-  white-space: normal;
-  text-align: center;
 }

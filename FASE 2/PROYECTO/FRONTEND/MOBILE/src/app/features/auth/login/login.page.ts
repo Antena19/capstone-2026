@@ -1,19 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import {
-  IonButton,
-  IonContent,
-  IonHeader,
-  IonInput,
-  IonItem,
-  IonList,
-  IonNote,
-  IonSpinner,
-  IonTitle,
-  IonToolbar,
-} from '@ionic/angular';
+import { IonButton, IonContent, IonInput, IonNote, IonSpinner } from '@ionic/angular';
 import { AuthService } from '../../../core/auth/auth.service';
+import { CampoPasswordComponent } from '../../../shared/campo-password/campo-password.component';
 
 @Component({
   selector: 'app-login',
@@ -22,16 +12,12 @@ import { AuthService } from '../../../core/auth/auth.service';
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
     IonContent,
-    IonList,
-    IonItem,
     IonInput,
     IonButton,
     IonNote,
     IonSpinner,
+    CampoPasswordComponent,
   ],
 })
 export class LoginPage {

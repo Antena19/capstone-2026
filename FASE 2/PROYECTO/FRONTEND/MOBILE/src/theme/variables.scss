@@ -1,2 +1,126 @@
-// For information on how to create your own theme, please refer to:
-// https://ionicframework.com/docs/theming/
+:root {
+  --ion-font-family: 'Inter', sans-serif;
+  --ion-background-color: #f7f3f5;
+  --ion-text-color: #2b161b;
+  --ion-border-color: #dddddd;
+  --ion-toolbar-background: #2b161b;
+  --ion-toolbar-color: #f7f3f5;
+
+  --color-sidebar: #2b161b;
+  --color-surface: #f7f3f5;
+  --color-card: #ffffff;
+  --color-border: #dddddd;
+  --color-primary: #d90700;
+  --color-primary-hover: #b20600;
+  --color-text: #2b161b;
+  --color-text-secondary: #4b4f58;
+  --color-text-muted: #5c5456;
+  --color-estado-programado-fondo: #eff6ff;
+  --color-estado-programado-texto: #1e3a8a;
+  --color-estado-programado-borde: #bfdbfe;
+  --color-estado-encurso-fondo: #f0fdfa;
+  --color-estado-encurso-texto: #115e59;
+  --color-estado-encurso-borde: #99f6e4;
+  --color-estado-realizado-fondo: #ecfdf5;
+  --color-estado-realizado-texto: #047857;
+  --color-estado-realizado-borde: #a7f3d0;
+  --color-estado-cancelado-fondo: #fef2f2;
+  --color-estado-cancelado-texto: #991b1b;
+  --color-estado-cancelado-borde: #fecaca;
+  --color-danger-text: #991b1b;
+  --color-danger-soft: #fef2f2;
+  --color-success-text: #047857;
+  --color-success-soft: #ecfdf5;
+  --color-warning-text: #92400e;
+  --color-warning-soft: #fffbeb;
+  --font-display: 'Montserrat', sans-serif;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --shadow-sm: 0 1px 2px rgb(43 22 27 / 7%);
+
+  --ion-color-primary: #d90700;
+  --ion-color-primary-rgb: 217, 7, 0;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #b20600;
+  --ion-color-primary-tint: #ef4d48;
+
+  --ion-color-danger: #dc2626;
+  --ion-color-danger-rgb: 220, 38, 38;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #b91c1c;
+  --ion-color-danger-tint: #e03c3c;
+
+  --ion-color-success: #10b981;
+  --ion-color-success-rgb: 16, 185, 129;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #0ea372;
+  --ion-color-success-tint: #28c08e;
+
+  --ion-color-warning: #f59e0b;
+  --ion-color-warning-rgb: 245, 158, 11;
+  --ion-color-warning-contrast: #2b161b;
+  --ion-color-warning-contrast-rgb: 43, 22, 27;
+  --ion-color-warning-shade: #d78909;
+  --ion-color-warning-tint: #f6a823;
+
+  --ion-color-medium: #7a7274;
+  --ion-color-medium-rgb: 122, 114, 116;
+  --ion-color-medium-contrast: #ffffff;
+  --ion-color-medium-contrast-rgb: 255, 255, 255;
+  --ion-color-medium-shade: #6b6466;
+  --ion-color-medium-tint: #878082;
+
+  --ion-color-light: #f7f3f5;
+  --ion-color-light-rgb: 247, 243, 245;
+  --ion-color-light-contrast: #2b161b;
+  --ion-color-light-contrast-rgb: 43, 22, 27;
+  --ion-color-light-shade: #d9d6d8;
+  --ion-color-light-tint: #f8f4f6;
+
+  --ion-color-programado: var(--color-estado-programado-fondo);
+  --ion-color-programado-rgb: 239, 246, 255;
+  --ion-color-programado-contrast: var(--color-estado-programado-texto);
+  --ion-color-programado-contrast-rgb: 30, 58, 138;
+  --ion-color-programado-shade: #dbeafe;
+  --ion-color-programado-tint: #f8fbff;
+
+  --ion-color-encurso: var(--color-estado-encurso-fondo);
+  --ion-color-encurso-rgb: 240, 253, 250;
+  --ion-color-encurso-contrast: var(--color-estado-encurso-texto);
+  --ion-color-encurso-contrast-rgb: 17, 94, 89;
+  --ion-color-encurso-shade: #ccfbf1;
+  --ion-color-encurso-tint: #f7fffe;
+
+  --ion-color-realizado: var(--color-estado-realizado-fondo);
+  --ion-color-realizado-rgb: 236, 253, 245;
+  --ion-color-realizado-contrast: var(--color-estado-realizado-texto);
+  --ion-color-realizado-contrast-rgb: 4, 120, 87;
+  --ion-color-realizado-shade: #d1fae5;
+  --ion-color-realizado-tint: #f6fffb;
+
+  --ion-color-cancelado: var(--color-estado-cancelado-fondo);
+  --ion-color-cancelado-rgb: 254, 242, 242;
+  --ion-color-cancelado-contrast: var(--color-estado-cancelado-texto);
+  --ion-color-cancelado-contrast-rgb: 153, 27, 27;
+  --ion-color-cancelado-shade: #fee2e2;
+  --ion-color-cancelado-tint: #fff8f8;
+}
+
+@mixin color-ionico($nombre) {
+  .ion-color-#{$nombre} {
+    --ion-color-base: var(--ion-color-#{$nombre});
+    --ion-color-base-rgb: var(--ion-color-#{$nombre}-rgb);
+    --ion-color-contrast: var(--ion-color-#{$nombre}-contrast);
+    --ion-color-contrast-rgb: var(--ion-color-#{$nombre}-contrast-rgb);
+    --ion-color-shade: var(--ion-color-#{$nombre}-shade);
+    --ion-color-tint: var(--ion-color-#{$nombre}-tint);
+  }
+}
+
+@include color-ionico(programado);
+@include color-ionico(encurso);
+@include color-ionico(realizado);
+@include color-ionico(cancelado);

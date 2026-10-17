@@ -1,19 +1,9 @@
 import { Component, inject, OnDestroy, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import {
-  IonButton,
-  IonContent,
-  IonHeader,
-  IonInput,
-  IonItem,
-  IonList,
-  IonNote,
-  IonSpinner,
-  IonTitle,
-  IonToolbar,
-} from '@ionic/angular';
+import { IonButton, IonContent, IonInput, IonNote, IonSpinner } from '@ionic/angular';
 import { AuthService } from '../../../core/auth/auth.service';
+import { CampoPasswordComponent } from '../../../shared/campo-password/campo-password.component';
 
 const PATRON_PASSWORD = /^(?=.*[A-Za-z])(?=.*\d).{8,100}$/;
 
@@ -34,16 +24,12 @@ function confirmarPassword(grupo: AbstractControl): ValidationErrors | null {
   imports: [
     ReactiveFormsModule,
     RouterLink,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
     IonContent,
-    IonList,
-    IonItem,
     IonInput,
     IonButton,
     IonNote,
     IonSpinner,
+    CampoPasswordComponent,
   ],
 })
 export class ActivarPage implements OnDestroy {

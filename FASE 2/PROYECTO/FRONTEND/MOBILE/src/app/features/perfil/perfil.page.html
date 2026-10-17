@@ -1,0 +1,102 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button [defaultHref]="destinoVolver()" text="Inicio" />
+    </ion-buttons>
+    <ion-title>Mi perfil</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <div class="perfil">
+    <section class="cabecera" aria-label="Identidad">
+      <div class="avatar" aria-hidden="true">
+        <ion-icon name="person" />
+      </div>
+      <div class="identidad">
+        @if (nombre(); as persona) {
+          <h1>{{ persona }}</h1>
+          <p class="correo">{{ correo() }}</p>
+        } @else {
+          <p class="etiqueta">Correo</p>
+          <h1>{{ correo() }}</h1>
+        }
+        @if (rol()) {
+          <p class="rol">{{ rol() }}</p>
+        }
+      </div>
+    </section>
+
+    @if (cargando()) {
+      <div class="centro" role="status">
+        <ion-spinner name="crescent" />
+        <span class="sr-only">Cargando actividad</span>
+      </div>
+    } @else if (error()) {
+      <section class="aviso" role="alert">
+        <ion-note color="danger">{{ error() }}</ion-note>
+        <ion-button expand="block" fill="outline" (click)="cargar()">Reintentar</ion-button>
+      </section>
+    } @else if (resumen(); as datos) {
+      <section class="bloque" aria-labelledby="titulo-actividad">
+        <h2 id="titulo-actividad">Mi actividad</h2>
+        <div class="metricas">
+          <article class="metrica">
+            <span class="icono" aria-hidden="true">
+              <ion-icon name="bus-outline" />
+            </span>
+            <p>Viajes realizados</p>
+            <strong>{{ datos.total }}</strong>
+          </article>
+          <article class="metrica">
+            <span class="icono" aria-hidden="true">
+              <ion-icon name="calendar-outline" />
+            </span>
+            <p>Viajes este mes</p>
+            <strong>{{ datos.enMesActual }}</strong>
+          </article>
+          <article class="metrica fecha">
+            <span class="icono" aria-hidden="true">
+              <ion-icon name="flag-outline" />
+            </span>
+            <div>
+              <p>Primer viaje</p>
+              <strong>{{ datos.primerViaje ? formatearFecha(datos.primerViaje) : 'Aún no hay viajes' }}</strong>
+            </div>
+          </article>
+          @if (datos.ultimoViaje) {
+            <article class="metrica fecha">
+              <span class="icono" aria-hidden="true">
+                <ion-icon name="calendar-number-outline" />
+              </span>
+              <div>
+                <p>Último viaje</p>
+                <strong>{{ formatearFecha(datos.ultimoViaje) }}</strong>
+              </div>
+            </article>
+          }
+        </div>
+        <p class="explicacion">{{ explicacion() }}</p>
+      </section>
+    }
+
+    <section class="bloque" aria-labelledby="titulo-cuenta">
+      <h2 id="titulo-cuenta">Mi cuenta</h2>
+      <div class="cuenta">
+        <button type="button" (click)="cambiarPassword()">
+          <span class="icono" aria-hidden="true">
+            <ion-icon name="key-outline" />
+          </span>
+          <span class="texto">Cambiar contraseña</span>
+          <ion-icon class="chevron" name="chevron-forward-outline" aria-hidden="true" />
+        </button>
+        <button type="button" (click)="cerrarSesion()">
+          <span class="icono salir" aria-hidden="true">
+            <ion-icon name="log-out-outline" />
+          </span>
+          <span class="texto">Cerrar sesión</span>
+        </button>
+      </div>
+    </section>
+  </div>
+</ion-content>

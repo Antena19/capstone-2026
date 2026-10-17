@@ -1,50 +1,47 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title>Trayek</ion-title>
-  </ion-toolbar>
-</ion-header>
+<ion-content [fullscreen]="true">
+  <header class="auth-marca">
+    <img src="assets/brand/logo_blanco.svg" alt="" />
+    <p class="nombre">TRAYEK</p>
+    <p class="rubro">GESTIÓN DE TRANSPORTE DE PERSONAL</p>
+  </header>
 
-<ion-content [fullscreen]="true" class="ion-padding">
-  <h1>Iniciar sesión</h1>
-  <p class="lead">Ingresa con tu teléfono o correo.</p>
+  <div class="auth-panel">
+    <section class="auth-tarjeta">
+      <h1>Iniciar sesión</h1>
+      <p class="lead">Ingresa con tu teléfono o correo.</p>
 
-  <form [formGroup]="form" (ngSubmit)="enviar()">
-    <ion-list>
-      <ion-item>
+      <form [formGroup]="form" (ngSubmit)="enviar()">
         <ion-input
+          fill="outline"
           label="Teléfono o correo"
           labelPlacement="stacked"
           formControlName="identificador"
           placeholder="+56912345678 o correo"
           autocomplete="username"
         />
-      </ion-item>
-      <ion-item>
-        <ion-input
-          type="password"
+        <app-campo-password
           label="Contraseña"
-          labelPlacement="stacked"
-          formControlName="password"
           autocomplete="current-password"
+          formControlName="password"
         />
-      </ion-item>
-    </ion-list>
 
-    @if (error()) {
-      <ion-note color="danger">{{ error() }}</ion-note>
-    }
+        @if (error()) {
+          <ion-note color="danger">{{ error() }}</ion-note>
+        }
 
-    <ion-button expand="block" type="submit" [disabled]="enviando()">
-      @if (enviando()) {
-        <ion-spinner name="crescent" />
-      } @else {
-        Ingresar
-      }
-    </ion-button>
-  </form>
+        <ion-button expand="block" type="submit" [disabled]="enviando()">
+          @if (enviando()) {
+            <ion-spinner name="crescent" />
+          } @else {
+            Ingresar
+          }
+        </ion-button>
+      </form>
 
-  <p class="activar">
-    ¿Primera vez?
-    <a routerLink="/activar">Activa tu cuenta</a>
-  </p>
+      <p class="auth-enlace">
+        ¿Primera vez?
+        <a routerLink="/activar">Activa tu cuenta</a>
+      </p>
+    </section>
+  </div>
 </ion-content>

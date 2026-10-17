@@ -20,6 +20,7 @@ import {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly sesionSignal = signal<SesionUsuario | null>(null);
+  private readonly bienvenidaPendiente = signal(false);
 
   readonly sesion = this.sesionSignal.asReadonly();
   readonly autenticado = computed(() => this.sesionSignal() !== null);
@@ -41,6 +42,7 @@ export class AuthService {
         }
 
         this.guardarSesion(this.aSesion(normalizada));
+        this.bienvenidaPendiente.set(!normalizada.debeCambiarPassword);
 
         return normalizada;
       }),
@@ -102,9 +104,23 @@ export class AuthService {
   }
 
   cerrarSesion(): void {
+    this.bienvenidaPendiente.set(false);
     this.sesionSignal.set(null);
     localStorage.removeItem(CLAVE_SESION);
     localStorage.removeItem(CLAVE_SESION_LEGADA);
+  }
+
+  nombreCompleto(): string | null {
+    return this.textoOpcional(this.sesionSignal()?.nombre);
+  }
+
+  consumirBienvenida(): boolean {
+    if (!this.bienvenidaPendiente()) {
+      return false;
+    }
+
+    this.bienvenidaPendiente.set(false);
+    return true;
   }
 
   mensajeErrorHttp(error: unknown, respaldo = 'No fue posible completar la operación.'): string {
@@ -118,6 +134,15 @@ export class AuthService {
     return respaldo;
   }
 
+  private textoOpcional(valor: unknown): string | null {
+    if (typeof valor !== 'string') {
+      return null;
+    }
+
+    const texto = valor.trim();
+    return texto ? texto : null;
+  }
+
   private normalizarRespuesta(raw: LoginRespuesta): LoginRespuesta {
     const datos = raw as unknown as Record<string, unknown>;
 
@@ -125,6 +150,7 @@ export class AuthService {
       token: String(datos['token'] ?? datos['Token'] ?? ''),
       idUsuario: Number(datos['idUsuario'] ?? datos['IdUsuario'] ?? 0),
       email: String(datos['email'] ?? datos['Email'] ?? ''),
+      nombre: this.textoOpcional(datos['nombre'] ?? datos['Nombre']),
       telefono: (datos['telefono'] ?? datos['Telefono'] ?? null) as string | null,
       rol: String(datos['rol'] ?? datos['Rol'] ?? '').trim(),
       expiracion: String(datos['expiracion'] ?? datos['Expiracion'] ?? ''),
@@ -157,6 +183,7 @@ export class AuthService {
       token: respuesta.token,
       idUsuario: respuesta.idUsuario,
       email: respuesta.email,
+      nombre: respuesta.nombre,
       telefono: respuesta.telefono,
       rol: respuesta.rol,
       expiracion: respuesta.expiracion,

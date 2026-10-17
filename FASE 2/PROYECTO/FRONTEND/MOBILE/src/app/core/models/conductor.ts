@@ -7,6 +7,7 @@ export interface ServicioConductorResumen {
   horaFin: string;
   tipoServicio: string;
   estado: EstadoServicio;
+  motivoCancelacion?: string | null;
   idRuta: string;
   nombreRuta: string | null;
   sectorRuta: string | null;
@@ -56,6 +57,8 @@ export interface ServicioConductorDetalle {
   fechaHoraFinReal: string | null;
   tipoServicio: string;
   estado: EstadoServicio;
+  motivoCancelacion?: string | null;
+  fechaHoraCancelacion?: string | null;
   empresa: EmpresaServicioConductor;
   vehiculo: VehiculoServicioConductor;
   ruta: RutaServicioConductorResumen | null;

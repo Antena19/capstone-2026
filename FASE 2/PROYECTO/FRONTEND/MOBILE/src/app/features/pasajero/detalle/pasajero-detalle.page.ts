@@ -1,5 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   AlertController,
   IonBackButton,
@@ -34,6 +34,7 @@ import {
   etiquetaTipoAsistencia,
   formatearFechaChile,
   formatearFechaHoraLocal,
+  textoCancelacion,
   formatearHoraPlanificada,
   tieneTexto,
 } from '../../../core/utils/formato-servicio';
@@ -64,6 +65,7 @@ export class PasajeroDetallePage implements ViewWillEnter {
   private readonly api = inject(MisServiciosService);
   private readonly auth = inject(AuthService);
   private readonly ruta = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly alertas = inject(AlertController);
   private pedidoDetalle = 0;
 
@@ -76,6 +78,7 @@ export class PasajeroDetallePage implements ViewWillEnter {
   readonly formatearFecha = formatearFechaChile;
   readonly formatearHora = formatearHoraPlanificada;
   readonly formatearFechaHora = formatearFechaHoraLocal;
+  readonly textoCancelacion = textoCancelacion;
   readonly etiquetaEstado = etiquetaEstadoServicio;
   readonly colorEstado = colorEstadoServicio;
   readonly etiquetaConfirmacion = etiquetaConfirmacion;
@@ -137,6 +140,15 @@ export class PasajeroDetallePage implements ViewWillEnter {
 
   refrescar(evento: RefresherCustomEvent): void {
     this.cargar(() => evento.target.complete());
+  }
+
+  verRecorrido(): void {
+    const idServicio = this.detalle()?.idServicio;
+    if (!idServicio) {
+      return;
+    }
+
+    void this.router.navigate(['/pasajero/servicios', idServicio, 'recorrido']);
   }
 
   puedeConfirmar(estado: EstadoConfirmacionViaje): boolean {
