@@ -19,6 +19,8 @@ namespace BACKEND.DTOs.Mobile.Pasajero
 
         public EstadoServicio EstadoServicio { get; set; }
 
+        public string? MotivoCancelacion { get; set; }
+
         public string TipoServicio { get; set; } = string.Empty;
 
         public string? NombreRuta { get; set; }

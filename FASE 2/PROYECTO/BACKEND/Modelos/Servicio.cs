@@ -54,6 +54,14 @@ namespace BACKEND.Modelos
         [Column("estado")]
         public EstadoServicio Estado { get; set; } = EstadoServicio.PROGRAMADO;
 
+        /// <summary>
+        /// Código de la cancelación. Nulo en una cancelación manual.
+        /// La cancelación automática persiste <c>FALTA_DE_INICIO</c>.
+        /// </summary>
+        [MaxLength(50)]
+        [Column("motivo_cancelacion")]
+        public string? MotivoCancelacion { get; set; }
+
         [ForeignKey(nameof(IdEmpresa))]
         public EmpresaCliente Empresa { get; set; } = null!;
 

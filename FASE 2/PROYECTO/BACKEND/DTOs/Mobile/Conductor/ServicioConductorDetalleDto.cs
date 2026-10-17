@@ -23,6 +23,8 @@ namespace BACKEND.DTOs.Mobile.Conductor
 
         public EstadoServicio Estado { get; set; }
 
+        public string? MotivoCancelacion { get; set; }
+
         public EmpresaServicioConductorDto Empresa { get; set; } = new();
 
         public VehiculoServicioConductorDto Vehiculo { get; set; } = new();

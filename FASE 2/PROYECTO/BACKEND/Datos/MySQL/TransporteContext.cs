@@ -44,6 +44,8 @@ namespace BACKEND.Datos.MySQL
 
         public DbSet<Incidente> Incidentes => Set<Incidente>();
 
+        public DbSet<ConfiguracionSistema> ConfiguracionesSistema => Set<ConfiguracionSistema>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Mapeo explícito a la estructura definida en transporte_personal.sql.
@@ -563,6 +565,10 @@ namespace BACKEND.Datos.MySQL
                     .HasMaxLength(20)
                     .IsRequired();
 
+                entity.Property(e => e.MotivoCancelacion)
+                    .HasColumnName("motivo_cancelacion")
+                    .HasMaxLength(50);
+
                 entity.HasIndex(e => e.IdEmpresa)
                     .HasDatabaseName("ix_servicio_id_empresa");
 
@@ -985,6 +991,21 @@ namespace BACKEND.Datos.MySQL
                     .HasForeignKey(e => e.IdConductor)
                     .OnDelete(DeleteBehavior.Restrict)
                     .HasConstraintName("fk_incidente_conductor");
+            });
+
+            modelBuilder.Entity<ConfiguracionSistema>(entity =>
+            {
+                entity.ToTable("configuracion_sistema");
+                entity.HasKey(e => e.Clave);
+
+                entity.Property(e => e.Clave)
+                    .HasColumnName("clave")
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Valor)
+                    .HasColumnName("valor")
+                    .HasMaxLength(255)
+                    .IsRequired();
             });
         }
     }

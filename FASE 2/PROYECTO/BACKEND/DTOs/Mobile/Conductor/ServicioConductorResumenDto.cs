@@ -19,6 +19,8 @@ namespace BACKEND.DTOs.Mobile.Conductor
 
         public EstadoServicio Estado { get; set; }
 
+        public string? MotivoCancelacion { get; set; }
+
         public string IdRuta { get; set; } = string.Empty;
 
         public string? NombreRuta { get; set; }

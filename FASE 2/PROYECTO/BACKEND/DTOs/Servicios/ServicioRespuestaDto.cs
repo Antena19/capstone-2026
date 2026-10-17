@@ -30,5 +30,7 @@ namespace BACKEND.DTOs.Servicios
         public string TipoServicio { get; set; } = string.Empty;
 
         public EstadoServicio Estado { get; set; }
+
+        public string? MotivoCancelacion { get; set; }
     }
 }

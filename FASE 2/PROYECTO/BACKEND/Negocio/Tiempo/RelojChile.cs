@@ -48,6 +48,21 @@ namespace BACKEND.Negocio.Tiempo
             return TimeZoneInfo.ConvertTimeToUtc(local, Zona);
         }
 
+        /// <summary>
+        /// Fecha civil de Chile continental que corresponde a un instante UTC.
+        /// </summary>
+        public static DateOnly FechaDeUtc(DateTime utc)
+        {
+            var instante = utc.Kind switch
+            {
+                DateTimeKind.Utc => utc,
+                DateTimeKind.Local => utc.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(utc, DateTimeKind.Utc)
+            };
+
+            return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(instante, Zona));
+        }
+
         private static TimeZoneInfo ResolverZona()
         {
             if (TimeZoneInfo.TryFindSystemTimeZoneById(IdIana, out var iana))

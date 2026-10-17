@@ -491,9 +491,20 @@ namespace BACKEND.Negocio.Servicios
 
             await using var transaccion = await _contexto.Database.BeginTransactionAsync();
 
+            var reclamado = await ReclamoTransicionServicio.ReclamarInicioAsync(
+                _contexto,
+                servicio.IdServicio,
+                DateTime.UtcNow);
+
+            if (!reclamado)
+            {
+                await _contexto.Entry(servicio).ReloadAsync();
+                throw new ExcepcionNegocio(
+                    $"No está permitido cambiar el estado de {servicio.Estado} a {EstadoServicio.EN_CURSO}.");
+            }
+
+            await _contexto.Entry(servicio).ReloadAsync();
             await _servicioAsistencias.ResolverProvisionalesAlIniciarAsync(servicio.IdServicio);
-            servicio.FechaHoraInicioReal = DateTime.UtcNow;
-            servicio.Estado = EstadoServicio.EN_CURSO;
 
             if (generarQr)
             {
@@ -889,7 +900,8 @@ namespace BACKEND.Negocio.Servicios
                 FechaHoraInicioReal = servicio.FechaHoraInicioReal,
                 FechaHoraFinReal = servicio.FechaHoraFinReal,
                 TipoServicio = servicio.TipoServicio,
-                Estado = servicio.Estado
+                Estado = servicio.Estado,
+                MotivoCancelacion = servicio.MotivoCancelacion
             };
         }
 

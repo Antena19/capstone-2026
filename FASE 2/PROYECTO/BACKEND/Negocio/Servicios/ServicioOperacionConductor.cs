@@ -105,6 +105,7 @@ namespace BACKEND.Negocio.Servicios
                     HoraFin = asignacion.Servicio.HoraFin,
                     TipoServicio = asignacion.Servicio.TipoServicio,
                     Estado = asignacion.Servicio.Estado,
+                    MotivoCancelacion = asignacion.Servicio.MotivoCancelacion,
                     IdRuta = asignacion.Servicio.IdRuta,
                     NombreRuta = ruta?.Nombre,
                     SectorRuta = ruta?.Sector,
@@ -143,6 +144,7 @@ namespace BACKEND.Negocio.Servicios
                 FechaHoraFinReal = servicio.FechaHoraFinReal,
                 TipoServicio = servicio.TipoServicio,
                 Estado = servicio.Estado,
+                MotivoCancelacion = servicio.MotivoCancelacion,
                 Empresa = new EmpresaServicioConductorDto
                 {
                     IdEmpresa = servicio.Empresa.IdEmpresa,

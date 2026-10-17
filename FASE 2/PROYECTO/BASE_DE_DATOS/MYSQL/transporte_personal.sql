@@ -192,6 +192,7 @@ CREATE TABLE `servicio` (
   `fecha_hora_fin_real` DATETIME NULL,
   `tipo_servicio` VARCHAR(50) NOT NULL,
   `estado` ENUM('PROGRAMADO', 'EN_CURSO', 'FINALIZADO', 'CANCELADO') NOT NULL DEFAULT 'PROGRAMADO',
+  `motivo_cancelacion` VARCHAR(50) NULL,
   PRIMARY KEY (`id_servicio`),
   KEY `ix_servicio_id_empresa` (`id_empresa`),
   KEY `ix_servicio_id_planificacion` (`id_planificacion`),
@@ -385,4 +386,12 @@ CREATE TABLE `auditoria` (
     FOREIGN KEY (`id_usuario`) REFERENCES `usuario` (`id_usuario`)
     ON DELETE RESTRICT
     ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Corte de la cancelación automática. La fila se inserta con el script incremental,
+-- usando el id_servicio máximo presente en ese momento. No se siembra aquí.
+CREATE TABLE `configuracion_sistema` (
+  `clave` VARCHAR(100) NOT NULL,
+  `valor` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`clave`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
