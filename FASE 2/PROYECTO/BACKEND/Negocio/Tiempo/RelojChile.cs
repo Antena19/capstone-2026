@@ -49,18 +49,29 @@ namespace BACKEND.Negocio.Tiempo
         }
 
         /// <summary>
+        /// Hora de pared de Chile continental que corresponde a un instante UTC.
+        /// </summary>
+        public static DateTime EnChile(DateTime utc)
+        {
+            return TimeZoneInfo.ConvertTimeFromUtc(NormalizarUtc(utc), Zona);
+        }
+
+        /// <summary>
         /// Fecha civil de Chile continental que corresponde a un instante UTC.
         /// </summary>
         public static DateOnly FechaDeUtc(DateTime utc)
         {
-            var instante = utc.Kind switch
+            return DateOnly.FromDateTime(EnChile(utc));
+        }
+
+        private static DateTime NormalizarUtc(DateTime utc)
+        {
+            return utc.Kind switch
             {
                 DateTimeKind.Utc => utc,
                 DateTimeKind.Local => utc.ToUniversalTime(),
                 _ => DateTime.SpecifyKind(utc, DateTimeKind.Utc)
             };
-
-            return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(instante, Zona));
         }
 
         private static TimeZoneInfo ResolverZona()

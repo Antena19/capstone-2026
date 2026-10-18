@@ -118,11 +118,11 @@
     <div class="historial-acciones ion-padding">
       @if (historialVisible()) {
         <ion-button expand="block" fill="clear" (click)="ocultarHistorial()">
-          Ocultar servicios anteriores
+          Ocultar servicios finalizados
         </ion-button>
       } @else {
         <ion-button expand="block" fill="outline" (click)="verHistorial()">
-          Ver servicios anteriores
+          Ver servicios finalizados
         </ion-button>
       }
     </div>
@@ -130,8 +130,8 @@
     @if (historialVisible()) {
       <section class="seccion">
         <div class="seccion-head">
-          <h2>Servicios anteriores</h2>
-          <p>Últimos {{ diasHistorial }} días, sin incluir hoy.</p>
+          <h2>Servicios finalizados</h2>
+          <p>Últimos {{ diasHistorial }} días, incluidos los finalizados de hoy.</p>
         </div>
         @if (cargandoHistorial()) {
           <div class="centro">
@@ -146,7 +146,7 @@
           </div>
         } @else if (historial().length === 0) {
           <div class="ion-padding vacio">
-            <p>No hay servicios anteriores en este período.</p>
+            <p>No hay servicios finalizados en este período.</p>
           </div>
         } @else {
           <div class="lista">

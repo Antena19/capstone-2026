@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   AlertController,
@@ -26,6 +26,11 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { ServicioConductorDetalle } from '../../../core/models/conductor';
 import { MisServiciosService } from '../../../core/services/mis-servicios.service';
 import { evaluarInicioConductor, horaAperturaInicio } from '../../../core/utils/inicio-conductor';
+import {
+  ContextoRefresco,
+  crearRefrescoOperativo,
+  decidirErrorRefresco,
+} from '../../../core/utils/refresco-operativo';
 import {
   colorEstadoServicio,
   etiquetaEstadoServicio,
@@ -58,21 +63,21 @@ import {
     IonRefresherContent,
   ],
 })
-export class ConductorDetallePage implements ViewWillEnter, ViewWillLeave {
+export class ConductorDetallePage implements ViewWillEnter, ViewWillLeave, OnDestroy {
   private readonly api = inject(MisServiciosService);
   private readonly auth = inject(AuthService);
   private readonly ruta = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly alertas = inject(AlertController);
   private readonly avisos = inject(ToastController);
-  private pedidoDetalle = 0;
-  private idVisto = 0;
+  private readonly refresco = crearRefrescoOperativo((contexto) => this.ejecutarCarga(contexto));
   private temporizador: ReturnType<typeof setInterval> | null = null;
-  private recargaPorVencimiento = false;
+  private cierreManual: (() => void) | undefined;
+  private sincronizandoInicio = false;
+  private sincronizandoFin = false;
   private readonly instante = signal(Date.now());
 
   readonly cargando = signal(true);
-  readonly canceladoPorFalta = signal(false);
   readonly error = signal<string | null>(null);
   readonly errorInicio = signal<string | null>(null);
   readonly errorFin = signal<string | null>(null);
@@ -89,13 +94,22 @@ export class ConductorDetallePage implements ViewWillEnter, ViewWillLeave {
   readonly tieneTexto = tieneTexto;
 
   ionViewWillEnter(): void {
-    this.recargaPorVencimiento = false;
     this.iniciarReloj();
-    this.cargar();
+    this.refresco.entrar();
   }
 
   ionViewWillLeave(): void {
     this.detenerReloj();
+    this.refresco.salir();
+  }
+
+  ngOnDestroy(): void {
+    this.detenerReloj();
+    this.refresco.salir();
+  }
+
+  cargar(): void {
+    this.refresco.solicitar();
   }
 
   puedeIniciar(): boolean {
@@ -126,73 +140,62 @@ export class ConductorDetallePage implements ViewWillEnter, ViewWillLeave {
     }
 
     if (disponibilidad === 'vencido') {
-      return 'El plazo de inicio ya terminó. El servicio se cancelará por falta de inicio.';
+      return 'El plazo de inicio ya terminó.';
     }
 
     return null;
   }
 
-  cargar(alTerminar?: () => void): void {
+  refrescar(evento: RefresherCustomEvent): void {
+    this.cierreManual = () => evento.target.complete();
+    this.refresco.solicitar(true);
+  }
+
+  private ejecutarCarga(contexto: ContextoRefresco): void {
+    const { generacion, avisarError, automatico } = contexto;
     const idServicio = Number(this.ruta.snapshot.paramMap.get('idServicio'));
     if (!Number.isInteger(idServicio) || idServicio <= 0) {
       this.cargando.set(false);
       this.detalle.set(null);
       this.error.set('El servicio indicado no es válido.');
-      alTerminar?.();
+      this.cerrarRefresco(generacion, avisarError);
       return;
     }
 
-    if (idServicio !== this.idVisto) {
-      this.idVisto = idServicio;
-      this.recargaPorVencimiento = false;
-      this.canceladoPorFalta.set(false);
-    }
-
-    const pedido = ++this.pedidoDetalle;
-    const silencioso = this.detalle() != null;
-    if (!silencioso) {
+    if (this.detalle() == null && !automatico && !avisarError) {
       this.cargando.set(true);
     }
 
-    this.error.set(null);
     this.api.obtenerDetalleConductor(idServicio).subscribe({
       next: (detalle) => {
-        if (pedido !== this.pedidoDetalle) {
-          alTerminar?.();
+        if (!this.refresco.esVigente(generacion)) {
+          this.cerrarRefresco(generacion, avisarError);
           return;
         }
 
         this.detalle.set(detalle);
         this.cargando.set(false);
-        this.iniciando.set(false);
-        this.finalizando.set(false);
-        if (this.recargaPorVencimiento && detalle.estado === 'CANCELADO') {
-          this.canceladoPorFalta.set(true);
-        }
-        this.vigilarPlazo();
-        alTerminar?.();
+        this.error.set(null);
+        this.cerrarSincronizacion();
+        this.cerrarRefresco(generacion, avisarError);
       },
       error: (err: unknown) => {
-        if (pedido !== this.pedidoDetalle) {
-          alTerminar?.();
+        if (!this.refresco.esVigente(generacion)) {
+          this.cerrarRefresco(generacion, avisarError);
           return;
         }
 
         this.cargando.set(false);
-        if (this.detalle() != null) {
-          alTerminar?.();
-          return;
+        this.cerrarSincronizacion();
+        const decision = decidirErrorRefresco(this.detalle() != null, avisarError);
+        if (decision.mostrarError) {
+          this.detalle.set(null);
+          this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar el detalle del servicio.'));
         }
 
-        this.detalle.set(null);
-        this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar el detalle del servicio.'));
-        alTerminar?.();
+        this.cerrarRefresco(generacion, avisarError);
       },
     });
-  }
-
-  refrescar(evento: RefresherCustomEvent): void {
-    this.cargar(() => evento.target.complete());
   }
 
   async confirmarInicio(): Promise<void> {
@@ -277,7 +280,6 @@ export class ConductorDetallePage implements ViewWillEnter, ViewWillLeave {
     this.instante.set(Date.now());
     this.temporizador = setInterval(() => {
       this.instante.set(Date.now());
-      this.vigilarPlazo();
     }, 15000);
   }
 
@@ -286,23 +288,6 @@ export class ConductorDetallePage implements ViewWillEnter, ViewWillLeave {
       clearInterval(this.temporizador);
       this.temporizador = null;
     }
-  }
-
-  private vigilarPlazo(): void {
-    const servicio = this.detalle();
-    if (!servicio || servicio.estado !== 'PROGRAMADO' || this.recargaPorVencimiento) {
-      return;
-    }
-
-    if (
-      evaluarInicioConductor(servicio.fecha, servicio.horaInicio, new Date(this.instante())) !==
-      'vencido'
-    ) {
-      return;
-    }
-
-    this.recargaPorVencimiento = true;
-    this.cargar();
   }
 
   private iniciar(): void {
@@ -317,35 +302,14 @@ export class ConductorDetallePage implements ViewWillEnter, ViewWillLeave {
     this.api.iniciarServicioConductor(servicio.idServicio).subscribe({
       next: () => {
         void this.avisarInicioExitoso();
-        this.recargarTrasInicio(servicio.idServicio);
-      },
-      error: (err: unknown) => {
-        this.iniciando.set(false);
-        this.errorInicio.set(this.auth.mensajeErrorHttp(err, 'No fue posible iniciar el servicio.'));
-      },
-    });
-  }
-
-  private recargarTrasInicio(idServicio: number): void {
-    const pedido = ++this.pedidoDetalle;
-    this.api.obtenerDetalleConductor(idServicio).subscribe({
-      next: (detalle) => {
-        if (pedido !== this.pedidoDetalle) {
-          return;
-        }
-
-        this.detalle.set(detalle);
-        this.iniciando.set(false);
+        this.sincronizandoInicio = true;
         this.errorInicio.set(null);
+        this.refresco.solicitar();
       },
       error: (err: unknown) => {
-        if (pedido !== this.pedidoDetalle) {
-          return;
-        }
-
         this.iniciando.set(false);
-        this.detalle.set(null);
-        this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar el detalle del servicio.'));
+        this.sincronizandoInicio = false;
+        this.errorInicio.set(this.auth.mensajeErrorHttp(err, 'No fue posible iniciar el servicio.'));
       },
     });
   }
@@ -362,37 +326,37 @@ export class ConductorDetallePage implements ViewWillEnter, ViewWillLeave {
     this.api.finalizarServicioConductor(servicio.idServicio).subscribe({
       next: () => {
         void this.avisarFinalizacionExitosa();
-        this.recargarTrasFinalizacion(servicio.idServicio);
+        this.sincronizandoFin = true;
+        this.errorFin.set(null);
+        this.refresco.solicitar();
       },
       error: (err: unknown) => {
         this.finalizando.set(false);
+        this.sincronizandoFin = false;
         this.errorFin.set(this.auth.mensajeErrorHttp(err, 'No fue posible finalizar el servicio.'));
       },
     });
   }
 
-  private recargarTrasFinalizacion(idServicio: number): void {
-    const pedido = ++this.pedidoDetalle;
-    this.api.obtenerDetalleConductor(idServicio).subscribe({
-      next: (detalle) => {
-        if (pedido !== this.pedidoDetalle) {
-          return;
-        }
+  private cerrarSincronizacion(): void {
+    if (!this.sincronizandoInicio && !this.sincronizandoFin) {
+      return;
+    }
 
-        this.detalle.set(detalle);
-        this.finalizando.set(false);
-        this.errorFin.set(null);
-      },
-      error: (err: unknown) => {
-        if (pedido !== this.pedidoDetalle) {
-          return;
-        }
+    this.sincronizandoInicio = false;
+    this.sincronizandoFin = false;
+    this.iniciando.set(false);
+    this.finalizando.set(false);
+  }
 
-        this.finalizando.set(false);
-        this.detalle.set(null);
-        this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar el detalle del servicio.'));
-      },
-    });
+  private cerrarRefresco(generacion: number, avisarError: boolean): void {
+    const vigente = this.refresco.esVigente(generacion);
+    this.refresco.completar(generacion);
+    if (vigente && avisarError) {
+      const cerrar = this.cierreManual;
+      this.cierreManual = undefined;
+      cerrar?.();
+    }
   }
 
   private async avisarInicioExitoso(): Promise<void> {

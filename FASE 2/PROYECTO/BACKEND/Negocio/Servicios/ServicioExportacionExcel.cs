@@ -1,4 +1,5 @@
 using BACKEND.DTOs.Reportes;
+using BACKEND.Modelos;
 using ClosedXML.Excel;
 using System.Text;
 
@@ -230,7 +231,8 @@ namespace BACKEND.Negocio.Servicios
             var encabezados = new[]
             {
                 "Fecha", "Servicio #", "Pasajero", "RUT", "Ruta", "Punto de recogida",
-                "Planificado", "Confirmación", "Resultado", "Tipo asistencia", "Hora asistencia"
+                "Planificado", "Confirmación", "Resultado", "Tipo asistencia", "Hora asistencia",
+                "Método de registro"
             };
 
             for (var i = 0; i < encabezados.Length; i++)
@@ -269,11 +271,23 @@ namespace BACKEND.Negocio.Servicios
                     hoja.Cell(fila, 11).Style.DateFormat.Format = "yyyy-mm-dd hh:mm";
                 }
 
+                hoja.Cell(fila, 12).Value = TextoMetodoRegistro(pasajero.Metodo);
+
                 fila++;
             }
 
             hoja.SheetView.FreezeRows(1);
             hoja.Columns().AdjustToContents();
+        }
+
+        internal static string TextoMetodoRegistro(MetodoAsistencia? metodo)
+        {
+            return metodo switch
+            {
+                MetodoAsistencia.QR => "Código QR",
+                MetodoAsistencia.MANUAL => "Manual",
+                _ => string.Empty
+            };
         }
 
         private static void EscribirIndicador(IXLWorksheet hoja, ref int fila, string nombre, int valor)

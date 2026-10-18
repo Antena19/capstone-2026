@@ -22,6 +22,7 @@ import {
   parsearIso,
 } from '../../core/utils/fechas';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { etiquetaMetodoRegistro } from '../../core/utils/metodo-asistencia';
 import {
   formatearFechaInstanteChile,
   formatearHoraInstanteChile,
@@ -342,6 +343,8 @@ export class ReportesPage {
   etiquetaEstado(estado: EstadoServicio): string {
     return estado === 'EN_CURSO' ? 'EN CURSO' : estado;
   }
+
+  readonly etiquetaMetodo = etiquetaMetodoRegistro;
 
   etiquetaResultado(resultado: ResultadoAsistenciaReporte): string {
     if (resultado === 'AUSENTE') {

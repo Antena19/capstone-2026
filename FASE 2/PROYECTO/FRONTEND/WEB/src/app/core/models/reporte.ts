@@ -51,6 +51,7 @@ export interface ReportePasajeroServicio {
   estadoConfirmacion: EstadoConfirmacionViaje | null;
   tieneAsistencia: boolean;
   tipoAsistencia: TipoAsistenciaReporte | null;
+  metodo: 'QR' | 'MANUAL' | null;
   estadoAsistencia: EstadoAsistenciaReporte | null;
   resultado: ResultadoAsistenciaReporte;
   fechaHoraAsistencia: string | null;

@@ -235,6 +235,7 @@ namespace BACKEND.Negocio.Servicios
                 EstadoConfirmacion = estadoConfirmacion,
                 TieneAsistencia = asistencia is not null,
                 TipoAsistencia = asistencia?.TipoAsistencia,
+                Metodo = asistencia?.Metodo,
                 EstadoAsistencia = asistencia?.Estado,
                 Resultado = DeterminarResultado(asistencia?.Estado),
                 FechaHoraAsistencia = asistencia?.FechaHora,

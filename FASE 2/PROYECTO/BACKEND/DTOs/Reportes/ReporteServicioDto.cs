@@ -103,6 +103,8 @@ namespace BACKEND.DTOs.Reportes
 
         public TipoAsistencia? TipoAsistencia { get; set; }
 
+        public MetodoAsistencia? Metodo { get; set; }
+
         public EstadoAsistencia? EstadoAsistencia { get; set; }
 
         public ResultadoAsistenciaReporte Resultado { get; set; }

@@ -29,6 +29,14 @@ import { ServiciosService } from '../../core/services/servicios.service';
 import { VehiculosService } from '../../core/services/vehiculos.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
 import { PaginacionLista } from '../../core/utils/paginacion';
+import {
+  ContextoRefrescoWeb,
+  RefrescoWeb,
+  conservarListadoAnteError,
+  escucharVisibilidadDocumento,
+  presentarCargaListado,
+  relojIntervaloNavegador,
+} from '../../core/utils/refresco-web';
 import { clasificarErrorAsignacion, idsPendientes, mensajeCuerpo } from './asignacion-creacion';
 import { planificacionPermiteAdministrar } from './planificacion-administrable';
 import { ActionButton } from '../../shared/components/action-button/action-button';
@@ -82,7 +90,11 @@ export class ServiciosPage {
   private readonly vehiculosApi = inject(VehiculosService);
   private readonly feedback = inject(FeedbackService);
   private readonly router = inject(Router);
-  private cargaId = 0;
+  private readonly refresco = new RefrescoWeb(
+    (contexto) => this.ejecutarCarga(contexto),
+    relojIntervaloNavegador,
+    escucharVisibilidadDocumento(),
+  );
 
   readonly opcionesEstado: FilterOption[] = [
     { value: 'PROGRAMADO', label: 'PROGRAMADO' },
@@ -253,14 +265,40 @@ export class ServiciosPage {
     return servicio ? `Asistencia del servicio #${servicio.idServicio}` : 'Asistencia del servicio';
   });
 
+  readonly formularioOperativoAbierto = computed(
+    () =>
+      this.formularioAbierto() ||
+      this.edicionAbierta() ||
+      this.asignacionAbierta() ||
+      this.gestionAbierta() ||
+      this.cancelacionAbierta(),
+  );
+
   constructor() {
     this.cargarCatalogos();
+    this.refresco.iniciar();
+    this.destroyRef.onDestroy(() => this.refresco.detener());
   }
 
   cargar(): void {
+    this.refresco.solicitar(false, true);
+  }
+
+  private pausarListado(): void {
+    this.refresco.pausar();
+  }
+
+  private reanudarListado(): void {
+    if (this.formularioOperativoAbierto()) {
+      return;
+    }
+
+    this.refresco.reanudar();
+  }
+
+  private ejecutarCarga(contexto: ContextoRefrescoWeb): void {
     const idEmpresa = Number(this.empresaFiltro());
     if (!Number.isInteger(idEmpresa) || idEmpresa <= 0) {
-      this.cargaId += 1;
       this.servicios.set([]);
       this.asignaciones.set([]);
       this.asociaciones.set([]);
@@ -268,12 +306,17 @@ export class ServiciosPage {
       this.planificacionesConsultadas.set(false);
       this.cargando.set(false);
       this.error.set(null);
+      this.refresco.completar(contexto.generacion);
       return;
     }
 
-    const solicitud = ++this.cargaId;
-    this.cargando.set(true);
-    this.error.set(null);
+    const presentacion = presentarCargaListado(this.servicios().length > 0, contexto.automatico);
+    if (presentacion.mostrarEsqueleto) {
+      this.cargando.set(true);
+    }
+    if (presentacion.limpiarError) {
+      this.error.set(null);
+    }
     const estado = this.estadoFiltro() as EstadoServicio | '';
     const tipoServicio = this.tipoFiltro() as TipoServicio | '';
 
@@ -290,7 +333,8 @@ export class ServiciosPage {
     })
       .subscribe({
         next: ({ lista, asignaciones, asociaciones, planificaciones }) => {
-          if (solicitud !== this.cargaId || Number(this.empresaFiltro()) !== idEmpresa) {
+          if (!this.refresco.esVigente(contexto.generacion) || Number(this.empresaFiltro()) !== idEmpresa) {
+            this.refresco.completar(contexto.generacion);
             return;
           }
 
@@ -300,14 +344,20 @@ export class ServiciosPage {
           this.aplicarPlanificaciones(planificaciones);
           this.servicios.set([...lista].sort(compararServicios));
           this.cargando.set(false);
+          this.error.set(null);
+          this.refresco.completar(contexto.generacion);
         },
         error: (err: unknown) => {
-          if (solicitud !== this.cargaId || Number(this.empresaFiltro()) !== idEmpresa) {
+          if (!this.refresco.esVigente(contexto.generacion) || Number(this.empresaFiltro()) !== idEmpresa) {
+            this.refresco.completar(contexto.generacion);
             return;
           }
 
           this.cargando.set(false);
-          this.error.set(mensajeErrorHttp(err, 'No fue posible cargar los servicios.'));
+          if (!conservarListadoAnteError(this.servicios().length > 0, contexto.automatico)) {
+            this.error.set(mensajeErrorHttp(err, 'No fue posible cargar los servicios.'));
+          }
+          this.refresco.completar(contexto.generacion);
         },
       });
   }
@@ -354,6 +404,7 @@ export class ServiciosPage {
     this.errorFormulario.set(null);
     this.aviso.set(null);
     this.formularioAbierto.set(true);
+    this.pausarListado();
   }
 
   cerrarFormulario(): void {
@@ -379,13 +430,14 @@ export class ServiciosPage {
       this.limpiarCreacion();
       this.formularioAbierto.set(false);
       this.errorFormulario.set(null);
-      this.cargar();
+      this.reanudarListado();
       return;
     }
 
     this.limpiarCreacion();
     this.formularioAbierto.set(false);
     this.errorFormulario.set(null);
+    this.reanudarListado();
   }
 
   guardar(alta: AltaServicio): void {
@@ -553,7 +605,7 @@ export class ServiciosPage {
     this.guardando.set(false);
     this.formularioAbierto.set(false);
     this.errorFormulario.set(null);
-    this.cargar();
+    this.reanudarListado();
     if (avisoPasajeros) {
       this.aviso.set(avisoPasajeros);
       this.feedback.mostrar(avisoPasajeros, 8000);
@@ -630,6 +682,7 @@ export class ServiciosPage {
     this.detalleAbierto.set(false);
     this.servicioDetalle.set(null);
     this.gestionAbierta.set(true);
+    this.pausarListado();
   }
 
   cerrarGestionPasajeros(): void {
@@ -640,7 +693,7 @@ export class ServiciosPage {
     const servicio = this.servicioGestion();
     this.gestionAbierta.set(false);
     this.servicioGestion.set(null);
-    this.cargar();
+    this.reanudarListado();
     if (servicio) {
       this.ver(servicio);
     }
@@ -655,6 +708,7 @@ export class ServiciosPage {
     this.detalleAbierto.set(false);
     this.servicioDetalle.set(null);
     this.asignacionAbierta.set(true);
+    this.pausarListado();
   }
 
   cerrarAsignacion(): void {
@@ -665,6 +719,7 @@ export class ServiciosPage {
     const servicio = this.servicioAsignacion();
     this.asignacionAbierta.set(false);
     this.servicioAsignacion.set(null);
+    this.reanudarListado();
     if (servicio) {
       this.ver(servicio);
     }
@@ -674,7 +729,7 @@ export class ServiciosPage {
     const servicio = this.servicioAsignacion();
     this.asignacionAbierta.set(false);
     this.servicioAsignacion.set(null);
-    this.cargar();
+    this.reanudarListado();
     if (servicio) {
       this.ver(servicio);
     }
@@ -688,6 +743,7 @@ export class ServiciosPage {
     this.servicioEdicion.set(servicio);
     this.errorEdicion.set(null);
     this.edicionAbierta.set(true);
+    this.pausarListado();
   }
 
   cerrarEdicion(): void {
@@ -698,6 +754,7 @@ export class ServiciosPage {
     this.edicionAbierta.set(false);
     this.servicioEdicion.set(null);
     this.errorEdicion.set(null);
+    this.reanudarListado();
   }
 
   guardarEdicion(edicion: EdicionServicio): void {
@@ -721,7 +778,7 @@ export class ServiciosPage {
           this.edicionAbierta.set(false);
           this.servicioEdicion.set(null);
           this.feedback.mostrar('Servicio actualizado correctamente.');
-          this.cargar();
+          this.reanudarListado();
         },
         error: (err: unknown) => {
           this.guardandoEdicion.set(false);
@@ -738,7 +795,7 @@ export class ServiciosPage {
         this.servicioEdicion.set(null);
         const cantidad = servicios.length;
         this.feedback.mostrar(`Se actualizaron ${cantidad} ${cantidad === 1 ? 'servicio' : 'servicios'}.`);
-        this.cargar();
+        this.reanudarListado();
       },
       error: (err: unknown) => {
         this.guardandoEdicion.set(false);
@@ -779,6 +836,7 @@ export class ServiciosPage {
     this.servicioCancelacion.set(servicio);
     this.errorCancelacion.set(null);
     this.cancelacionAbierta.set(true);
+    this.pausarListado();
   }
 
   cerrarCancelacion(): void {
@@ -789,6 +847,7 @@ export class ServiciosPage {
     this.cancelacionAbierta.set(false);
     this.servicioCancelacion.set(null);
     this.errorCancelacion.set(null);
+    this.reanudarListado();
   }
 
   confirmarCancelacion(cancelacion: CancelacionServicio): void {
@@ -813,7 +872,7 @@ export class ServiciosPage {
           this.servicioCancelacion.set(null);
           this.feedback.mostrar('Servicio cancelado correctamente.');
           this.cerrarVistasAfectadas([servicio]);
-          this.cargar();
+          this.reanudarListado();
         },
         error: (err: unknown) => this.manejarErrorCancelacion(err, 'No fue posible cancelar el servicio.'),
       });
@@ -835,7 +894,7 @@ export class ServiciosPage {
             `Se cancelaron ${cantidad} ${cantidad === 1 ? 'servicio' : 'servicios'}.`,
           );
           this.cerrarVistasAfectadas(servicios);
-          this.cargar();
+          this.reanudarListado();
         },
         error: (err: unknown) => this.manejarErrorCancelacion(err, 'No fue posible cancelar los servicios.'),
       });

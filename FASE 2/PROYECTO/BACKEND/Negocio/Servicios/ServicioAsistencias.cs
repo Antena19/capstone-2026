@@ -23,6 +23,11 @@ namespace BACKEND.Negocio.Servicios
 
         Task<AsistenciaRespuestaDto> CrearManualAsync(CrearAsistenciaManualSolicitudDto solicitud, int idAdministrador);
 
+        Task<AsistenciaRespuestaDto> RegistrarManualComoConductorAsync(
+            int idServicio,
+            int idPasajero,
+            int idUsuario);
+
         Task<AsistenciaRespuestaDto> CambiarEstadoAsync(
             int idAsistencia,
             CambiarEstadoAsistenciaSolicitudDto solicitud,
@@ -234,6 +239,122 @@ namespace BACKEND.Negocio.Servicios
             return Mapear(asistencia);
         }
 
+        public async Task<AsistenciaRespuestaDto> RegistrarManualComoConductorAsync(
+            int idServicio,
+            int idPasajero,
+            int idUsuario)
+        {
+            var conductor = await _contexto.Conductores
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.IdUsuario == idUsuario);
+
+            if (conductor is null)
+            {
+                throw new ExcepcionNegocio(
+                    "No hay un conductor asociado a la cuenta autenticada.",
+                    StatusCodes.Status403Forbidden);
+            }
+
+            await using var transaccion = await _contexto.Database.BeginTransactionAsync();
+            await BloquearFilaServicioAsync(idServicio);
+
+            var servicio = await _contexto.Servicios
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.IdServicio == idServicio);
+
+            if (servicio is null)
+            {
+                throw new ExcepcionNegocio("El servicio indicado no existe.", StatusCodes.Status404NotFound);
+            }
+
+            var asignado = await _contexto.AsignacionesServicio
+                .AsNoTracking()
+                .AnyAsync(a =>
+                    a.IdServicio == idServicio
+                    && a.IdConductor == conductor.IdConductor
+                    && a.Estado == EstadoAsignacionServicio.ACTIVA);
+
+            if (!asignado)
+            {
+                throw new ExcepcionNegocio(
+                    "No tiene una asignación activa para este servicio.",
+                    StatusCodes.Status403Forbidden);
+            }
+
+            if (servicio.Estado != EstadoServicio.EN_CURSO)
+            {
+                throw new ExcepcionNegocio(
+                    "Solo se puede registrar asistencia manual cuando el servicio está en curso.");
+            }
+
+            var asociacion = await _contexto.PasajerosServicio
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p =>
+                    p.IdServicio == idServicio
+                    && p.IdPasajero == idPasajero
+                    && p.Estado == EstadoPasajeroServicio.ACTIVO);
+
+            if (asociacion is null)
+            {
+                throw new ExcepcionNegocio("El pasajero no está planificado en este servicio.");
+            }
+
+            if (asociacion.EstadoConfirmacion == EstadoConfirmacionViaje.RECHAZADO)
+            {
+                throw new ExcepcionNegocio(
+                    "No se puede registrar asistencia de un pasajero que rechazó el viaje.");
+            }
+
+            if (asociacion.EstadoConfirmacion is not (
+                EstadoConfirmacionViaje.CONFIRMADO or EstadoConfirmacionViaje.PENDIENTE))
+            {
+                throw new ExcepcionNegocio("La confirmación del pasajero no permite registrar asistencia.");
+            }
+
+            var pasajero = await _contexto.Pasajeros
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.IdPasajero == idPasajero);
+
+            if (pasajero is null)
+            {
+                throw new ExcepcionNegocio("El pasajero indicado no existe.", StatusCodes.Status404NotFound);
+            }
+
+            if (pasajero.Estado != EstadoRegistro.ACTIVO)
+            {
+                throw new ExcepcionNegocio("El pasajero indicado no se encuentra activo.");
+            }
+
+            if (pasajero.IdEmpresa != servicio.IdEmpresa)
+            {
+                throw new ExcepcionNegocio("El pasajero no pertenece a la empresa del servicio.");
+            }
+
+            var asistencia = new Asistencia
+            {
+                IdServicio = idServicio,
+                IdPasajero = idPasajero,
+                FechaHora = DateTime.UtcNow,
+                Metodo = MetodoAsistencia.MANUAL,
+                TipoAsistencia = TipoAsistencia.PLANIFICADA,
+                ExcedeCapacidad = false,
+                Estado = DeterminarEstadoInicial(TipoAsistencia.PLANIFICADA, servicio.Estado)
+            };
+
+            await RegistrarAsistenciaEnCursoAsync(asistencia);
+            await transaccion.CommitAsync();
+
+            _logger.LogInformation(
+                "El conductor {IdConductor} (usuario {IdUsuario}) registró asistencia MANUAL {IdAsistencia} del pasajero {IdPasajero} en el servicio {IdServicio}.",
+                conductor.IdConductor,
+                idUsuario,
+                asistencia.IdAsistencia,
+                idPasajero,
+                idServicio);
+
+            return Mapear(asistencia);
+        }
+
         public async Task ResolverProvisionalesAlIniciarAsync(int idServicio)
         {
             var asignacion = await _contexto.AsignacionesServicio
@@ -413,6 +534,12 @@ namespace BACKEND.Negocio.Servicios
 
         private async Task BloquearFilaServicioAsync(int idServicio)
         {
+            var proveedor = _contexto.Database.ProviderName ?? string.Empty;
+            if (!proveedor.Contains("MySql", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
             var transaccion = _contexto.Database.CurrentTransaction
                 ?? throw new InvalidOperationException("Se requiere una transacción para bloquear el servicio.");
 

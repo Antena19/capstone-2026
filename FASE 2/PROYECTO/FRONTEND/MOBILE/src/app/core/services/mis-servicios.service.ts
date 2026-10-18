@@ -19,6 +19,7 @@ import {
   ServicioRespuesta,
 } from '../models/conductor';
 import { RutaMapa } from '../models/ruta-mapa';
+import { AsistenciaRespuesta } from '../models/asistencia';
 
 export interface FiltrosMisServiciosConductor {
   fecha?: string;
@@ -118,6 +119,16 @@ export class MisServiciosService {
 
   listarPasajerosConductor(idServicio: number): Observable<PasajeroServicioConductor[]> {
     return this.http.get<PasajeroServicioConductor[]>(urlApi(`/api/mis-servicios/${idServicio}/pasajeros`));
+  }
+
+  registrarAsistenciaManualConductor(
+    idServicio: number,
+    idPasajero: number,
+  ): Observable<AsistenciaRespuesta> {
+    return this.http.post<AsistenciaRespuesta>(
+      urlApi(`/api/mis-servicios/${idServicio}/pasajeros/${idPasajero}/asistencia`),
+      null,
+    );
   }
 
   obtenerRutaPasajero(idServicio: number): Observable<RutaMapa> {

@@ -40,6 +40,18 @@ ion-card-title {
   font-size: 16px;
 }
 
+.asistencia {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+ion-badge.anulada {
+  --background: transparent;
+  --color: var(--ion-color-medium, #636469);
+  border: 1px dashed var(--ion-color-medium, #636469);
+}
+
 .meta {
   margin: 4px 0 0;
   color: var(--color-text-muted);

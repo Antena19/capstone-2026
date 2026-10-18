@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { catchError, forkJoin, of } from 'rxjs';
-import { Asistencia, EstadoAsistencia } from '../../core/models/asistencia';
+import { Asistencia, EstadoAsistencia, MetodoAsistencia, TipoAsistencia } from '../../core/models/asistencia';
 import { Pasajero } from '../../core/models/pasajero';
-import { PasajeroServicio, Servicio } from '../../core/models/servicio';
+import { EstadoConfirmacionViaje, PasajeroServicio, Servicio } from '../../core/models/servicio';
 import { AsistenciasService } from '../../core/services/asistencias.service';
 import { PasajerosService } from '../../core/services/pasajeros.service';
 import { PasajerosServicioService } from '../../core/services/pasajeros-servicio.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import { etiquetaMetodoRegistro } from '../../core/utils/metodo-asistencia';
 import { formatearFechaHoraInstanteChile } from '../../core/utils/instantes';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
@@ -16,7 +17,10 @@ interface FilaAsistencia {
   nombre: string;
   rut: string;
   registrada: boolean;
+  confirmacion: EstadoConfirmacionViaje | null;
   estado: EstadoAsistencia | null;
+  tipoAsistencia: TipoAsistencia | null;
+  metodo: MetodoAsistencia | null;
   fechaHora: string | null;
 }
 
@@ -77,6 +81,32 @@ export class ServicioAsistencia {
     const servicio = this.servicioInicial();
     if (servicio) {
       this.cargar(servicio);
+    }
+  }
+
+  readonly etiquetaMetodo = etiquetaMetodoRegistro;
+
+  etiquetaConfirmacion(fila: FilaAsistencia): string {
+    switch (fila.confirmacion) {
+      case 'CONFIRMADO':
+        return 'Confirmado';
+      case 'PENDIENTE':
+        return 'Pendiente';
+      case 'RECHAZADO':
+        return 'Rechazado';
+      default:
+        return '—';
+    }
+  }
+
+  etiquetaTipo(fila: FilaAsistencia): string {
+    switch (fila.tipoAsistencia) {
+      case 'PLANIFICADA':
+        return 'Planificada';
+      case 'NO_PLANIFICADA':
+        return 'No planificada';
+      default:
+        return '—';
     }
   }
 
@@ -183,7 +213,10 @@ function construirFilas(
         nombre: persona?.nombre ?? `Pasajero #${asociacion.idPasajero}`,
         rut: persona?.rut ?? '—',
         registrada: !!asistencia && asistenciaVigente(asistencia.estado),
+        confirmacion: asociacion.estadoConfirmacion,
         estado: asistencia?.estado ?? null,
+        tipoAsistencia: asistencia?.tipoAsistencia ?? null,
+        metodo: asistencia?.metodo ?? null,
         fechaHora: asistencia?.fechaHora ?? null,
       };
     })

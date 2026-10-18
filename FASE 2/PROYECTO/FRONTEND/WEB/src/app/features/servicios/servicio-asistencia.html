@@ -34,7 +34,10 @@
           <thead>
             <tr>
               <th>Pasajero</th>
+              <th>Confirmación</th>
               <th>Asistencia</th>
+              <th>Tipo</th>
+              <th>Método</th>
               <th>Fecha y hora</th>
             </tr>
           </thead>
@@ -45,12 +48,15 @@
                   {{ fila.nombre }}
                   <span class="meta">{{ fila.rut }}</span>
                 </td>
+                <td>{{ etiquetaConfirmacion(fila) }}</td>
                 <td>
                   <app-status-badge [label]="etiquetaAsistencia(fila)" [tone]="tonoAsistencia(fila)" />
                   @if (fila.estado === 'VALIDA') {
                     <span class="meta valida">Válida</span>
                   }
                 </td>
+                <td>{{ etiquetaTipo(fila) }}</td>
+                <td>{{ etiquetaMetodo(fila.metodo) }}</td>
                 <td class="mono">{{ formatearFechaHora(fila.fechaHora) }}</td>
               </tr>
             }

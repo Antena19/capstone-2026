@@ -1,3 +1,4 @@
+using BACKEND.DTOs.Asistencias;
 using BACKEND.DTOs.Comun;
 using BACKEND.DTOs.Incidentes;
 using BACKEND.DTOs.Mobile.Conductor;
@@ -14,7 +15,7 @@ namespace BACKEND.Controladores
 {
     /// <summary>
     /// Operación Mobile del conductor autenticado: consulta de sus servicios, ruta y pasajeros,
-    /// más generación de QR, inicio, fin e incidentes. No modifica asistencias ni planificación.
+    /// más generación de QR, inicio, fin, incidentes y asistencia manual de pasajeros planificados.
     /// </summary>
     [ApiController]
     [Route("api/mis-servicios")]
@@ -25,17 +26,20 @@ namespace BACKEND.Controladores
         private readonly IServicioServicios _servicioServicios;
         private readonly IServicioOperacionConductor _servicioOperacionConductor;
         private readonly IServicioIncidentes _servicioIncidentes;
+        private readonly IServicioAsistencias _servicioAsistencias;
 
         public MisServiciosConductorController(
             IServicioQr servicioQr,
             IServicioServicios servicioServicios,
             IServicioOperacionConductor servicioOperacionConductor,
-            IServicioIncidentes servicioIncidentes)
+            IServicioIncidentes servicioIncidentes,
+            IServicioAsistencias servicioAsistencias)
         {
             _servicioQr = servicioQr;
             _servicioServicios = servicioServicios;
             _servicioOperacionConductor = servicioOperacionConductor;
             _servicioIncidentes = servicioIncidentes;
+            _servicioAsistencias = servicioAsistencias;
         }
 
         /// <summary>
@@ -105,6 +109,31 @@ namespace BACKEND.Controladores
             var idUsuario = User.ObtenerIdUsuario();
             var pasajeros = await _servicioOperacionConductor.ListarPasajerosAsync(idServicio, idUsuario);
             return Ok(pasajeros);
+        }
+
+        /// <summary>
+        /// Registra asistencia MANUAL de un pasajero planificado. Solo el conductor asignado
+        /// y solo con el servicio EN_CURSO. El método y el estado los define el servidor.
+        /// </summary>
+        [HttpPost("{idServicio:int}/pasajeros/{idPasajero:int}/asistencia")]
+        [ProducesResponseType(typeof(AsistenciaRespuestaDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(MensajeRespuestaDto), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<AsistenciaRespuestaDto>> RegistrarAsistenciaManual(
+            int idServicio,
+            int idPasajero)
+        {
+            var idUsuario = User.ObtenerIdUsuario();
+            var registro = await _servicioAsistencias.RegistrarManualComoConductorAsync(
+                idServicio,
+                idPasajero,
+                idUsuario);
+            return Created(
+                $"api/mis-servicios/{idServicio}/pasajeros/{idPasajero}/asistencia",
+                registro);
         }
 
         /// <summary>

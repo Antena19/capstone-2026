@@ -1,11 +1,11 @@
 export type DisponibilidadInicio = 'antes' | 'disponible' | 'vencido';
 
-const ANTICIPACION_SEGUNDOS = 10 * 60;
+const ANTICIPACION_SEGUNDOS = 30 * 60;
 const LIMITE_POSTERIOR_SEGUNDOS = 30 * 60;
 
 /**
  * Compara la hora programada con un reloj de pared.
- * La ventana es [inicio − 10 min, inicio + 30 min).
+ * La ventana es [inicio − 30 min, inicio + 30 min].
  */
 export function evaluarInicioPorReloj(
   fechaServicio: string,
@@ -19,7 +19,7 @@ export function evaluarInicioPorReloj(
     return 'antes';
   }
 
-  if (ahora < inicio + LIMITE_POSTERIOR_SEGUNDOS) {
+  if (ahora <= inicio + LIMITE_POSTERIOR_SEGUNDOS) {
     return 'disponible';
   }
 

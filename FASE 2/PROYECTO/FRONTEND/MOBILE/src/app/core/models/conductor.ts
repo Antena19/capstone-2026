@@ -110,6 +110,7 @@ export interface PasajeroServicioConductor {
   fechaConfirmacion: string | null;
   estadoPasajeroServicio: EstadoPasajeroServicio | null;
   tieneAsistencia: boolean;
+  metodoAsistencia?: 'QR' | 'MANUAL' | null;
   tipoAsistencia: TipoAsistencia | null;
   estadoAsistencia: EstadoAsistencia | null;
   fechaHoraAsistencia: string | null;

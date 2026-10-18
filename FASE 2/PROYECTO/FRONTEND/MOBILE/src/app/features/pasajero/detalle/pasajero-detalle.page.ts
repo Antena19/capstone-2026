@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   AlertController,
@@ -19,11 +19,17 @@ import {
   IonToolbar,
   RefresherCustomEvent,
   ViewWillEnter,
+  ViewWillLeave,
 } from '@ionic/angular';
 import { AuthService } from '../../../core/auth/auth.service';
 import { EstadoConfirmacionViaje } from '../../../core/models/conductor';
 import { ServicioPasajeroDetalle } from '../../../core/models/pasajero';
 import { MisServiciosService } from '../../../core/services/mis-servicios.service';
+import {
+  ContextoRefresco,
+  crearRefrescoOperativo,
+  decidirErrorRefresco,
+} from '../../../core/utils/refresco-operativo';
 import {
   colorConfirmacion,
   colorEstadoServicio,
@@ -61,13 +67,15 @@ import {
     IonRefresherContent,
   ],
 })
-export class PasajeroDetallePage implements ViewWillEnter {
+export class PasajeroDetallePage implements ViewWillEnter, ViewWillLeave, OnDestroy {
   private readonly api = inject(MisServiciosService);
   private readonly auth = inject(AuthService);
   private readonly ruta = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly alertas = inject(AlertController);
-  private pedidoDetalle = 0;
+  private readonly refresco = crearRefrescoOperativo((contexto) => this.ejecutarCarga(contexto));
+  private cierreManual: (() => void) | undefined;
+  private sincronizandoConfirmacion = false;
 
   readonly cargando = signal(true);
   readonly confirmando = signal(false);
@@ -89,57 +97,76 @@ export class PasajeroDetallePage implements ViewWillEnter {
   readonly tieneTexto = tieneTexto;
 
   ionViewWillEnter(): void {
-    this.cargar();
+    this.refresco.entrar();
   }
 
-  cargar(alTerminar?: () => void): void {
+  ionViewWillLeave(): void {
+    this.refresco.salir();
+  }
+
+  ngOnDestroy(): void {
+    this.refresco.salir();
+  }
+
+  cargar(): void {
+    this.refresco.solicitar();
+  }
+
+  refrescar(evento: RefresherCustomEvent): void {
+    this.cierreManual = () => evento.target.complete();
+    this.refresco.solicitar(true);
+  }
+
+  private ejecutarCarga(contexto: ContextoRefresco): void {
+    const { generacion, avisarError, automatico } = contexto;
     const idServicio = Number(this.ruta.snapshot.paramMap.get('idServicio'));
     if (!Number.isInteger(idServicio) || idServicio <= 0) {
       this.cargando.set(false);
       this.detalle.set(null);
       this.error.set('El servicio indicado no es válido.');
-      alTerminar?.();
+      this.cerrarRefresco(generacion, avisarError);
       return;
     }
 
-    const pedido = ++this.pedidoDetalle;
-    const silencioso = this.detalle() != null;
-    if (!silencioso) {
+    if (this.detalle() == null && !automatico && !avisarError) {
       this.cargando.set(true);
     }
 
-    this.error.set(null);
     this.api.obtenerDetallePasajero(idServicio).subscribe({
       next: (detalle) => {
-        if (pedido !== this.pedidoDetalle) {
-          alTerminar?.();
+        if (!this.refresco.esVigente(generacion)) {
+          this.cerrarRefresco(generacion, avisarError);
           return;
         }
 
         this.detalle.set(detalle);
         this.cargando.set(false);
-        this.confirmando.set(false);
-        alTerminar?.();
+        this.error.set(null);
+        if (this.sincronizandoConfirmacion) {
+          this.sincronizandoConfirmacion = false;
+          this.confirmando.set(false);
+        }
+        this.cerrarRefresco(generacion, avisarError);
       },
       error: (err: unknown) => {
-        if (pedido !== this.pedidoDetalle) {
-          alTerminar?.();
+        if (!this.refresco.esVigente(generacion)) {
+          this.cerrarRefresco(generacion, avisarError);
           return;
         }
 
         this.cargando.set(false);
-        this.confirmando.set(false);
-        if (this.detalle() == null) {
+        if (this.sincronizandoConfirmacion) {
+          this.sincronizandoConfirmacion = false;
+          this.confirmando.set(false);
+        }
+        const decision = decidirErrorRefresco(this.detalle() != null, avisarError);
+        if (decision.mostrarError) {
           this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar el detalle del servicio.'));
         }
 
-        alTerminar?.();
+        this.cerrarRefresco(generacion, avisarError);
       },
     });
-  }
-
-  refrescar(evento: RefresherCustomEvent): void {
-    this.cargar(() => evento.target.complete());
   }
 
   verRecorrido(): void {
@@ -193,6 +220,16 @@ export class PasajeroDetallePage implements ViewWillEnter {
     return partes.length > 0 ? partes.join(' · ') : null;
   }
 
+  private cerrarRefresco(generacion: number, avisarError: boolean): void {
+    const vigente = this.refresco.esVigente(generacion);
+    this.refresco.completar(generacion);
+    if (vigente && avisarError) {
+      const cerrar = this.cierreManual;
+      this.cierreManual = undefined;
+      cerrar?.();
+    }
+  }
+
   private servicioConfirmable(detalle: ServicioPasajeroDetalle | null): boolean {
     return detalle?.estado === 'PROGRAMADO' || detalle?.estado === 'EN_CURSO';
   }
@@ -211,10 +248,13 @@ export class PasajeroDetallePage implements ViewWillEnter {
       })
       .subscribe({
         next: () => {
-          this.cargar();
+          this.sincronizandoConfirmacion = true;
+          this.errorConfirmacion.set(null);
+          this.refresco.solicitar();
         },
         error: (err: unknown) => {
           this.confirmando.set(false);
+          this.sincronizandoConfirmacion = false;
           this.errorConfirmacion.set(
             this.auth.mensajeErrorHttp(err, 'No fue posible actualizar la confirmación.'),
           );

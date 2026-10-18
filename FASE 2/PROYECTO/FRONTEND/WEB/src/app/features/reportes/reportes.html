@@ -293,6 +293,7 @@
             <th>Resultado asistencia</th>
             <th>Fecha</th>
             <th>Hora</th>
+            <th>Método de registro</th>
           </tr>
         </thead>
         <tbody>
@@ -312,6 +313,7 @@
               </td>
               <td class="mono ahora">{{ formatearFechaAsistencia(pasajero.fechaHoraAsistencia) }}</td>
               <td class="mono ahora">{{ formatearHoraAsistencia(pasajero.fechaHoraAsistencia) }}</td>
+              <td>{{ etiquetaMetodo(pasajero.tieneAsistencia ? pasajero.metodo : null) }}</td>
             </tr>
           }
         </tbody>

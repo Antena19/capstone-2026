@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, EMPTY, forkJoin, map, of, Subject, switchMap, tap } from 'rxjs';
 import { AsignacionServicio } from '../../core/models/asignacion';
+import { Empresa } from '../../core/models/empresa';
 import { Conductor } from '../../core/models/conductor';
 import { Pasajero } from '../../core/models/pasajero';
 import { Planificacion } from '../../core/models/planificacion';
@@ -19,6 +20,15 @@ import { RutasService } from '../../core/services/rutas.service';
 import { ServiciosService } from '../../core/services/servicios.service';
 import { VehiculosService } from '../../core/services/vehiculos.service';
 import { mensajeErrorHttp } from '../../core/utils/http-error';
+import {
+  ContextoRefrescoWeb,
+  INTERVALO_REFRESCO_WEB_MS,
+  RefrescoWeb,
+  aplicarRefrescoDetalle,
+  escucharVisibilidadDocumento,
+  planConsultasDetalle,
+  relojIntervaloNavegador,
+} from '../../core/utils/refresco-web';
 import { formatearFechaHoraInstanteChile } from '../../core/utils/instantes';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
@@ -33,6 +43,7 @@ import { planificacionPermiteAdministrar } from './planificacion-administrable';
 })
 export class ServicioDetalle {
   readonly abierto = input(false);
+  readonly pausado = input(false);
   readonly servicioInicial = input<Servicio | null>(null);
   readonly nombreEmpresaInicial = input('');
   readonly nombreRutaInicial = input('');
@@ -53,6 +64,15 @@ export class ServicioDetalle {
   private readonly vehiculosApi = inject(VehiculosService);
   private readonly pedidoDetalle = new Subject<Servicio>();
   private readonly pedidoComplementos = new Subject<Servicio>();
+  private readonly refrescoDetalle = new RefrescoWeb(
+    (contexto) => this.refrescarSilencioso(contexto),
+    relojIntervaloNavegador,
+    escucharVisibilidadDocumento(),
+    INTERVALO_REFRESCO_WEB_MS,
+    () => !this.cargando() && !this.cargandoPasajeros(),
+  );
+  private detalleVersion = 0;
+  private detalleEstabaPausado = false;
 
   readonly esqueletos = [1, 2, 3];
   readonly servicio = signal<Servicio | null>(null);
@@ -164,6 +184,7 @@ export class ServicioDetalle {
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         tap((inicial) => {
+          this.detalleVersion += 1;
           this.servicio.set(inicial);
           this.empresaNombre.set(this.nombreEmpresaInicial());
           this.ruta.set(null);
@@ -237,6 +258,13 @@ export class ServicioDetalle {
 
       untracked(() => this.pedidoDetalle.next(inicial));
     });
+
+    effect(() => {
+      const abierto = this.abierto();
+      const pausado = this.pausado();
+      untracked(() => this.sincronizarRefresco(abierto, pausado));
+    });
+    this.destroyRef.onDestroy(() => this.refrescoDetalle.detener());
   }
 
   reintentar(): void {
@@ -337,6 +365,160 @@ export class ServicioDetalle {
     return valor.length >= 5 ? valor.slice(0, 5) : valor;
   }
 
+  private sincronizarRefresco(abierto: boolean, pausado: boolean): void {
+    if (!abierto) {
+      this.refrescoDetalle.detener();
+      this.detalleEstabaPausado = false;
+      return;
+    }
+
+    this.refrescoDetalle.iniciar(false);
+    if (pausado) {
+      this.refrescoDetalle.pausar();
+      this.detalleEstabaPausado = true;
+      return;
+    }
+
+    if (this.detalleEstabaPausado) {
+      this.refrescoDetalle.reanudar();
+    }
+    this.detalleEstabaPausado = false;
+  }
+
+  private refrescarSilencioso(contexto: ContextoRefrescoWeb): void {
+    const actual = this.servicio();
+    const version = this.detalleVersion;
+    const generacion = contexto.generacion;
+    if (!this.abierto() || !actual) {
+      this.refrescoDetalle.completar(generacion);
+      return;
+    }
+
+    this.api
+      .obtenerPorId(actual.idServicio)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        switchMap((servicio) => this.operativoSilencioso$(servicio)),
+        catchError(() => of(null)),
+      )
+      .subscribe((datos) => {
+        if (datos && this.puedeAplicarDetalle(generacion, version)) {
+          this.aplicarSilencioso(datos);
+        }
+        this.refrescoDetalle.completar(generacion);
+      });
+  }
+
+  private puedeAplicarDetalle(generacion: number, version: number): boolean {
+    const vista = aplicarRefrescoDetalle({ abierto: this.abierto() }, {});
+    return vista.abierto && version === this.detalleVersion && this.refrescoDetalle.esVigente(generacion);
+  }
+
+  private aplicarSilencioso(datos: ResultadoDetalleSilencioso): void {
+    this.servicio.set(datos.servicio);
+    if (datos.empresa?.razonSocial) {
+      this.empresaNombre.set(datos.empresa.razonSocial);
+    }
+    if (datos.ruta) {
+      this.ruta.set(datos.ruta);
+    }
+    if (datos.planificacion) {
+      this.planificacion.set(datos.planificacion);
+    }
+    this.asociaciones.set(datos.asociaciones);
+    this.pasajeros.set(datos.pasajeros);
+    this.asignacion.set(datos.asignacion);
+    this.conductorAsignado.set(datos.conductor);
+    this.vehiculoAsignado.set(datos.vehiculo);
+  }
+
+  private operativoSilencioso$(servicio: Servicio) {
+    const planInicial = planConsultasDetalle({
+      idRutaCargada: this.ruta()?.idRuta ?? null,
+      idRutaServicio: servicio.idRuta,
+      tieneNombreEmpresa: !!(this.empresaNombre() || this.nombreEmpresaInicial()),
+      idsPasajerosConocidos: new Set(this.pasajeros().map((item) => item.idPasajero)),
+      idsPasajerosAsociados: [],
+    });
+
+    return forkJoin({
+      planificacion: this.planificacionesApi
+        .obtenerPorId(servicio.idPlanificacion)
+        .pipe(catchError(() => of(this.planificacion()))),
+      asociaciones: this.pasajerosServicioApi
+        .listar({ idServicio: servicio.idServicio })
+        .pipe(catchError(() => of(null as PasajeroServicio[] | null))),
+      asignaciones: this.asignacionesApi
+        .listar({ idServicio: servicio.idServicio, estado: 'ACTIVA' })
+        .pipe(catchError(() => of(null as AsignacionServicio[] | null))),
+      ruta: planInicial.ruta
+        ? this.rutasApi.obtener(servicio.idRuta).pipe(catchError(() => of(this.ruta())))
+        : of(this.ruta()),
+    }).pipe(
+      switchMap((datos) => {
+        const asociaciones = datos.asociaciones ?? this.asociaciones() ?? [];
+        const plan = planConsultasDetalle({
+          idRutaCargada: this.ruta()?.idRuta ?? null,
+          idRutaServicio: servicio.idRuta,
+          tieneNombreEmpresa: !!(this.empresaNombre() || this.nombreEmpresaInicial()),
+          idsPasajerosConocidos: new Set(this.pasajeros().map((item) => item.idPasajero)),
+          idsPasajerosAsociados: asociaciones.map((item) => item.idPasajero),
+        });
+        const catalogo$ = plan.catalogoPasajeros
+          ? this.pasajerosApi
+              .listar(undefined, servicio.idEmpresa)
+              .pipe(catchError(() => of(this.pasajeros())))
+          : of(this.pasajeros());
+        const empresa$ = plan.empresa
+          ? this.empresasApi.obtenerPorId(servicio.idEmpresa).pipe(catchError(() => of(null)))
+          : of(null);
+        const falloAsignacion = datos.asignaciones === null;
+        const activa = falloAsignacion
+          ? this.asignacion()
+          : elegirAsignacionActiva(datos.asignaciones ?? []);
+
+        if (falloAsignacion || !activa) {
+          return forkJoin({ catalogo: catalogo$, empresa: empresa$ }).pipe(
+            map(({ catalogo, empresa }) => ({
+              servicio,
+              ruta: datos.ruta,
+              planificacion: datos.planificacion,
+              asociaciones,
+              pasajeros: catalogo,
+              empresa,
+              asignacion: falloAsignacion ? this.asignacion() : null,
+              conductor: falloAsignacion ? this.conductorAsignado() : null,
+              vehiculo: falloAsignacion ? this.vehiculoAsignado() : null,
+            })),
+          );
+        }
+
+        return forkJoin({
+          catalogo: catalogo$,
+          empresa: empresa$,
+          conductor: this.conductoresApi
+            .obtenerPorId(activa.idConductor)
+            .pipe(catchError(() => of(this.conductorAsignado()))),
+          vehiculo: this.vehiculosApi
+            .obtenerPorId(activa.idVehiculo)
+            .pipe(catchError(() => of(this.vehiculoAsignado()))),
+        }).pipe(
+          map(({ catalogo, empresa, conductor, vehiculo }) => ({
+            servicio,
+            ruta: datos.ruta,
+            planificacion: datos.planificacion,
+            asociaciones,
+            pasajeros: catalogo,
+            empresa,
+            asignacion: activa,
+            conductor,
+            vehiculo,
+          })),
+        );
+      }),
+    );
+  }
+
   private complementos$(servicio: Servicio) {
     const empresa$ = this.nombreEmpresaInicial()
       ? of(null)
@@ -411,6 +593,26 @@ export class ServicioDetalle {
     this.errorPasajeros.set(null);
     this.errorAsignacion.set(null);
   }
+}
+
+interface ResultadoDetalleSilencioso {
+  servicio: Servicio;
+  ruta: Ruta | null;
+  planificacion: Planificacion | null;
+  asociaciones: PasajeroServicio[];
+  pasajeros: Pasajero[];
+  empresa: Empresa | null;
+  asignacion: AsignacionServicio | null;
+  conductor: Conductor | null;
+  vehiculo: Vehiculo | null;
+}
+
+function elegirAsignacionActiva(asignaciones: readonly AsignacionServicio[]): AsignacionServicio | null {
+  return (
+    [...asignaciones]
+      .filter((item) => item.estado === 'ACTIVA')
+      .sort((a, b) => b.idAsignacion - a.idAsignacion)[0] ?? null
+  );
 }
 
 function etiquetaPunto(idPunto: string | null, puntos: Map<string, PuntoRecogida>): string {

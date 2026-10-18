@@ -3,6 +3,7 @@ using BACKEND.DTOs.Mobile.Pasajero;
 using BACKEND.DTOs.Rutas;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Excepciones;
+using BACKEND.Negocio.Tiempo;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -34,15 +35,18 @@ namespace BACKEND.Negocio.Servicios
     {
         private readonly TransporteContext _contexto;
         private readonly IMongoCollection<Ruta> _rutas;
+        private readonly IRelojOperacion _reloj;
         private readonly ILogger<ServicioOperacionPasajero> _logger;
 
         public ServicioOperacionPasajero(
             TransporteContext contexto,
             IMongoCollection<Ruta> rutas,
+            IRelojOperacion reloj,
             ILogger<ServicioOperacionPasajero> logger)
         {
             _contexto = contexto;
             _rutas = rutas;
+            _reloj = reloj;
             _logger = logger;
         }
 
@@ -130,22 +134,23 @@ namespace BACKEND.Negocio.Servicios
                 return null;
             }
 
+            var ahoraChile = RelojChile.EnChile(_reloj.UtcAhora);
             var enCurso = asociaciones
                 .Where(p => p.Servicio.Estado == EstadoServicio.EN_CURSO)
                 .OrderBy(p => p.Servicio.Fecha)
                 .ThenBy(p => p.Servicio.HoraInicio)
                 .FirstOrDefault();
 
-            var elegido = enCurso ?? asociaciones
+            var programados = asociaciones
+                .Where(p => p.Servicio.Estado == EstadoServicio.PROGRAMADO)
                 .OrderBy(p => p.Servicio.Fecha)
                 .ThenBy(p => p.Servicio.HoraInicio)
-                .FirstOrDefault(p =>
-                    p.Servicio.Fecha.ToDateTime(p.Servicio.HoraInicio) >= DateTime.UtcNow)
-                ?? asociaciones
-                    .Where(p => p.Servicio.Estado == EstadoServicio.PROGRAMADO)
-                    .OrderBy(p => p.Servicio.Fecha)
-                    .ThenBy(p => p.Servicio.HoraInicio)
-                    .FirstOrDefault();
+                .ToList();
+
+            var elegido = enCurso
+                ?? programados.FirstOrDefault(p =>
+                    p.Servicio.Fecha.ToDateTime(p.Servicio.HoraInicio) >= ahoraChile)
+                ?? programados.FirstOrDefault();
 
             if (elegido is null)
             {

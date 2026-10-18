@@ -32,6 +32,8 @@ namespace BACKEND.DTOs.Mobile.Conductor
 
         public bool TieneAsistencia { get; set; }
 
+        public MetodoAsistencia? MetodoAsistencia { get; set; }
+
         public TipoAsistencia? TipoAsistencia { get; set; }
 
         public EstadoAsistencia? EstadoAsistencia { get; set; }

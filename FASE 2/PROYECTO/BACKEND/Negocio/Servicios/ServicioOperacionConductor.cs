@@ -344,6 +344,7 @@ namespace BACKEND.Negocio.Servicios
                 FechaConfirmacion = registro.FechaConfirmacion,
                 EstadoPasajeroServicio = registro.Estado,
                 TieneAsistencia = asistencia is not null,
+                MetodoAsistencia = asistencia?.Metodo,
                 TipoAsistencia = asistencia?.TipoAsistencia,
                 EstadoAsistencia = asistencia?.Estado,
                 FechaHoraAsistencia = asistencia?.FechaHora,
@@ -366,6 +367,7 @@ namespace BACKEND.Negocio.Servicios
                 FechaConfirmacion = null,
                 EstadoPasajeroServicio = null,
                 TieneAsistencia = true,
+                MetodoAsistencia = asistencia.Metodo,
                 TipoAsistencia = asistencia.TipoAsistencia,
                 EstadoAsistencia = asistencia.Estado,
                 FechaHoraAsistencia = asistencia.FechaHora

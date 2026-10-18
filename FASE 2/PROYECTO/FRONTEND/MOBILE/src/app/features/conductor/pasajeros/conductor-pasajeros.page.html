@@ -51,11 +51,42 @@
               <p class="dato">{{ recogida }}</p>
             }
             @if (etiquetaConfirmacion(pasajero.estadoConfirmacion); as confirmacion) {
-              <p class="dato">Intención de viaje: {{ confirmacion }}</p>
+              <p class="dato">Confirmación del viaje: {{ confirmacion }}</p>
             }
-            <p class="dato">Asistencia: {{ etiquetaAsistencia(pasajero.estadoAsistencia) }}</p>
+            <p class="dato asistencia">
+              Asistencia:
+              <ion-badge
+                [color]="presentacionAsistencia(pasajero.estadoAsistencia).color"
+                [class.anulada]="presentacionAsistencia(pasajero.estadoAsistencia).anulada"
+              >
+                {{ presentacionAsistencia(pasajero.estadoAsistencia).texto }}
+              </ion-badge>
+            </p>
+            @if (etiquetaMetodo(pasajero.metodoAsistencia); as metodo) {
+              <p class="dato">Método: {{ metodo }}</p>
+            }
             @if (pasajero.fechaHoraAsistencia) {
               <p class="meta">Registrada a las {{ formatearHoraAsistencia(pasajero.fechaHoraAsistencia) }}</p>
+            }
+            @if (errorRegistro(); as fallo) {
+              @if (fallo.idPasajero === pasajero.idPasajero) {
+                <ion-note color="danger">{{ fallo.mensaje }}</ion-note>
+              }
+            }
+            @if (puedeRegistrar(pasajero)) {
+              <ion-button
+                expand="block"
+                fill="outline"
+                [disabled]="registrandoId() === pasajero.idPasajero"
+                (click)="pedirRegistroManual(pasajero)"
+              >
+                @if (registrandoId() === pasajero.idPasajero) {
+                  <ion-spinner name="crescent" />
+                  Registrando...
+                } @else {
+                  Registrar asistencia manual
+                }
+              </ion-button>
             }
           </ion-card-content>
         </ion-card>

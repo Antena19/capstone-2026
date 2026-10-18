@@ -1,5 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   AlertController,
@@ -21,6 +21,7 @@ import {
   RefresherCustomEvent,
   ToastController,
   ViewWillEnter,
+  ViewWillLeave,
 } from '@ionic/angular';
 import {
   CapacitorBarcodeScanner,
@@ -34,6 +35,7 @@ import { EstadoAsistencia } from '../core/models/conductor';
 import { ProximoServicioPasajero, ServicioPasajeroResumen } from '../core/models/pasajero';
 import { AsistenciaService } from '../core/services/asistencia.service';
 import { MisServiciosService } from '../core/services/mis-servicios.service';
+import { actualizarVistaServicios, ocultarDestacado } from '../core/utils/composicion-listas';
 import {
   colorConfirmacion,
   colorEstadoAsistencia,
@@ -49,6 +51,11 @@ import {
   referenciaPuntoAporta,
   tieneTexto,
 } from '../core/utils/formato-servicio';
+import {
+  ContextoRefresco,
+  crearRefrescoOperativo,
+  decidirErrorRefresco,
+} from '../core/utils/refresco-operativo';
 import { BienvenidaModalComponent } from '../shared/bienvenida/bienvenida-modal.component';
 
 const DIAS_HISTORIAL = 14;
@@ -77,17 +84,16 @@ const DIAS_HISTORIAL = 14;
     BienvenidaModalComponent,
   ],
 })
-export class HomePage implements ViewWillEnter {
+export class HomePage implements ViewWillEnter, ViewWillLeave, OnDestroy {
   private readonly api = inject(MisServiciosService);
   private readonly asistencias = inject(AsistenciaService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly alertas = inject(AlertController);
   private readonly avisos = inject(ToastController);
-  private pedidoListado = 0;
+  private readonly refresco = crearRefrescoOperativo((contexto) => this.ejecutarCarga(contexto));
   private pedidoHistorial = 0;
-  private cicloCarga = 0;
-  private cicloConAviso = 0;
+  private cierreManual: (() => void) | undefined;
 
   readonly cargando = signal(true);
   readonly bienvenidaAbierta = signal(false);
@@ -96,6 +102,7 @@ export class HomePage implements ViewWillEnter {
   readonly listadoListo = signal(false);
   readonly proximo = signal<ProximoServicioPasajero | null>(null);
   readonly actuales = signal<ServicioPasajeroResumen[]>([]);
+  private readonly finalizadosHoy = signal<ServicioPasajeroResumen[]>([]);
 
   readonly historialVisible = signal(false);
   readonly cargandoHistorial = signal(false);
@@ -116,16 +123,23 @@ export class HomePage implements ViewWillEnter {
   readonly tieneTexto = tieneTexto;
 
   ionViewWillEnter(): void {
-    this.cargar();
+    this.refresco.entrar();
+  }
+
+  ionViewWillLeave(): void {
+    this.refresco.salir();
+  }
+
+  ngOnDestroy(): void {
+    this.refresco.salir();
+  }
+
+  cargar(): void {
+    this.refresco.solicitar();
   }
 
   actualesVisibles(): ServicioPasajeroResumen[] {
-    const idProximo = this.proximo()?.idServicio;
-    if (!idProximo) {
-      return this.actuales();
-    }
-
-    return this.actuales().filter((servicio) => servicio.idServicio !== idProximo);
+    return ocultarDestacado(this.actuales(), (servicio) => servicio.idServicio, this.proximo()?.idServicio);
   }
 
   textoAsistenciaProximo(servicio: ProximoServicioPasajero): string | null {
@@ -136,53 +150,57 @@ export class HomePage implements ViewWillEnter {
     return colorEstadoAsistencia(estado);
   }
 
-  cargar(alTerminar?: () => void): void {
-    const pedido = ++this.pedidoListado;
-    this.cicloCarga += 1;
-    const silencioso = this.listadoListo();
-    if (!silencioso && !alTerminar) {
+  private ejecutarCarga(contexto: ContextoRefresco): void {
+    const { generacion, avisarError, automatico } = contexto;
+    if (!this.listadoListo() && !automatico && !avisarError) {
       this.cargando.set(true);
     }
 
-    this.error.set(null);
     const hoy = fechaLocalHoy();
     forkJoin({
       proximo: this.api.obtenerProximoPasajero(),
       actuales: this.api.listarPasajero({ desde: hoy }),
     }).subscribe({
       next: ({ proximo, actuales }) => {
-        if (pedido !== this.pedidoListado) {
-          alTerminar?.();
+        if (!this.refresco.esVigente(generacion)) {
+          this.cerrarRefresco(generacion, avisarError);
           return;
         }
 
         this.proximo.set(proximo);
-        this.actuales.set([...actuales].sort(compararMasAntiguoPrimero));
+        const vista = actualizarVistaServicios(this.vistaActual(), {
+          desdeHoy: actuales,
+          anteriores: [],
+          historialConsultado: null,
+          hoy,
+          id: (servicio) => servicio.idServicio,
+          estado: (servicio) => servicio.estadoServicio,
+          fecha: (servicio) => servicio.fecha,
+        });
+        this.actuales.set(vista.operativos.sort(compararMasAntiguoPrimero));
+        this.finalizadosHoy.set(vista.finalizadosHoy);
+        this.historial.set(vista.historial.sort(compararMasRecientePrimero));
         this.listadoListo.set(true);
         this.cargando.set(false);
+        this.error.set(null);
         this.mostrarBienvenida();
         if (this.historialVisible()) {
-          this.cargarHistorial(alTerminar, true);
+          this.cargarHistorial(() => this.cerrarRefresco(generacion, avisarError), true, avisarError);
           return;
         }
 
-        alTerminar?.();
+        this.cerrarRefresco(generacion, avisarError);
       },
       error: (err: unknown) => {
-        if (pedido !== this.pedidoListado) {
-          alTerminar?.();
+        if (!this.refresco.esVigente(generacion)) {
+          this.cerrarRefresco(generacion, avisarError);
           return;
         }
 
         this.cargando.set(false);
         this.mostrarBienvenida();
-        if (!this.listadoListo()) {
-          this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar tus servicios.'));
-        } else {
-          this.avisarRefreshFallido();
-        }
-
-        alTerminar?.();
+        this.aplicarErrorListado(err, avisarError);
+        this.cerrarRefresco(generacion, avisarError);
       },
     });
   }
@@ -203,7 +221,8 @@ export class HomePage implements ViewWillEnter {
   }
 
   refrescar(evento: RefresherCustomEvent): void {
-    this.cargar(() => evento.target.complete());
+    this.cierreManual = () => evento.target.complete();
+    this.refresco.solicitar(true);
   }
 
   abrirDetalle(idServicio: number): void {
@@ -279,14 +298,14 @@ export class HomePage implements ViewWillEnter {
     }
   }
 
-  private cargarHistorial(alTerminar?: () => void, silencioso = false): void {
+  private cargarHistorial(alTerminar?: () => void, silencioso = false, avisarError = false): void {
     const pedido = ++this.pedidoHistorial;
     const conservar = silencioso || this.historial().length > 0;
     if (!conservar) {
       this.cargandoHistorial.set(true);
+      this.errorHistorial.set(null);
     }
 
-    this.errorHistorial.set(null);
     this.api
       .listarPasajero({
         desde: fechaLocalDesplazada(-DIAS_HISTORIAL),
@@ -299,8 +318,18 @@ export class HomePage implements ViewWillEnter {
             return;
           }
 
-          this.historial.set([...servicios].sort(compararMasRecientePrimero));
+          const vista = actualizarVistaServicios(this.vistaActual(), {
+            desdeHoy: [...this.actuales(), ...this.finalizadosHoy()],
+            anteriores: [],
+            historialConsultado: servicios,
+            hoy: fechaLocalHoy(),
+            id: (servicio) => servicio.idServicio,
+            estado: (servicio) => servicio.estadoServicio,
+            fecha: (servicio) => servicio.fecha,
+          });
+          this.historial.set(vista.historial.sort(compararMasRecientePrimero));
           this.cargandoHistorial.set(false);
+          this.errorHistorial.set(null);
           alTerminar?.();
         },
         error: (err: unknown) => {
@@ -310,11 +339,12 @@ export class HomePage implements ViewWillEnter {
           }
 
           this.cargandoHistorial.set(false);
-          if (this.historial().length === 0) {
+          const decision = decidirErrorRefresco(this.historial().length > 0, avisarError && silencioso);
+          if (decision.mostrarError) {
             this.errorHistorial.set(
-              this.auth.mensajeErrorHttp(err, 'No fue posible cargar los servicios anteriores.'),
+              this.auth.mensajeErrorHttp(err, 'No fue posible cargar los servicios finalizados.'),
             );
-          } else if (silencioso) {
+          } else if (decision.mostrarAviso) {
             this.avisarRefreshFallido();
           }
 
@@ -355,12 +385,43 @@ export class HomePage implements ViewWillEnter {
     await alerta.present();
   }
 
-  private avisarRefreshFallido(): void {
-    if (this.cicloConAviso === this.cicloCarga) {
+  private aplicarErrorListado(err: unknown, avisarError: boolean): void {
+    const decision = decidirErrorRefresco(this.listadoListo(), avisarError);
+    if (decision.mostrarError) {
+      this.error.set(this.auth.mensajeErrorHttp(err, 'No fue posible cargar tus servicios.'));
       return;
     }
 
-    this.cicloConAviso = this.cicloCarga;
+    if (decision.mostrarAviso) {
+      this.avisarRefreshFallido();
+    }
+  }
+
+  private cerrarRefresco(generacion: number, avisarError: boolean): void {
+    const vigente = this.refresco.esVigente(generacion);
+    this.refresco.completar(generacion);
+    if (vigente && avisarError) {
+      const cerrar = this.cierreManual;
+      this.cierreManual = undefined;
+      cerrar?.();
+    }
+  }
+
+  private vistaActual(): {
+    operativos: ServicioPasajeroResumen[];
+    pendientes: ServicioPasajeroResumen[];
+    finalizadosHoy: ServicioPasajeroResumen[];
+    historial: ServicioPasajeroResumen[];
+  } {
+    return {
+      operativos: this.actuales(),
+      pendientes: [],
+      finalizadosHoy: this.finalizadosHoy(),
+      historial: this.historial(),
+    };
+  }
+
+  private avisarRefreshFallido(): void {
     void this.avisos
       .create({
         message: 'No se pudo actualizar la información.',
