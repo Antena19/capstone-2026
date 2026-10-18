@@ -191,7 +191,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendWeb", policy =>
     {
-        policy.WithOrigins("http://localhost:4200", "http://localhost:8100")
+        policy.WithOrigins(
+                "http://localhost:4200",
+                "http://localhost:8100",
+                "https://localhost",
+                "capacitor://localhost")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .WithExposedHeaders("Content-Disposition");
