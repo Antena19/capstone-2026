@@ -13,21 +13,21 @@
   } @else {
     <div class="indicadores">
       <div class="indicador">
-        <p class="etiqueta">Pasajeros asociados</p>
-        <p class="valor">{{ pasajerosAsociados() }}</p>
+        <p class="etiqueta">Pasajeros</p>
+        <p class="valor">{{ resumen().total }}</p>
       </div>
       <div class="indicador">
-        <p class="etiqueta">Asistencias registradas</p>
-        <p class="valor">{{ asistenciasRegistradas() }}</p>
+        <p class="etiqueta">Asistencias efectivas</p>
+        <p class="valor">{{ resumen().efectivas }}</p>
       </div>
       <div class="indicador">
-        <p class="etiqueta">Porcentaje de registro</p>
-        <p class="valor">{{ porcentajeRegistro() }}</p>
+        <p class="etiqueta">Asistencia efectiva</p>
+        <p class="valor">{{ resumen().porcentaje }}</p>
       </div>
     </div>
 
     @if (filas().length === 0) {
-      <p class="vacio">No hay pasajeros con asociación activa en este servicio.</p>
+      <p class="vacio">No hay pasajeros planificados ni asistencias registradas en este servicio.</p>
     } @else {
       <div class="table-wrap">
         <table>
@@ -36,7 +36,7 @@
               <th>Pasajero</th>
               <th>Confirmación</th>
               <th>Asistencia</th>
-              <th>Tipo</th>
+              <th>Participación</th>
               <th>Método</th>
               <th>Fecha y hora</th>
             </tr>
@@ -55,7 +55,7 @@
                     <span class="meta valida">Válida</span>
                   }
                 </td>
-                <td>{{ etiquetaTipo(fila) }}</td>
+                <td>{{ etiquetaParticipacion(fila.participacion) }}</td>
                 <td>{{ etiquetaMetodo(fila.metodo) }}</td>
                 <td class="mono">{{ formatearFechaHora(fila.fechaHora) }}</td>
               </tr>

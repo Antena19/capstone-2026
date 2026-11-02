@@ -34,6 +34,9 @@
       @if (textoCancelacion(servicio.estado, servicio.motivoCancelacion); as cancelado) {
         <p class="aviso-inicio">{{ cancelado }}</p>
       }
+      @if (etiquetaNoPlanificado(servicio.planificado); as participacion) {
+        <ion-badge color="medium">{{ participacion }}</ion-badge>
+      }
       @if (etiquetaConfirmacion(servicio.estadoConfirmacion); as confirmacion) {
         <ion-badge [color]="colorConfirmacion(servicio.estadoConfirmacion)">
           {{ confirmacion }}

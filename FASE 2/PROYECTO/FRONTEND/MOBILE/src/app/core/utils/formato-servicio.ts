@@ -135,6 +135,10 @@ export function etiquetaParticipacion(tipo: TipoParticipacionConductor): string 
   return tipo === 'NO_PLANIFICADO' ? 'No planificado' : 'Planificado';
 }
 
+export function etiquetaNoPlanificado(planificado: boolean | null | undefined): string | null {
+  return planificado === false ? 'No planificado' : null;
+}
+
 export function etiquetaConfirmacion(estado: EstadoConfirmacionViaje | null | undefined): string | null {
   if (estado === 'CONFIRMADO') {
     return 'Confirmado';
@@ -201,6 +205,10 @@ export function etiquetaAsistenciaListado(
 ): string | null {
   if (estado === 'VALIDA' && tieneAsistencia) {
     return 'Asistencia registrada';
+  }
+
+  if (estado === 'PROVISIONAL' && tieneAsistencia) {
+    return 'Asistencia pendiente';
   }
 
   if (estado === 'ANULADA') {

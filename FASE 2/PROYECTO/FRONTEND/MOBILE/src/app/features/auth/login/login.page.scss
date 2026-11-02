@@ -1,3 +1,7 @@
 :host {
   display: block;
 }
+
+.auth-enlace + .auth-enlace {
+  margin-top: 8px;
+}

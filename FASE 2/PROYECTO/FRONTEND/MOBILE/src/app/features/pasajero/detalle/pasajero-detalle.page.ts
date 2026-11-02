@@ -35,6 +35,7 @@ import {
   colorEstadoServicio,
   etiquetaConfirmacion,
   etiquetaEstadoAsistencia,
+  etiquetaNoPlanificado,
   etiquetaEstadoServicio,
   etiquetaMetodoAsistencia,
   etiquetaTipoAsistencia,
@@ -90,6 +91,7 @@ export class PasajeroDetallePage implements ViewWillEnter, ViewWillLeave, OnDest
   readonly etiquetaEstado = etiquetaEstadoServicio;
   readonly colorEstado = colorEstadoServicio;
   readonly etiquetaConfirmacion = etiquetaConfirmacion;
+  readonly etiquetaNoPlanificado = etiquetaNoPlanificado;
   readonly colorConfirmacion = colorConfirmacion;
   readonly etiquetaAsistencia = etiquetaEstadoAsistencia;
   readonly etiquetaTipoAsistencia = etiquetaTipoAsistencia;
@@ -180,7 +182,12 @@ export class PasajeroDetallePage implements ViewWillEnter, ViewWillLeave, OnDest
 
   puedeConfirmar(estado: EstadoConfirmacionViaje): boolean {
     const detalle = this.detalle();
-    return this.servicioConfirmable(detalle) && detalle?.estadoConfirmacion !== estado;
+    return (
+      this.servicioConfirmable(detalle) &&
+      detalle?.planificado !== false &&
+      (detalle?.idPasajeroServicio ?? 0) > 0 &&
+      detalle?.estadoConfirmacion !== estado
+    );
   }
 
   async pedirConfirmacion(estado: EstadoConfirmacionViaje): Promise<void> {

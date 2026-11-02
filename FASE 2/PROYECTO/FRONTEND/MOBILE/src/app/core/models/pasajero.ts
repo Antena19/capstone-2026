@@ -17,6 +17,7 @@ export interface PuntoRecogidaPasajero {
 
 export interface ServicioPasajeroResumen {
   idPasajeroServicio: number;
+  planificado: boolean;
   idServicio: number;
   fecha: string;
   horaInicio: string;
@@ -24,7 +25,7 @@ export interface ServicioPasajeroResumen {
   tipoServicio: string;
   estadoServicio: EstadoServicio;
   motivoCancelacion?: string | null;
-  estadoConfirmacion: EstadoConfirmacionViaje;
+  estadoConfirmacion: EstadoConfirmacionViaje | null;
   fechaConfirmacion: string | null;
   idRuta: string;
   nombreRuta: string | null;
@@ -41,6 +42,7 @@ export interface ServicioPasajeroResumen {
 
 export interface ProximoServicioPasajero {
   idPasajeroServicio: number;
+  planificado: boolean;
   idServicio: number;
   fecha: string;
   horaInicio: string;
@@ -51,7 +53,7 @@ export interface ProximoServicioPasajero {
   nombreRuta: string | null;
   sectorRuta: string | null;
   puntoRecogida: PuntoRecogidaPasajero | null;
-  estadoConfirmacion: EstadoConfirmacionViaje;
+  estadoConfirmacion: EstadoConfirmacionViaje | null;
   tieneAsistencia: boolean;
   estadoAsistencia: EstadoAsistencia | null;
 }
@@ -86,6 +88,7 @@ export interface AsistenciaPasajero {
 
 export interface ServicioPasajeroDetalle {
   idPasajeroServicio: number;
+  planificado: boolean;
   idServicio: number;
   fecha: string;
   horaInicio: string;
@@ -99,7 +102,7 @@ export interface ServicioPasajeroDetalle {
   empresa: EmpresaServicioPasajero;
   ruta: RutaServicioPasajeroResumen | null;
   puntoRecogida: PuntoRecogidaPasajero | null;
-  estadoConfirmacion: EstadoConfirmacionViaje;
+  estadoConfirmacion: EstadoConfirmacionViaje | null;
   fechaConfirmacion: string | null;
   asistencia: AsistenciaPasajero;
   vehiculo: VehiculoServicioPasajero | null;

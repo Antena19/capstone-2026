@@ -42,6 +42,7 @@ import {
   colorEstadoServicio,
   etiquetaAsistenciaListado,
   etiquetaConfirmacion,
+  etiquetaNoPlanificado,
   etiquetaEstadoServicio,
   fechaLocalDesplazada,
   fechaLocalHoy,
@@ -116,6 +117,7 @@ export class HomePage implements ViewWillEnter, ViewWillLeave, OnDestroy {
   readonly etiquetaEstado = etiquetaEstadoServicio;
   readonly colorEstado = colorEstadoServicio;
   readonly etiquetaConfirmacion = etiquetaConfirmacion;
+  readonly etiquetaNoPlanificado = etiquetaNoPlanificado;
   readonly colorConfirmacion = colorConfirmacion;
   readonly etiquetaAsistencia = etiquetaAsistenciaListado;
   readonly colorAsistencia = colorEstadoAsistencia;

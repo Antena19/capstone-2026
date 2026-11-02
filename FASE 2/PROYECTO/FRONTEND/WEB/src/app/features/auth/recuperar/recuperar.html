@@ -1,0 +1,60 @@
+<div class="login">
+  <section class="panel-marca" aria-label="Identidad Trayek">
+    <div class="identidad">
+      <div class="logo-pista">
+        <div class="logo-marco">
+          <img class="logo" src="logo_blanco.svg" alt="" />
+        </div>
+      </div>
+      <p class="nombre">TRAYEK</p>
+      <p class="rubro">GESTIÓN DE TRANSPORTE DE PERSONAL</p>
+    </div>
+    <div class="marca-pie">
+      <div class="bloques">
+        @for (bloque of bloques; track bloque.titulo) {
+          <article>
+            <h2>{{ bloque.titulo }}</h2>
+            <p>{{ bloque.detalle }}</p>
+          </article>
+        }
+      </div>
+      <blockquote>{{ concepto }}</blockquote>
+    </div>
+  </section>
+
+  <section class="panel-form">
+    <div class="tarjeta">
+      <header>
+        <h1>Recuperar contraseña</h1>
+        <p>Indica el correo de tu cuenta de administrador.</p>
+      </header>
+
+      <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+        <label>
+          Correo electrónico
+          <input
+            type="email"
+            formControlName="correo"
+            autocomplete="email"
+            [attr.aria-invalid]="mensajeCorreo() !== null"
+          />
+          @if (mensajeCorreo(); as mensaje) {
+            <span class="campo-error">{{ mensaje }}</span>
+          }
+        </label>
+
+        <p id="aviso-recuperacion" class="aviso">{{ aviso }}</p>
+
+        <button type="submit" [disabled]="!disponible" aria-describedby="aviso-recuperacion">
+          Enviar instrucciones
+        </button>
+      </form>
+
+      <p class="enlace">
+        <a routerLink="/login">Volver a iniciar sesión</a>
+      </p>
+
+      <p class="copy">© {{ anio }} Trayek</p>
+    </div>
+  </section>
+</div>

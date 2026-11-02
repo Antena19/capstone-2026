@@ -254,6 +254,22 @@ button[type='submit']:disabled {
   cursor: not-allowed;
 }
 
+.enlace {
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 14px;
+}
+
+.enlace a {
+  color: #d90700;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.enlace a:hover {
+  color: #b20600;
+}
+
 .copy {
   margin-top: 28px;
   text-align: center;

@@ -1,14 +1,21 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 
 export const CONCEPTO_TRAYEK =
   'Trayek nace del concepto de trayecto y representa la gestión digital del recorrido completo de un servicio de transporte, desde su planificación hasta su ejecución y control.';
 
+export const BLOQUES_ACCESO = [
+  { titulo: 'Planificación', detalle: 'Servicios y rutas' },
+  { titulo: 'Operación', detalle: 'Seguimiento de recorridos' },
+  { titulo: 'Asistencia', detalle: 'Control mediante QR' },
+  { titulo: 'Reportes', detalle: 'Planificado vs realizado' },
+] as const;
+
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './login.html',
   styleUrl: './login.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -19,12 +26,7 @@ export class LoginPage {
   private readonly router = inject(Router);
 
   readonly concepto = CONCEPTO_TRAYEK;
-  readonly bloques = [
-    { titulo: 'Planificación', detalle: 'Servicios y rutas' },
-    { titulo: 'Operación', detalle: 'Seguimiento de recorridos' },
-    { titulo: 'Asistencia', detalle: 'Control mediante QR' },
-    { titulo: 'Reportes', detalle: 'Planificado vs realizado' },
-  ] as const;
+  readonly bloques = BLOQUES_ACCESO;
   readonly enviando = signal(false);
   readonly error = signal<string | null>(null);
   readonly anio = new Date().getFullYear();

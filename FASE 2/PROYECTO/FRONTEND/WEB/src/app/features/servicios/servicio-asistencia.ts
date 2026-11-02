@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { catchError, forkJoin, of } from 'rxjs';
-import { Asistencia, EstadoAsistencia, MetodoAsistencia, TipoAsistencia } from '../../core/models/asistencia';
 import { Pasajero } from '../../core/models/pasajero';
-import { EstadoConfirmacionViaje, PasajeroServicio, Servicio } from '../../core/models/servicio';
+import { PasajeroServicio, Servicio } from '../../core/models/servicio';
+import { Asistencia } from '../../core/models/asistencia';
 import { AsistenciasService } from '../../core/services/asistencias.service';
 import { PasajerosService } from '../../core/services/pasajeros.service';
 import { PasajerosServicioService } from '../../core/services/pasajeros-servicio.service';
@@ -11,18 +11,12 @@ import { etiquetaMetodoRegistro } from '../../core/utils/metodo-asistencia';
 import { formatearFechaHoraInstanteChile } from '../../core/utils/instantes';
 import { ActionButton } from '../../shared/components/action-button/action-button';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
-
-interface FilaAsistencia {
-  idPasajero: number;
-  nombre: string;
-  rut: string;
-  registrada: boolean;
-  confirmacion: EstadoConfirmacionViaje | null;
-  estado: EstadoAsistencia | null;
-  tipoAsistencia: TipoAsistencia | null;
-  metodo: MetodoAsistencia | null;
-  fechaHora: string | null;
-}
+import {
+  FilaAsistenciaServicio,
+  construirFilasAsistencia,
+  etiquetaParticipacion,
+  resumenAsistencia,
+} from './servicio-asistencia-filas';
 
 @Component({
   selector: 'app-servicio-asistencia',
@@ -48,22 +42,11 @@ export class ServicioAsistencia {
   private readonly asistencias = signal<Asistencia[]>([]);
   private readonly pasajeros = signal<Pasajero[]>([]);
 
-  readonly pasajerosAsociados = computed(() => this.filas().length);
-
-  readonly asistenciasRegistradas = computed(
-    () => this.filas().filter((fila) => fila.registrada).length,
+  readonly filas = computed(() =>
+    construirFilasAsistencia(this.asociaciones(), this.asistencias(), this.pasajeros()),
   );
 
-  readonly porcentajeRegistro = computed(() => {
-    const total = this.pasajerosAsociados();
-    if (total === 0) {
-      return '—';
-    }
-
-    return `${Math.round((this.asistenciasRegistradas() / total) * 100)}%`;
-  });
-
-  readonly filas = computed(() => construirFilas(this.asociaciones(), this.asistencias(), this.pasajeros()));
+  readonly resumen = computed(() => resumenAsistencia(this.filas()));
 
   constructor() {
     effect(() => {
@@ -85,8 +68,9 @@ export class ServicioAsistencia {
   }
 
   readonly etiquetaMetodo = etiquetaMetodoRegistro;
+  readonly etiquetaParticipacion = etiquetaParticipacion;
 
-  etiquetaConfirmacion(fila: FilaAsistencia): string {
+  etiquetaConfirmacion(fila: FilaAsistenciaServicio): string {
     switch (fila.confirmacion) {
       case 'CONFIRMADO':
         return 'Confirmado';
@@ -99,18 +83,7 @@ export class ServicioAsistencia {
     }
   }
 
-  etiquetaTipo(fila: FilaAsistencia): string {
-    switch (fila.tipoAsistencia) {
-      case 'PLANIFICADA':
-        return 'Planificada';
-      case 'NO_PLANIFICADA':
-        return 'No planificada';
-      default:
-        return '—';
-    }
-  }
-
-  etiquetaAsistencia(fila: FilaAsistencia): string {
+  etiquetaAsistencia(fila: FilaAsistenciaServicio): string {
     switch (fila.estado) {
       case 'VALIDA':
         return 'Asistencia registrada';
@@ -123,7 +96,7 @@ export class ServicioAsistencia {
     }
   }
 
-  tonoAsistencia(fila: FilaAsistencia): 'green' | 'amber' | 'slate' {
+  tonoAsistencia(fila: FilaAsistenciaServicio): 'green' | 'amber' | 'slate' {
     if (fila.estado === 'VALIDA') {
       return 'green';
     }
@@ -175,50 +148,4 @@ export class ServicioAsistencia {
       },
     });
   }
-}
-
-function asistenciaVigente(estado: EstadoAsistencia): boolean {
-  return estado === 'VALIDA' || estado === 'PROVISIONAL';
-}
-
-function construirFilas(
-  asociaciones: PasajeroServicio[],
-  asistencias: Asistencia[],
-  pasajeros: Pasajero[],
-): FilaAsistencia[] {
-  const personas = new Map(pasajeros.map((item) => [item.idPasajero, item]));
-  const asistenciaPorPasajero = new Map<number, Asistencia>();
-  for (const asistencia of asistencias) {
-    const previa = asistenciaPorPasajero.get(asistencia.idPasajero);
-    if (!previa || asistencia.fechaHora > previa.fechaHora) {
-      asistenciaPorPasajero.set(asistencia.idPasajero, asistencia);
-    }
-  }
-
-  const asociacionPorPasajero = new Map<number, PasajeroServicio>();
-  for (const asociacion of asociaciones) {
-    const previa = asociacionPorPasajero.get(asociacion.idPasajero);
-    if (!previa || (previa.estado !== 'ACTIVO' && asociacion.estado === 'ACTIVO')) {
-      asociacionPorPasajero.set(asociacion.idPasajero, asociacion);
-    }
-  }
-
-  return [...asociacionPorPasajero.values()]
-    .filter((asociacion) => asociacion.estado === 'ACTIVO')
-    .map((asociacion) => {
-      const persona = personas.get(asociacion.idPasajero);
-      const asistencia = asistenciaPorPasajero.get(asociacion.idPasajero);
-      return {
-        idPasajero: asociacion.idPasajero,
-        nombre: persona?.nombre ?? `Pasajero #${asociacion.idPasajero}`,
-        rut: persona?.rut ?? '—',
-        registrada: !!asistencia && asistenciaVigente(asistencia.estado),
-        confirmacion: asociacion.estadoConfirmacion,
-        estado: asistencia?.estado ?? null,
-        tipoAsistencia: asistencia?.tipoAsistencia ?? null,
-        metodo: asistencia?.metodo ?? null,
-        fechaHora: asistencia?.fechaHora ?? null,
-      };
-    })
-    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
 }

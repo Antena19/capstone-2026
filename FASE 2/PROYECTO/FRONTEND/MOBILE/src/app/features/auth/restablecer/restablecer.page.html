@@ -1,0 +1,54 @@
+<ion-content [fullscreen]="true">
+  <header class="auth-marca">
+    <img src="assets/brand/logo_blanco.svg" alt="" />
+    <p class="nombre">TRAYEK</p>
+    <p class="rubro">GESTIÓN DE TRANSPORTE DE PERSONAL</p>
+  </header>
+
+  <div class="auth-panel">
+    <section class="auth-tarjeta">
+      <h1>Restablecer contraseña</h1>
+      <p class="lead">Define una nueva contraseña para tu cuenta.</p>
+
+      <form [formGroup]="form" (ngSubmit)="enviar()">
+        <app-campo-password
+          label="Nueva contraseña"
+          autocomplete="new-password"
+          formControlName="passwordNueva"
+        />
+        <app-campo-password
+          label="Confirmar contraseña"
+          autocomplete="new-password"
+          formControlName="confirmarPassword"
+        />
+
+        @if (form.controls.passwordNueva.touched && form.controls.passwordNueva.invalid) {
+          <ion-note color="danger">{{ mensajePolitica }}</ion-note>
+        }
+        @if (form.controls.confirmarPassword.touched && form.hasError('confirmar')) {
+          <ion-note color="danger">Las contraseñas no coinciden.</ion-note>
+        }
+        @if (
+          form.controls.confirmarPassword.touched && form.controls.confirmarPassword.hasError('required')
+        ) {
+          <ion-note color="danger">Confirma la nueva contraseña.</ion-note>
+        }
+
+        <ion-note id="aviso-restablecer" class="aviso-pendiente">{{ aviso }}</ion-note>
+
+        <ion-button
+          expand="block"
+          type="submit"
+          [disabled]="!disponible"
+          aria-describedby="aviso-restablecer"
+        >
+          Restablecer contraseña
+        </ion-button>
+      </form>
+
+      <p class="auth-enlace">
+        <a routerLink="/login">Volver a iniciar sesión</a>
+      </p>
+    </section>
+  </div>
+</ion-content>

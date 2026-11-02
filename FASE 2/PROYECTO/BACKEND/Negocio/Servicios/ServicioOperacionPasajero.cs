@@ -101,19 +101,41 @@ namespace BACKEND.Negocio.Servicios
                 .ThenBy(p => p.Servicio.HoraInicio)
                 .ToListAsync();
 
+            var asistenciasSueltas = estadoConfirmacion.HasValue
+                ? new List<Asistencia>()
+                : await ListarAsistenciasSinAsociacionActivaAsync(
+                    pasajero.IdPasajero,
+                    fecha,
+                    desde,
+                    hasta,
+                    estadoServicio);
+
             var rutasPorId = await ObtenerRutasPorIdentificadoresAsync(
-                asociaciones.Select(a => a.Servicio.IdRuta));
+                asociaciones.Select(a => a.Servicio.IdRuta)
+                    .Concat(asistenciasSueltas.Select(a => a.Servicio.IdRuta)));
             var asistenciasPorServicio = await ObtenerAsistenciasPorServicioAsync(
                 pasajero.IdPasajero,
                 asociaciones.Select(a => a.IdServicio));
 
-            return asociaciones.Select(asociacion =>
+            var filas = asociaciones.Select(asociacion =>
             {
                 rutasPorId.TryGetValue(asociacion.Servicio.IdRuta, out var ruta);
                 asistenciasPorServicio.TryGetValue(asociacion.IdServicio, out var asistencia);
                 var punto = ResolverPunto(ruta, asociacion.IdPuntoRecogida);
                 return MapearResumen(asociacion, ruta, punto, asistencia);
             }).ToList();
+
+            foreach (var asistencia in asistenciasSueltas)
+            {
+                rutasPorId.TryGetValue(asistencia.Servicio.IdRuta, out var ruta);
+                filas.Add(MapearResumenNoPlanificado(asistencia, ruta));
+            }
+
+            return filas
+                .OrderBy(f => f.Fecha)
+                .ThenBy(f => f.HoraInicio)
+                .ThenBy(f => f.IdServicio)
+                .ToList();
         }
 
         public async Task<ProximoServicioPasajeroDto?> ObtenerProximoAsync(int idUsuario)
@@ -129,22 +151,49 @@ namespace BACKEND.Negocio.Servicios
                     && p.Servicio.Estado != EstadoServicio.FINALIZADO)
                 .ToListAsync();
 
-            if (asociaciones.Count == 0)
+            var asistenciasSueltas = await ListarAsistenciasSinAsociacionActivaAsync(
+                pasajero.IdPasajero,
+                fecha: null,
+                desde: null,
+                hasta: null,
+                estadoServicio: null);
+            var sueltasOperativas = asistenciasSueltas
+                .Where(a => a.Servicio.Estado is EstadoServicio.PROGRAMADO or EstadoServicio.EN_CURSO)
+                .ToList();
+
+            if (asociaciones.Count == 0 && sueltasOperativas.Count == 0)
             {
                 return null;
             }
 
             var ahoraChile = RelojChile.EnChile(_reloj.UtcAhora);
-            var enCurso = asociaciones
+            var candidatos = asociaciones
+                .Select(asociacion => new CandidatoProximo(
+                    asociacion.IdPasajeroServicio,
+                    asociacion.Servicio,
+                    Planificado: true,
+                    asociacion.EstadoConfirmacion,
+                    asociacion.IdPuntoRecogida))
+                .Concat(sueltasOperativas.Select(asistencia => new CandidatoProximo(
+                    IdPasajeroServicio: 0,
+                    asistencia.Servicio,
+                    Planificado: false,
+                    Confirmacion: null,
+                    IdPuntoRecogida: null)))
+                .ToList();
+
+            var enCurso = candidatos
                 .Where(p => p.Servicio.Estado == EstadoServicio.EN_CURSO)
                 .OrderBy(p => p.Servicio.Fecha)
                 .ThenBy(p => p.Servicio.HoraInicio)
+                .ThenBy(p => p.Servicio.IdServicio)
                 .FirstOrDefault();
 
-            var programados = asociaciones
+            var programados = candidatos
                 .Where(p => p.Servicio.Estado == EstadoServicio.PROGRAMADO)
                 .OrderBy(p => p.Servicio.Fecha)
                 .ThenBy(p => p.Servicio.HoraInicio)
+                .ThenBy(p => p.Servicio.IdServicio)
                 .ToList();
 
             var elegido = enCurso
@@ -161,13 +210,14 @@ namespace BACKEND.Negocio.Servicios
             var asistencia = await _contexto.Asistencias
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a =>
-                    a.IdServicio == elegido.IdServicio && a.IdPasajero == pasajero.IdPasajero);
+                    a.IdServicio == elegido.Servicio.IdServicio && a.IdPasajero == pasajero.IdPasajero);
             var punto = ResolverPunto(ruta, elegido.IdPuntoRecogida);
 
             return new ProximoServicioPasajeroDto
             {
                 IdPasajeroServicio = elegido.IdPasajeroServicio,
-                IdServicio = elegido.IdServicio,
+                Planificado = elegido.Planificado,
+                IdServicio = elegido.Servicio.IdServicio,
                 Fecha = elegido.Servicio.Fecha,
                 HoraInicio = elegido.Servicio.HoraInicio,
                 HoraFin = elegido.Servicio.HoraFin,
@@ -177,7 +227,7 @@ namespace BACKEND.Negocio.Servicios
                 NombreRuta = ruta?.Nombre,
                 SectorRuta = ruta?.Sector,
                 PuntoRecogida = MapearPuntoAsignado(punto),
-                EstadoConfirmacion = elegido.EstadoConfirmacion,
+                EstadoConfirmacion = elegido.Confirmacion,
                 TieneAsistencia = asistencia is not null,
                 EstadoAsistencia = asistencia?.Estado
             };
@@ -185,10 +235,9 @@ namespace BACKEND.Negocio.Servicios
 
         public async Task<ServicioPasajeroDetalleDto> ObtenerDetalleAsync(int idServicio, int idUsuario)
         {
-            var (pasajero, asociacion) = await ObtenerAsociacionDelPasajeroAsync(idServicio, idUsuario);
-            var servicio = asociacion.Servicio;
+            var (pasajero, servicio, asociacion) = await ObtenerAccesoAlServicioAsync(idServicio, idUsuario);
             var ruta = await ObtenerRutaOpcionalAsync(servicio.IdRuta);
-            var punto = ResolverPunto(ruta, asociacion.IdPuntoRecogida);
+            var punto = ResolverPunto(ruta, asociacion?.IdPuntoRecogida);
 
             var asistencia = await _contexto.Asistencias
                 .AsNoTracking()
@@ -202,7 +251,8 @@ namespace BACKEND.Negocio.Servicios
 
             return new ServicioPasajeroDetalleDto
             {
-                IdPasajeroServicio = asociacion.IdPasajeroServicio,
+                IdPasajeroServicio = asociacion?.IdPasajeroServicio ?? 0,
+                Planificado = asociacion is not null,
                 IdServicio = servicio.IdServicio,
                 Fecha = servicio.Fecha,
                 HoraInicio = servicio.HoraInicio,
@@ -228,8 +278,8 @@ namespace BACKEND.Negocio.Servicios
                         DuracionEstimadaMin = ruta.DuracionEstimadaMin
                     },
                 PuntoRecogida = MapearPuntoAsignado(punto),
-                EstadoConfirmacion = asociacion.EstadoConfirmacion,
-                FechaConfirmacion = asociacion.FechaConfirmacion,
+                EstadoConfirmacion = asociacion?.EstadoConfirmacion,
+                FechaConfirmacion = asociacion?.FechaConfirmacion,
                 Asistencia = new AsistenciaPasajeroDto
                 {
                     TieneAsistencia = asistencia is not null,
@@ -252,8 +302,8 @@ namespace BACKEND.Negocio.Servicios
 
         public async Task<RutaServicioPasajeroDto> ObtenerRutaAsync(int idServicio, int idUsuario)
         {
-            var (_, asociacion) = await ObtenerAsociacionDelPasajeroAsync(idServicio, idUsuario);
-            var ruta = await ObtenerRutaOpcionalAsync(asociacion.Servicio.IdRuta);
+            var (_, servicio, asociacion) = await ObtenerAccesoAlServicioAsync(idServicio, idUsuario);
+            var ruta = await ObtenerRutaOpcionalAsync(servicio.IdRuta);
 
             if (ruta is null)
             {
@@ -279,7 +329,7 @@ namespace BACKEND.Negocio.Servicios
                 DistanciaEstimadaKm = ruta.DistanciaEstimadaKm,
                 DuracionEstimadaMin = ruta.DuracionEstimadaMin,
                 Estado = ruta.Estado,
-                IdPuntoRecogidaAsignado = string.IsNullOrWhiteSpace(asociacion.IdPuntoRecogida)
+                IdPuntoRecogidaAsignado = string.IsNullOrWhiteSpace(asociacion?.IdPuntoRecogida)
                     ? null
                     : asociacion.IdPuntoRecogida
             };
@@ -301,38 +351,85 @@ namespace BACKEND.Negocio.Servicios
             return pasajero;
         }
 
-        private async Task<(Pasajero Pasajero, PasajeroServicio Asociacion)> ObtenerAsociacionDelPasajeroAsync(
+        private async Task<(Pasajero Pasajero, Servicio Servicio, PasajeroServicio? Asociacion)> ObtenerAccesoAlServicioAsync(
             int idServicio,
             int idUsuario)
         {
             var pasajero = await ObtenerPasajeroAsync(idUsuario);
 
-            var servicioExiste = await _contexto.Servicios
+            var servicio = await _contexto.Servicios
                 .AsNoTracking()
-                .AnyAsync(s => s.IdServicio == idServicio);
+                .Include(s => s.Empresa)
+                .FirstOrDefaultAsync(s => s.IdServicio == idServicio);
 
-            if (!servicioExiste)
+            if (servicio is null)
             {
                 throw new ExcepcionNegocio("El servicio no existe.", StatusCodes.Status404NotFound);
             }
 
             var asociacion = await _contexto.PasajerosServicio
                 .AsNoTracking()
-                .Include(p => p.Servicio)
-                    .ThenInclude(s => s.Empresa)
                 .FirstOrDefaultAsync(p =>
                     p.IdServicio == idServicio
                     && p.IdPasajero == pasajero.IdPasajero
                     && p.Estado == EstadoPasajeroServicio.ACTIVO);
 
-            if (asociacion is null)
+            if (asociacion is not null)
+            {
+                return (pasajero, servicio, asociacion);
+            }
+
+            var tieneAsistencia = await _contexto.Asistencias
+                .AsNoTracking()
+                .AnyAsync(a => a.IdServicio == idServicio && a.IdPasajero == pasajero.IdPasajero);
+
+            if (!tieneAsistencia)
             {
                 throw new ExcepcionNegocio(
                     "No tiene un servicio planificado asociado a esta cuenta.",
                     StatusCodes.Status403Forbidden);
             }
 
-            return (pasajero, asociacion);
+            return (pasajero, servicio, null);
+        }
+
+        private async Task<List<Asistencia>> ListarAsistenciasSinAsociacionActivaAsync(
+            int idPasajero,
+            DateOnly? fecha,
+            DateOnly? desde,
+            DateOnly? hasta,
+            EstadoServicio? estadoServicio)
+        {
+            var idsActivos = _contexto.PasajerosServicio
+                .Where(p => p.IdPasajero == idPasajero && p.Estado == EstadoPasajeroServicio.ACTIVO)
+                .Select(p => p.IdServicio);
+
+            var consulta = _contexto.Asistencias
+                .AsNoTracking()
+                .Include(a => a.Servicio)
+                .Where(a => a.IdPasajero == idPasajero && !idsActivos.Contains(a.IdServicio));
+
+            if (fecha.HasValue)
+            {
+                consulta = consulta.Where(a => a.Servicio.Fecha == fecha.Value);
+            }
+
+            if (desde.HasValue)
+            {
+                consulta = consulta.Where(a => a.Servicio.Fecha >= desde.Value);
+            }
+
+            if (hasta.HasValue)
+            {
+                consulta = consulta.Where(a => a.Servicio.Fecha <= hasta.Value);
+            }
+
+            if (estadoServicio.HasValue)
+            {
+                consulta = consulta.Where(a => a.Servicio.Estado == estadoServicio.Value);
+            }
+
+            return await consulta.ToListAsync();
         }
 
         private async Task<Dictionary<int, Asistencia>> ObtenerAsistenciasPorServicioAsync(
@@ -419,6 +516,7 @@ namespace BACKEND.Negocio.Servicios
             return new ServicioPasajeroResumenDto
             {
                 IdPasajeroServicio = asociacion.IdPasajeroServicio,
+                Planificado = true,
                 IdServicio = asociacion.IdServicio,
                 Fecha = asociacion.Servicio.Fecha,
                 HoraInicio = asociacion.Servicio.HoraInicio,
@@ -442,6 +540,38 @@ namespace BACKEND.Negocio.Servicios
                 FechaHoraAsistencia = asistencia?.FechaHora
             };
         }
+
+        private static ServicioPasajeroResumenDto MapearResumenNoPlanificado(Asistencia asistencia, Ruta? ruta)
+        {
+            return new ServicioPasajeroResumenDto
+            {
+                IdPasajeroServicio = 0,
+                Planificado = false,
+                IdServicio = asistencia.IdServicio,
+                Fecha = asistencia.Servicio.Fecha,
+                HoraInicio = asistencia.Servicio.HoraInicio,
+                HoraFin = asistencia.Servicio.HoraFin,
+                TipoServicio = asistencia.Servicio.TipoServicio,
+                EstadoServicio = asistencia.Servicio.Estado,
+                MotivoCancelacion = asistencia.Servicio.MotivoCancelacion,
+                EstadoConfirmacion = null,
+                FechaConfirmacion = null,
+                IdRuta = asistencia.Servicio.IdRuta,
+                NombreRuta = ruta?.Nombre,
+                SectorRuta = ruta?.Sector,
+                TieneAsistencia = true,
+                TipoAsistencia = asistencia.TipoAsistencia,
+                EstadoAsistencia = asistencia.Estado,
+                FechaHoraAsistencia = asistencia.FechaHora
+            };
+        }
+
+        private sealed record CandidatoProximo(
+            int IdPasajeroServicio,
+            Servicio Servicio,
+            bool Planificado,
+            EstadoConfirmacionViaje? Confirmacion,
+            string? IdPuntoRecogida);
 
         private static PuntoRecogidaPasajeroDto? MapearPuntoAsignado(PuntoRecogidaRuta? punto)
         {

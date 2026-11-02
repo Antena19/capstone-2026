@@ -1,43 +1,8 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input, output } from '@angular/core';
-import {
-  AbstractControl,
-  FormBuilder,
-  ReactiveFormsModule,
-  ValidationErrors,
-  ValidatorFn,
-  Validators,
-} from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { contrasenasCoinciden, MENSAJE_POLITICA_PASSWORD, politicaPassword } from '../../core/auth/politica-password';
 import { CambiarPasswordSolicitud } from '../../core/models/autenticacion';
 import { ActionButton } from '../../shared/components/action-button/action-button';
-
-function politicaPassword(): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    const valor = String(control.value ?? '');
-    if (!valor) {
-      return null;
-    }
-
-    if (valor.length < 8 || valor.length > 100) {
-      return { passwordPolitica: true };
-    }
-
-    const tieneLetra = /[A-Za-z]/.test(valor);
-    const tieneNumero = /\d/.test(valor);
-    return tieneLetra && tieneNumero ? null : { passwordPolitica: true };
-  };
-}
-
-function contrasenasCoinciden(): ValidatorFn {
-  return (grupo: AbstractControl): ValidationErrors | null => {
-    const password = grupo.get('passwordNueva')?.value;
-    const confirmacion = grupo.get('passwordConfirm')?.value;
-    if (!password && !confirmacion) {
-      return null;
-    }
-
-    return password === confirmacion ? null : { passwordMismatch: true };
-  };
-}
 
 @Component({
   selector: 'app-password-form',
@@ -122,7 +87,7 @@ export class PasswordForm {
     }
 
     if (campo.hasError('passwordPolitica')) {
-      return 'La contraseña debe tener entre 8 y 100 caracteres, e incluir al menos una letra y un número.';
+      return MENSAJE_POLITICA_PASSWORD;
     }
 
     if (campo.hasError('maxlength')) {

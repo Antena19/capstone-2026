@@ -1,0 +1,45 @@
+<ion-content [fullscreen]="true">
+  <header class="auth-marca">
+    <img src="assets/brand/logo_blanco.svg" alt="" />
+    <p class="nombre">TRAYEK</p>
+    <p class="rubro">GESTIÓN DE TRANSPORTE DE PERSONAL</p>
+  </header>
+
+  <div class="auth-panel">
+    <section class="auth-tarjeta">
+      <h1>Recuperar contraseña</h1>
+      <p class="lead">Ingresa el correo si tu cuenta tiene uno registrado.</p>
+
+      <form [formGroup]="form" (ngSubmit)="enviar()">
+        <ion-input
+          fill="outline"
+          label="Correo electrónico"
+          labelPlacement="stacked"
+          type="email"
+          formControlName="correo"
+          autocomplete="email"
+          inputmode="email"
+        />
+
+        @if (mensajeCorreo(); as mensaje) {
+          <ion-note color="danger">{{ mensaje }}</ion-note>
+        }
+
+        <ion-note id="aviso-recuperacion" class="aviso-pendiente">{{ aviso }}</ion-note>
+
+        <ion-button
+          expand="block"
+          type="submit"
+          [disabled]="!disponible"
+          aria-describedby="aviso-recuperacion"
+        >
+          Enviar instrucciones
+        </ion-button>
+      </form>
+
+      <p class="auth-enlace">
+        <a routerLink="/login">Volver a iniciar sesión</a>
+      </p>
+    </section>
+  </div>
+</ion-content>

@@ -10,6 +10,11 @@ namespace BACKEND.DTOs.Mobile.Pasajero
     {
         public int IdPasajeroServicio { get; set; }
 
+        /// <summary>
+        /// Falso cuando el servicio entra solo por una asistencia, sin asociación activa.
+        /// </summary>
+        public bool Planificado { get; set; } = true;
+
         public int IdServicio { get; set; }
 
         public DateOnly Fecha { get; set; }
@@ -24,7 +29,7 @@ namespace BACKEND.DTOs.Mobile.Pasajero
 
         public string? MotivoCancelacion { get; set; }
 
-        public EstadoConfirmacionViaje EstadoConfirmacion { get; set; }
+        public EstadoConfirmacionViaje? EstadoConfirmacion { get; set; }
 
         public DateTime? FechaConfirmacion { get; set; }
 

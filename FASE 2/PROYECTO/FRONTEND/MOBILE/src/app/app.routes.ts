@@ -15,6 +15,18 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/activar/activar.page').then((m) => m.ActivarPage),
   },
   {
+    path: 'recuperar',
+    canActivate: [guestGuard],
+    loadComponent: () =>
+      import('./features/auth/recuperar/recuperar.page').then((m) => m.RecuperarPage),
+  },
+  {
+    path: 'restablecer',
+    canActivate: [guestGuard],
+    loadComponent: () =>
+      import('./features/auth/restablecer/restablecer.page').then((m) => m.RestablecerPage),
+  },
+  {
     path: 'cambiar-password',
     canActivate: [cambiarPasswordGuard],
     loadComponent: () =>

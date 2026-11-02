@@ -1,0 +1,76 @@
+<div class="login">
+  <section class="panel-marca" aria-label="Identidad Trayek">
+    <div class="identidad">
+      <div class="logo-pista">
+        <div class="logo-marco">
+          <img class="logo" src="logo_blanco.svg" alt="" />
+        </div>
+      </div>
+      <p class="nombre">TRAYEK</p>
+      <p class="rubro">GESTIÓN DE TRANSPORTE DE PERSONAL</p>
+    </div>
+    <div class="marca-pie">
+      <div class="bloques">
+        @for (bloque of bloques; track bloque.titulo) {
+          <article>
+            <h2>{{ bloque.titulo }}</h2>
+            <p>{{ bloque.detalle }}</p>
+          </article>
+        }
+      </div>
+      <blockquote>{{ concepto }}</blockquote>
+    </div>
+  </section>
+
+  <section class="panel-form">
+    <div class="tarjeta">
+      <header>
+        <h1>Restablecer contraseña</h1>
+        <p>Define una nueva contraseña para tu cuenta.</p>
+      </header>
+
+      <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+        <label>
+          Nueva contraseña
+          <input
+            type="password"
+            formControlName="passwordNueva"
+            maxlength="100"
+            autocomplete="new-password"
+            [attr.aria-invalid]="mensajePassword() !== null"
+          />
+          @if (mensajePassword(); as mensaje) {
+            <span class="campo-error">{{ mensaje }}</span>
+          }
+          <span class="nota">{{ politica }}</span>
+        </label>
+
+        <label>
+          Confirmar contraseña
+          <input
+            type="password"
+            formControlName="passwordConfirm"
+            maxlength="100"
+            autocomplete="new-password"
+            [attr.aria-invalid]="mensajeConfirmacion() !== null"
+          />
+          @if (mensajeConfirmacion(); as mensaje) {
+            <span class="campo-error">{{ mensaje }}</span>
+          }
+        </label>
+
+        <p id="aviso-restablecer" class="aviso">{{ aviso }}</p>
+
+        <button type="submit" [disabled]="!disponible" aria-describedby="aviso-restablecer">
+          Restablecer contraseña
+        </button>
+      </form>
+
+      <p class="enlace">
+        <a routerLink="/login">Volver a iniciar sesión</a>
+      </p>
+
+      <p class="copy">© {{ anio }} Trayek</p>
+    </div>
+  </section>
+</div>
