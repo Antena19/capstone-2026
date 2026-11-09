@@ -1,11 +1,4 @@
-<ion-header class="ion-no-border">
-  <ion-toolbar>
-    <img slot="start" class="logo-toolbar" src="assets/brand/logo_blanco.svg" alt="" />
-    <ion-title>Mis servicios</ion-title>
-    <ion-button class="accion-toolbar" slot="end" fill="clear" (click)="abrirPerfil()">Perfil</ion-button>
-    <ion-button class="accion-toolbar" slot="end" fill="clear" (click)="cerrarSesion()">Salir</ion-button>
-  </ion-toolbar>
-</ion-header>
+<app-barra-navegacion titulo="Mis servicios" [mostrarMenu]="true" />
 
 <ion-content [fullscreen]="true">
   <ion-refresher slot="fixed" (ionRefresh)="refrescar($event)">

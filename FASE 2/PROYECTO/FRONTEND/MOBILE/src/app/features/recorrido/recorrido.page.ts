@@ -1,18 +1,14 @@
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {
-  IonBackButton,
   IonButton,
-  IonButtons,
   IonContent,
-  IonHeader,
   IonNote,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
   ViewWillEnter,
 } from '@ionic/angular';
 import { AuthService } from '../../core/auth/auth.service';
+import { BarraNavegacionComponent } from '../../shared/barra-navegacion/barra-navegacion.component';
 import { RutaMapa } from '../../core/models/ruta-mapa';
 import { MisServiciosService } from '../../core/services/mis-servicios.service';
 import { MapaRecorridoComponent } from '../../shared/mapa/mapa-recorrido.component';
@@ -25,11 +21,7 @@ type PerfilMapa = 'pasajero' | 'conductor';
   templateUrl: './recorrido.page.html',
   styleUrl: './recorrido.page.scss',
   imports: [
-    IonHeader,
-    IonToolbar,
-    IonButtons,
-    IonBackButton,
-    IonTitle,
+    BarraNavegacionComponent,
     IonContent,
     IonButton,
     IonSpinner,

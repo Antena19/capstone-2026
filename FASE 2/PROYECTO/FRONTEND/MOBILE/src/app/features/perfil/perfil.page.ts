@@ -1,16 +1,11 @@
 import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import {
-  IonBackButton,
   IonButton,
-  IonButtons,
   IonContent,
-  IonHeader,
   IonIcon,
   IonNote,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
   ViewWillEnter,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
@@ -25,6 +20,7 @@ import {
   person,
 } from 'ionicons/icons';
 import { AuthService } from '../../core/auth/auth.service';
+import { BarraNavegacionComponent } from '../../shared/barra-navegacion/barra-navegacion.component';
 import { ROL_CONDUCTOR, ROL_PASAJERO } from '../../core/constants/auth';
 import { MisServiciosService } from '../../core/services/mis-servicios.service';
 import { formatearFechaChile } from '../../core/utils/formato-servicio';
@@ -51,11 +47,7 @@ addIcons({
   templateUrl: './perfil.page.html',
   styleUrls: ['./perfil.page.scss'],
   imports: [
-    IonHeader,
-    IonToolbar,
-    IonButtons,
-    IonBackButton,
-    IonTitle,
+    BarraNavegacionComponent,
     IonContent,
     IonButton,
     IonIcon,
@@ -96,10 +88,6 @@ export class PerfilPage implements ViewWillEnter {
     }
 
     return this.auth.sesion()?.rol ?? '';
-  }
-
-  destinoVolver(): string {
-    return this.auth.rutaInicio();
   }
 
   explicacion(): string {

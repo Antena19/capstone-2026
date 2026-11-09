@@ -3,17 +3,12 @@ import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {
   AlertController,
-  IonBackButton,
   IonButton,
-  IonButtons,
   IonContent,
-  IonHeader,
   IonNote,
   IonRefresher,
   IonRefresherContent,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
   RefresherCustomEvent,
   ViewWillEnter,
   ViewWillLeave,
@@ -21,6 +16,7 @@ import {
 import { toDataURL } from 'qrcode';
 import { catchError, forkJoin, of, throwError } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
+import { BarraNavegacionComponent } from '../../../shared/barra-navegacion/barra-navegacion.component';
 import { EstadoServicio, QrServicioRespuesta, ServicioConductorDetalle } from '../../../core/models/conductor';
 import { MisServiciosService } from '../../../core/services/mis-servicios.service';
 import {
@@ -35,11 +31,7 @@ import {
   templateUrl: './conductor-qr.page.html',
   styleUrls: ['./conductor-qr.page.scss'],
   imports: [
-    IonHeader,
-    IonToolbar,
-    IonButtons,
-    IonBackButton,
-    IonTitle,
+    BarraNavegacionComponent,
     IonContent,
     IonButton,
     IonSpinner,

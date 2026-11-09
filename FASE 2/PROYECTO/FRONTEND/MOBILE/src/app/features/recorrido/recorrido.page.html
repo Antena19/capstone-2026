@@ -1,11 +1,4 @@
-<ion-header class="ion-no-border">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button [defaultHref]="volver()" text="Detalle" />
-    </ion-buttons>
-    <ion-title>Recorrido</ion-title>
-  </ion-toolbar>
-</ion-header>
+<app-barra-navegacion titulo="Recorrido" [hrefRegreso]="volver()" />
 
 <ion-content class="contenido-recorrido">
   @if (cargando()) {

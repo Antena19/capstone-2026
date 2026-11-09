@@ -1,0 +1,15 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    @if (tieneRegreso()) {
+      <ion-buttons slot="start">
+        <ion-back-button [defaultHref]="hrefRegreso()!" text="" />
+      </ion-buttons>
+    } @else if (mostrarMenu()) {
+      <ion-buttons slot="start">
+        <ion-menu-button aria-label="Abrir menú" />
+      </ion-buttons>
+    }
+    <ion-title>{{ titulo() }}</ion-title>
+    <ng-content />
+  </ion-toolbar>
+</ion-header>

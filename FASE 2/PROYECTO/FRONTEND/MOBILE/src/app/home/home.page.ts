@@ -11,13 +11,10 @@ import {
   IonCardSubtitle,
   IonCardTitle,
   IonContent,
-  IonHeader,
   IonNote,
   IonRefresher,
   IonRefresherContent,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
   RefresherCustomEvent,
   ToastController,
   ViewWillEnter,
@@ -57,6 +54,7 @@ import {
   crearRefrescoOperativo,
   decidirErrorRefresco,
 } from '../core/utils/refresco-operativo';
+import { BarraNavegacionComponent } from '../shared/barra-navegacion/barra-navegacion.component';
 import { BienvenidaModalComponent } from '../shared/bienvenida/bienvenida-modal.component';
 
 const DIAS_HISTORIAL = 14;
@@ -67,9 +65,7 @@ const DIAS_HISTORIAL = 14;
   styleUrls: ['home.page.scss'],
   imports: [
     NgTemplateOutlet,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
+    BarraNavegacionComponent,
     IonContent,
     IonButton,
     IonSpinner,
@@ -261,15 +257,6 @@ export class HomePage implements ViewWillEnter, ViewWillLeave, OnDestroy {
 
       await this.avisar(mensajeErrorEscaneo(error));
     }
-  }
-
-  cerrarSesion(): void {
-    this.auth.cerrarSesion();
-    void this.router.navigateByUrl('/login');
-  }
-
-  abrirPerfil(): void {
-    void this.router.navigateByUrl('/perfil');
   }
 
   nombreBienvenida(): string | null {

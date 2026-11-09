@@ -1,3 +1,33 @@
 <ion-app mode="md">
-  <ion-router-outlet></ion-router-outlet>
+  <ion-menu contentId="contenido" type="overlay" [disabled]="!menuActivo()" [swipeGesture]="false">
+    <ion-header class="ion-no-border">
+      <ion-toolbar>
+        <ion-title>Trayek</ion-title>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content>
+      <ion-list>
+        @if (menuActivo()) {
+        @for (opcion of opciones(); track opcion.href) {
+          <ion-item
+            button
+            [routerLink]="opcion.href"
+            routerLinkActive="activo"
+            lines="full"
+            (click)="cerrarMenu()"
+          >
+            <ion-icon slot="start" [name]="opcion.icono" aria-hidden="true" />
+            <ion-label>{{ opcion.texto }}</ion-label>
+          </ion-item>
+        }
+        <ion-item button lines="none" (click)="cerrarSesion()">
+          <ion-icon slot="start" name="log-out-outline" aria-hidden="true" />
+          <ion-label>Cerrar sesión</ion-label>
+        </ion-item>
+        }
+      </ion-list>
+    </ion-content>
+  </ion-menu>
+
+  <ion-router-outlet id="contenido" />
 </ion-app>

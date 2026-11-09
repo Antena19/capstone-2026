@@ -3,11 +3,8 @@ import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {
   AlertController,
-  IonBackButton,
   IonButton,
-  IonButtons,
   IonContent,
-  IonHeader,
   IonBadge,
   IonCard,
   IonCardContent,
@@ -18,14 +15,13 @@ import {
   IonRefresher,
   IonRefresherContent,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
   RefresherCustomEvent,
   ViewWillEnter,
   ViewWillLeave,
 } from '@ionic/angular';
 import { catchError, forkJoin, of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
+import { BarraNavegacionComponent } from '../../../shared/barra-navegacion/barra-navegacion.component';
 import { AsistenciaRespuesta } from '../../../core/models/asistencia';
 import { EstadoServicio, PasajeroServicioConductor } from '../../../core/models/conductor';
 import { MisServiciosService } from '../../../core/services/mis-servicios.service';
@@ -55,11 +51,7 @@ import {
   templateUrl: './conductor-pasajeros.page.html',
   styleUrls: ['./conductor-pasajeros.page.scss'],
   imports: [
-    IonHeader,
-    IonToolbar,
-    IonButtons,
-    IonBackButton,
-    IonTitle,
+    BarraNavegacionComponent,
     IonContent,
     IonButton,
     IonSpinner,

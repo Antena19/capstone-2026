@@ -7,19 +7,15 @@ import {
   Validators,
 } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import {
-  IonButton,
-  IonContent,
-  IonHeader,
-  IonInput,
-  IonNote,
-  IonSpinner,
-  IonTitle,
-  IonToolbar,
-} from '@ionic/angular';
+import { IonButton, IonContent, IonIcon, IonNote, IonSpinner } from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import { logOutOutline } from 'ionicons/icons';
 import { AuthService } from '../../../core/auth/auth.service';
+import { BarraNavegacionComponent } from '../../../shared/barra-navegacion/barra-navegacion.component';
 import { CampoPasswordComponent } from '../../../shared/campo-password/campo-password.component';
 import { MENSAJE_PASSWORD, PATRON_PASSWORD } from '../../../core/constants/auth';
+
+addIcons({ logOutOutline });
 
 function confirmarPassword(grupo: AbstractControl): ValidationErrors | null {
   const password = grupo.get('passwordNueva')?.value;
@@ -37,11 +33,10 @@ function confirmarPassword(grupo: AbstractControl): ValidationErrors | null {
   styleUrls: ['./cambiar-password.page.scss'],
   imports: [
     ReactiveFormsModule,
-    IonHeader,
-    IonToolbar,
-    IonTitle,
+    BarraNavegacionComponent,
     IonContent,
     IonButton,
+    IonIcon,
     IonNote,
     IonSpinner,
     CampoPasswordComponent,
@@ -93,9 +88,5 @@ export class CambiarPasswordPage {
   cerrarSesion(): void {
     this.auth.cerrarSesion();
     void this.router.navigateByUrl('/login');
-  }
-
-  volver(): void {
-    void this.router.navigateByUrl('/perfil');
   }
 }

@@ -2,12 +2,9 @@ import { Component, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import {
   AlertController,
-  IonBackButton,
   IonBadge,
   IonButton,
-  IonButtons,
   IonContent,
-  IonHeader,
   IonItem,
   IonLabel,
   IonList,
@@ -15,14 +12,13 @@ import {
   IonRefresher,
   IonRefresherContent,
   IonSpinner,
-  IonTitle,
-  IonToolbar,
   RefresherCustomEvent,
   ToastController,
   ViewWillEnter,
   ViewWillLeave,
 } from '@ionic/angular';
 import { AuthService } from '../../../core/auth/auth.service';
+import { BarraNavegacionComponent } from '../../../shared/barra-navegacion/barra-navegacion.component';
 import { ServicioConductorDetalle } from '../../../core/models/conductor';
 import { MisServiciosService } from '../../../core/services/mis-servicios.service';
 import { evaluarInicioConductor, horaAperturaInicio } from '../../../core/utils/inicio-conductor';
@@ -46,11 +42,7 @@ import {
   templateUrl: './conductor-detalle.page.html',
   styleUrls: ['./conductor-detalle.page.scss'],
   imports: [
-    IonHeader,
-    IonToolbar,
-    IonButtons,
-    IonBackButton,
-    IonTitle,
+    BarraNavegacionComponent,
     IonContent,
     IonButton,
     IonSpinner,

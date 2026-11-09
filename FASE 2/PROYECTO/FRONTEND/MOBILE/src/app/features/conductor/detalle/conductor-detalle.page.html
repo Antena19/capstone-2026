@@ -1,11 +1,4 @@
-<ion-header class="ion-no-border">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="/conductor" text="Servicios" />
-    </ion-buttons>
-    <ion-title>Detalle del servicio</ion-title>
-  </ion-toolbar>
-</ion-header>
+<app-barra-navegacion titulo="Detalle del servicio" hrefRegreso="/conductor" />
 
 <ion-content [fullscreen]="true">
   <ion-refresher slot="fixed" (ionRefresh)="refrescar($event)">
