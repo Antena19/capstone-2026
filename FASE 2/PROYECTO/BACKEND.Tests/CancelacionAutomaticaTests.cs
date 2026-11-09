@@ -111,7 +111,6 @@ public class CancelacionAutomaticaTests
                 Fin,
                 inicioReal: DateTime.UtcNow);
             id = servicio.IdServicio;
-            await db.FijarCorteAsync(contexto, 0);
             Assert.Equal(0, await db.CrearCancelacion(contexto, VencimientoServicio.EnUtc(Fecha, Fin)).EjecutarAsync());
         }
 
@@ -142,7 +141,6 @@ public class CancelacionAutomaticaTests
                 DateTime.UtcNow)).IdServicio;
             cancelado = (await db.CrearServicioAsync(
                 contexto, Fecha, Inicio, Fin, EstadoServicio.CANCELADO)).IdServicio;
-            await db.FijarCorteAsync(contexto, 0);
             Assert.Equal(0, await db.CrearCancelacion(contexto, DateTime.UtcNow.AddDays(3)).EjecutarAsync());
         }
 
@@ -154,37 +152,41 @@ public class CancelacionAutomaticaTests
     }
 
     [Fact]
-    public async Task ExcluyeLosServiciosConIdMenorOIgualAlCorte()
+    public async Task CancelaIdsAntiguosYNuevosEnLaMismaPasada()
     {
         using var db = new BasePruebasServicio();
-        int historico;
+        int antiguo;
         int nuevo;
         var vencimiento = VencimientoServicio.EnUtc(Fecha, Fin);
         await using (var contexto = db.Crear())
         {
-            historico = (await db.CrearServicioAsync(contexto, Fecha, Inicio, Fin)).IdServicio;
-            await db.FijarCorteAsync(contexto, historico);
+            antiguo = (await db.CrearServicioAsync(contexto, Fecha, Inicio, Fin)).IdServicio;
             nuevo = (await db.CrearServicioAsync(contexto, Fecha, Inicio, Fin)).IdServicio;
-            Assert.Equal(1, await db.CrearCancelacion(contexto, vencimiento).EjecutarAsync());
+            Assert.Equal(2, await db.CrearCancelacion(contexto, vencimiento).EjecutarAsync());
         }
 
-        Assert.Equal(EstadoServicio.PROGRAMADO, (await LeerAsync(db, historico)).Estado);
+        Assert.True(nuevo > antiguo);
+        Assert.Equal(EstadoServicio.CANCELADO, (await LeerAsync(db, antiguo)).Estado);
+        Assert.Equal(MotivosCancelacionServicio.FaltaDeInicio, (await LeerAsync(db, antiguo)).MotivoCancelacion);
         Assert.Equal(EstadoServicio.CANCELADO, (await LeerAsync(db, nuevo)).Estado);
-        Assert.True(nuevo > historico);
+        Assert.Equal(MotivosCancelacionServicio.FaltaDeInicio, (await LeerAsync(db, nuevo)).MotivoCancelacion);
     }
 
     [Fact]
-    public async Task SinCortePersistenteNoCancela()
+    public async Task CancelaAunqueNoExistaFilaDeConfiguracion()
     {
         using var db = new BasePruebasServicio();
         int id;
         await using (var contexto = db.Crear())
         {
             id = (await db.CrearServicioAsync(contexto, Fecha, Inicio, Fin)).IdServicio;
-            Assert.Equal(0, await db.CrearCancelacion(contexto, VencimientoServicio.EnUtc(Fecha, Fin)).EjecutarAsync());
+            Assert.Equal(0, await contexto.ConfiguracionesSistema.CountAsync());
+            Assert.Equal(1, await db.CrearCancelacion(contexto, VencimientoServicio.EnUtc(Fecha, Fin)).EjecutarAsync());
         }
 
-        Assert.Equal(EstadoServicio.PROGRAMADO, (await LeerAsync(db, id)).Estado);
+        var actual = await LeerAsync(db, id);
+        Assert.Equal(EstadoServicio.CANCELADO, actual.Estado);
+        Assert.Equal(MotivosCancelacionServicio.FaltaDeInicio, actual.MotivoCancelacion);
     }
 
     [Fact]
@@ -196,7 +198,6 @@ public class CancelacionAutomaticaTests
         await using (var contexto = db.Crear())
         {
             id = (await db.CrearServicioAsync(contexto, Fecha, Inicio, Fin)).IdServicio;
-            await db.FijarCorteAsync(contexto, 0);
             await db.AgregarPasajeroAsync(contexto, id);
             await db.AsignarAsync(contexto, id);
             await db.AgregarQrAsync(contexto, id, EstadoQrServicio.ACTIVO);
@@ -205,11 +206,7 @@ public class CancelacionAutomaticaTests
             var job = db.CrearCancelacion(contexto, vencimiento);
             Assert.Equal(1, await job.EjecutarAsync());
             Assert.Equal(0, await job.EjecutarAsync());
-
-            var corte = await contexto.ConfiguracionesSistema
-                .AsNoTracking()
-                .SingleAsync(c => c.Clave == ClavesConfiguracion.CorteCancelacionAutomatica);
-            Assert.Equal("0", corte.Valor);
+            Assert.Equal(0, await contexto.ConfiguracionesSistema.CountAsync());
         }
 
         await using var lectura = db.Crear();
@@ -240,7 +237,6 @@ public class CancelacionAutomaticaTests
         await using (var preparacion = db.Crear())
         {
             id = (await db.CrearServicioAsync(preparacion, Fecha, Inicio, Fin)).IdServicio;
-            await db.FijarCorteAsync(preparacion, 0);
             await db.AsignarAsync(preparacion, id);
             await db.AgregarQrAsync(preparacion, id, EstadoQrServicio.ACTIVO);
         }
@@ -292,7 +288,6 @@ public class CancelacionAutomaticaTests
         await using var lectura = db.Crear();
         var servicio = await db.CrearServicioAsync(lectura, Fecha, Inicio, Fin);
         id = servicio.IdServicio;
-        await db.FijarCorteAsync(lectura, 0);
         Assert.Equal(EstadoServicio.PROGRAMADO, servicio.Estado);
 
         await using (var otro = db.Crear())
@@ -320,7 +315,6 @@ public class CancelacionAutomaticaTests
         await using (var contexto = db.Crear())
         {
             id = (await db.CrearServicioAsync(contexto, horario.Fecha, horario.HoraInicio, horario.HoraFin)).IdServicio;
-            await db.FijarCorteAsync(contexto, 0);
             await db.AsignarAsync(contexto, id);
             Assert.Equal(
                 1,
@@ -349,7 +343,6 @@ public class CancelacionAutomaticaTests
         await using (var contexto = db.Crear())
         {
             id = (await db.CrearServicioAsync(contexto, horario.Fecha, horario.HoraInicio, horario.HoraFin)).IdServicio;
-            await db.FijarCorteAsync(contexto, 0);
             await db.AsignarAsync(contexto, id);
             await db.CrearOperacion(contexto).IniciarComoConductorAsync(id, db.IdUsuarioConductor);
             Assert.Equal(0, await db.CrearCancelacion(contexto, DateTime.UtcNow.AddDays(2)).EjecutarAsync());
@@ -370,7 +363,6 @@ public class CancelacionAutomaticaTests
         await using (var preparacion = db.Crear())
         {
             id = (await db.CrearServicioAsync(preparacion, horario.Fecha, horario.HoraInicio, horario.HoraFin)).IdServicio;
-            await db.FijarCorteAsync(preparacion, 0);
             await db.AsignarAsync(preparacion, id);
         }
 
@@ -407,7 +399,6 @@ public class CancelacionAutomaticaTests
         await using (var contexto = db.Crear())
         {
             id = (await db.CrearServicioAsync(contexto, Fecha, Inicio, Fin)).IdServicio;
-            await db.FijarCorteAsync(contexto, 0);
         }
 
         var servicios = new ServiceCollection();
@@ -452,7 +443,6 @@ public class CancelacionAutomaticaTests
     {
         await using var contexto = db.Crear();
         var servicio = await db.CrearServicioAsync(contexto, fecha, horaInicio, horaFin);
-        await db.FijarCorteAsync(contexto, 0);
         return servicio.IdServicio;
     }
 

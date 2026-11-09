@@ -5,10 +5,10 @@
 -- No modifica filas de servicio, asistencia, pasajero_servicio, asignacion
 -- ni qr_servicio. No borra históricos.
 --
--- El corte queda en configuracion_sistema y sobrevive a un reinicio de Railway.
--- Su valor es el id_servicio máximo que YA existe al ejecutar este script.
--- La aplicación solo cancela servicios con id_servicio estrictamente mayor.
--- Volver a ejecutar el script no mueve el corte.
+-- Este script ya fue aplicado en Railway. La aplicación ya no lee
+-- cancelacion_automatica.id_servicio_corte: un servicio vencido se evalúa
+-- con cualquier id. Volver a ejecutar el script no mueve el corte ni
+-- cancela servicios. No hace falta volver a correrlo.
 --
 -- Orden seguro:
 --   1. Cargar o conservar los servicios que deben quedar fuera de la regla.

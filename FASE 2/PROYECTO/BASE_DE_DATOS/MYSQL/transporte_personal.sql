@@ -388,8 +388,8 @@ CREATE TABLE `auditoria` (
     ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Corte de la cancelación automática. La fila se inserta con el script incremental,
--- usando el id_servicio máximo presente en ese momento. No se siembra aquí.
+-- Parámetros persistentes. La cancelación automática ya no consulta
+-- cancelacion_automatica.id_servicio_corte. No se siembra ninguna fila aquí.
 CREATE TABLE `configuracion_sistema` (
   `clave` VARCHAR(100) NOT NULL,
   `valor` VARCHAR(255) NOT NULL,

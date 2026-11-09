@@ -45,27 +45,6 @@ public sealed class BasePruebasServicio : IDisposable
 
     public TransporteContext Crear() => new(_opciones);
 
-    public async Task FijarCorteAsync(TransporteContext contexto, int idServicioCorte)
-    {
-        var fila = await contexto.ConfiguracionesSistema
-            .FirstOrDefaultAsync(c => c.Clave == ClavesConfiguracion.CorteCancelacionAutomatica);
-
-        if (fila is null)
-        {
-            contexto.ConfiguracionesSistema.Add(new ConfiguracionSistema
-            {
-                Clave = ClavesConfiguracion.CorteCancelacionAutomatica,
-                Valor = idServicioCorte.ToString()
-            });
-        }
-        else
-        {
-            fila.Valor = idServicioCorte.ToString();
-        }
-
-        await contexto.SaveChangesAsync();
-    }
-
     public async Task<Servicio> CrearServicioAsync(
         TransporteContext contexto,
         DateOnly fecha,

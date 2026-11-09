@@ -9,7 +9,7 @@ namespace BACKEND.Negocio.Servicios
     public interface IServicioCancelacionAutomatica
     {
         /// <summary>
-        /// Cancela los servicios nuevos ya vencidos. Devuelve cuántos cambió en esta pasada.
+        /// Cancela los servicios ya vencidos. Devuelve cuántos cambió en esta pasada.
         /// </summary>
         Task<int> EjecutarAsync(CancellationToken cancellationToken = default);
     }
@@ -17,8 +17,7 @@ namespace BACKEND.Negocio.Servicios
     /// <summary>
     /// Pasa a CANCELADO los servicios PROGRAMADO que no se iniciaron y no tienen
     /// asistencias, 12 horas después de su fin programado en America/Santiago.
-    /// No recorre servicios con id menor o igual al corte persistido: esos son
-    /// anteriores a la activación. Si el corte no existe, no cancela ninguno.
+    /// El identificador del servicio no excluye a nadie.
     /// </summary>
     public class ServicioCancelacionAutomatica : IServicioCancelacionAutomatica
     {
@@ -41,22 +40,12 @@ namespace BACKEND.Negocio.Servicios
 
         public async Task<int> EjecutarAsync(CancellationToken cancellationToken = default)
         {
-            var corte = await LeerCorteAsync(cancellationToken);
-            if (corte is null)
-            {
-                _logger.LogWarning(
-                    "No hay corte persistente {Clave}. La cancelación automática no modifica servicios.",
-                    ClavesConfiguracion.CorteCancelacionAutomatica);
-                return 0;
-            }
-
             var ahoraUtc = VencimientoServicio.NormalizarUtc(_reloj.UtcAhora);
             var hoyChile = RelojChile.FechaDeUtc(ahoraUtc);
 
             var candidatos = await _contexto.Servicios
                 .AsNoTracking()
-                .Where(s => s.IdServicio > corte.Value
-                    && s.Estado == EstadoServicio.PROGRAMADO
+                .Where(s => s.Estado == EstadoServicio.PROGRAMADO
                     && s.FechaHoraInicioReal == null
                     && s.Fecha <= hoyChile
                     && !_contexto.Asistencias.Any(a => a.IdServicio == s.IdServicio))
@@ -71,7 +60,7 @@ namespace BACKEND.Negocio.Servicios
             var cancelados = 0;
             foreach (var idServicio in vencidos)
             {
-                if (await CancelarUnoAsync(idServicio, corte.Value, cancellationToken))
+                if (await CancelarUnoAsync(idServicio, cancellationToken))
                 {
                     cancelados++;
                 }
@@ -88,25 +77,8 @@ namespace BACKEND.Negocio.Servicios
             return cancelados;
         }
 
-        private async Task<int?> LeerCorteAsync(CancellationToken cancellationToken)
-        {
-            var fila = await _contexto.ConfiguracionesSistema
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    c => c.Clave == ClavesConfiguracion.CorteCancelacionAutomatica,
-                    cancellationToken);
-
-            if (fila is null || !int.TryParse(fila.Valor, out var corte) || corte < 0)
-            {
-                return null;
-            }
-
-            return corte;
-        }
-
         private async Task<bool> CancelarUnoAsync(
             int idServicio,
-            int corte,
             CancellationToken cancellationToken)
         {
             await using var transaccion = await _contexto.Database.BeginTransactionAsync(cancellationToken);
@@ -114,7 +86,6 @@ namespace BACKEND.Negocio.Servicios
             var reclamado = await ReclamoTransicionServicio.ReclamarCancelacionAutomaticaAsync(
                 _contexto,
                 idServicio,
-                corte,
                 cancellationToken);
 
             if (!reclamado)

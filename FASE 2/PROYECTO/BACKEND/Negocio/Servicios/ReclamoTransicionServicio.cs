@@ -37,7 +37,6 @@ namespace BACKEND.Negocio.Servicios
         public static async Task<bool> ReclamarCancelacionAutomaticaAsync(
             TransporteContext contexto,
             int idServicio,
-            int idServicioCorte,
             CancellationToken cancellationToken = default)
         {
             if (!await BloquearFilaMysqlAsync(contexto, idServicio, cancellationToken))
@@ -51,7 +50,6 @@ namespace BACKEND.Negocio.Servicios
                    SET `estado` = 'CANCELADO',
                        `motivo_cancelacion` = {motivo}
                    WHERE `id_servicio` = {idServicio}
-                     AND `id_servicio` > {idServicioCorte}
                      AND `estado` = 'PROGRAMADO'
                      AND `fecha_hora_inicio_real` IS NULL
                      AND NOT EXISTS (
