@@ -9,6 +9,7 @@ using BACKEND.Negocio.Tiempo;
 using BACKEND.Negocio.Configuracion;
 using BACKEND.Negocio.Filtros;
 using BACKEND.Negocio.Geocodificacion;
+using BACKEND.Negocio.Rutas;
 using BACKEND.Negocio.Ruteo;
 using BACKEND.Negocio.Seguridad;
 using BACKEND.Negocio.Servicios;
@@ -88,6 +89,7 @@ builder.Services.AddSingleton(sp =>
     var database = sp.GetRequiredService<IMongoDatabase>();
     return database.GetCollection<Ruta>(ColeccionesMongo.Rutas);
 });
+builder.Services.AddSingleton<IRepositorioRutas, RepositorioRutasMongo>();
 
 // Autenticación JWT Bearer. La clave de firma (Jwt:Key) vive en User Secrets,
 // con el mismo criterio que las cadenas de MySQL y MongoDB: no se versiona en GitHub.

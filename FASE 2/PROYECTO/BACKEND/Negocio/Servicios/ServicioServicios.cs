@@ -4,10 +4,10 @@ using BACKEND.DTOs.Servicios;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Constantes;
 using BACKEND.Negocio.Excepciones;
+using BACKEND.Negocio.Rutas;
 using BACKEND.Negocio.Tiempo;
 using Microsoft.EntityFrameworkCore;
 using MongoDB.Bson;
-using MongoDB.Driver;
 
 namespace BACKEND.Negocio.Servicios
 {
@@ -71,18 +71,20 @@ namespace BACKEND.Negocio.Servicios
         ];
 
         private readonly TransporteContext _contexto;
-        private readonly IMongoCollection<Ruta> _rutas;
+        private readonly IRepositorioRutas _rutas;
         private readonly IServicioAsistencias _servicioAsistencias;
         private readonly IServicioPasajerosServicio _servicioPasajerosServicio;
         private readonly IServicioQr _servicioQr;
+        private readonly IRelojOperacion _reloj;
         private readonly ILogger<ServicioServicios> _logger;
 
         public ServicioServicios(
             TransporteContext contexto,
-            IMongoCollection<Ruta> rutas,
+            IRepositorioRutas rutas,
             IServicioAsistencias servicioAsistencias,
             IServicioPasajerosServicio servicioPasajerosServicio,
             IServicioQr servicioQr,
+            IRelojOperacion reloj,
             ILogger<ServicioServicios> logger)
         {
             _contexto = contexto;
@@ -90,6 +92,7 @@ namespace BACKEND.Negocio.Servicios
             _servicioAsistencias = servicioAsistencias;
             _servicioPasajerosServicio = servicioPasajerosServicio;
             _servicioQr = servicioQr;
+            _reloj = reloj;
             _logger = logger;
         }
 
@@ -317,7 +320,7 @@ namespace BACKEND.Negocio.Servicios
             }
             else
             {
-                var hoy = DateOnly.FromDateTime(DateTime.Now);
+                var hoy = HoyChile();
                 objetivos = objetivos.Where(s => s.Fecha >= hoy).ToList();
             }
 
@@ -737,7 +740,7 @@ namespace BACKEND.Negocio.Servicios
                 throw new ExcepcionNegocio("El identificador de la ruta no es válido.");
             }
 
-            var ruta = await _rutas.Find(r => r.Id == objectId).FirstOrDefaultAsync();
+            var ruta = await _rutas.ObtenerPorIdAsync(objectId);
 
             if (ruta is null)
             {
@@ -767,10 +770,11 @@ namespace BACKEND.Negocio.Servicios
             }
         }
 
-        private static void AsegurarFechaNoAnteriorAlDiaActual(DateOnly fecha)
+        private DateOnly HoyChile() => RelojChile.FechaDeUtc(_reloj.UtcAhora);
+
+        private void AsegurarFechaNoAnteriorAlDiaActual(DateOnly fecha)
         {
-            var hoy = DateOnly.FromDateTime(DateTime.Now);
-            if (fecha < hoy)
+            if (fecha < HoyChile())
             {
                 throw new ExcepcionNegocio(
                     "No se puede crear ni modificar un servicio para una fecha anterior al día actual.");
@@ -821,7 +825,7 @@ namespace BACKEND.Negocio.Servicios
             };
         }
 
-        private static IReadOnlyList<DateOnly> GenerarFechasSerie(
+        private IReadOnlyList<DateOnly> GenerarFechasSerie(
             DateOnly fechaDesde,
             DateOnly fechaHasta,
             IReadOnlyCollection<DayOfWeek> dias,
