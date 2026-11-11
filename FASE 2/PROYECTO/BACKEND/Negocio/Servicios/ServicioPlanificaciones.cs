@@ -2,6 +2,7 @@ using BACKEND.Datos.MySQL;
 using BACKEND.DTOs.Planificaciones;
 using BACKEND.Modelos;
 using BACKEND.Negocio.Excepciones;
+using BACKEND.Negocio.Tiempo;
 using Microsoft.EntityFrameworkCore;
 
 namespace BACKEND.Negocio.Servicios
@@ -44,11 +45,16 @@ namespace BACKEND.Negocio.Servicios
         ];
 
         private readonly TransporteContext _contexto;
+        private readonly IRelojOperacion _reloj;
         private readonly ILogger<ServicioPlanificaciones> _logger;
 
-        public ServicioPlanificaciones(TransporteContext contexto, ILogger<ServicioPlanificaciones> logger)
+        public ServicioPlanificaciones(
+            TransporteContext contexto,
+            IRelojOperacion reloj,
+            ILogger<ServicioPlanificaciones> logger)
         {
             _contexto = contexto;
+            _reloj = reloj;
             _logger = logger;
         }
 
@@ -266,12 +272,12 @@ namespace BACKEND.Negocio.Servicios
             return valor;
         }
 
-        private static void AsegurarPeriodoNoAnteriorAlMesActual(string periodo)
+        private void AsegurarPeriodoNoAnteriorAlMesActual(string periodo)
         {
             var anio = int.Parse(periodo[..4]);
             var mes = int.Parse(periodo[5..]);
             var periodoSolicitado = new DateOnly(anio, mes, 1);
-            var hoy = DateTime.Now;
+            var hoy = RelojChile.FechaDeUtc(_reloj.UtcAhora);
             var mesActual = new DateOnly(hoy.Year, hoy.Month, 1);
 
             if (periodoSolicitado < mesActual)

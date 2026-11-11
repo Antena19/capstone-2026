@@ -153,6 +153,7 @@ public sealed class BasePruebasServicio : IDisposable
             asistencias,
             null!,
             qr,
+            new RelojOperacion(),
             _registros.CreateLogger<ServicioServicios>());
     }
 
