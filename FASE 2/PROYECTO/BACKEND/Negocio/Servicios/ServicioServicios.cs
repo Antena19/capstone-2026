@@ -76,6 +76,7 @@ namespace BACKEND.Negocio.Servicios
         private readonly IServicioPasajerosServicio _servicioPasajerosServicio;
         private readonly IServicioQr _servicioQr;
         private readonly IRelojOperacion _reloj;
+        private readonly IServicioAsignaciones _asignaciones;
         private readonly ILogger<ServicioServicios> _logger;
 
         public ServicioServicios(
@@ -85,6 +86,7 @@ namespace BACKEND.Negocio.Servicios
             IServicioPasajerosServicio servicioPasajerosServicio,
             IServicioQr servicioQr,
             IRelojOperacion reloj,
+            IServicioAsignaciones asignaciones,
             ILogger<ServicioServicios> logger)
         {
             _contexto = contexto;
@@ -93,6 +95,7 @@ namespace BACKEND.Negocio.Servicios
             _servicioPasajerosServicio = servicioPasajerosServicio;
             _servicioQr = servicioQr;
             _reloj = reloj;
+            _asignaciones = asignaciones;
             _logger = logger;
         }
 
@@ -284,6 +287,20 @@ namespace BACKEND.Negocio.Servicios
                 solicitud.HoraFin,
                 solicitud.TipoServicio);
 
+            if (servicio.Fecha != datos.Fecha
+                || servicio.HoraInicio != datos.HoraInicio
+                || servicio.HoraFin != datos.HoraFin)
+            {
+                await _asignaciones.AsegurarHorariosDeAsignacionesAsync(
+                [
+                    new PropuestaHorarioServicio(
+                        servicio.IdServicio,
+                        datos.Fecha,
+                        datos.HoraInicio,
+                        datos.HoraFin)
+                ]);
+            }
+
             servicio.IdEmpresa = datos.IdEmpresa;
             servicio.IdPlanificacion = datos.IdPlanificacion;
             servicio.IdRuta = datos.IdRuta;
@@ -327,6 +344,18 @@ namespace BACKEND.Negocio.Servicios
             if (objetivos.Count == 0)
             {
                 throw new ExcepcionNegocio("No hay servicios PROGRAMADOS para aplicar el alcance indicado.");
+            }
+
+            if (objetivos.Any(s => s.HoraInicio != solicitud.HoraInicio || s.HoraFin != solicitud.HoraFin))
+            {
+                await _asignaciones.AsegurarHorariosDeAsignacionesAsync(
+                    objetivos
+                        .Select(s => new PropuestaHorarioServicio(
+                            s.IdServicio,
+                            s.Fecha,
+                            solicitud.HoraInicio,
+                            solicitud.HoraFin))
+                        .ToList());
             }
 
             foreach (var servicio in objetivos)

@@ -1,3 +1,4 @@
+using System.Globalization;
 using BACKEND.Datos.MySQL;
 using BACKEND.DTOs.Asignaciones;
 using BACKEND.Modelos;
@@ -27,7 +28,22 @@ namespace BACKEND.Negocio.Servicios
             int idAsignacion,
             CambiarEstadoAsignacionSolicitudDto solicitud,
             int idAdministrador);
+
+        /// <summary>
+        /// Comprueba que las asignaciones activas de estos servicios sigan libres
+        /// con el horario propuesto. No escribe nada.
+        /// </summary>
+        Task AsegurarHorariosDeAsignacionesAsync(IReadOnlyList<PropuestaHorarioServicio> propuestas);
     }
+
+    /// <summary>
+    /// Horario con el que quedaría un servicio. La fecha no cambia en una serie.
+    /// </summary>
+    public readonly record struct PropuestaHorarioServicio(
+        int IdServicio,
+        DateOnly Fecha,
+        TimeOnly HoraInicio,
+        TimeOnly HoraFin);
 
     /// <summary>
     /// Gestión administrativa de asignaciones de conductor y vehículo.
@@ -36,8 +52,6 @@ namespace BACKEND.Negocio.Servicios
     /// </summary>
     public class ServicioAsignaciones : IServicioAsignaciones
     {
-        private const string MensajeConductorOcupado = "El conductor indicado ya tiene una asignación activa en un horario superpuesto.";
-        private const string MensajeVehiculoOcupado = "El vehículo indicado ya tiene una asignación activa en un horario superpuesto.";
         private const string MensajeAsignacionActiva = "El servicio ya tiene una asignación activa.";
 
         private readonly TransporteContext _contexto;
@@ -332,16 +346,107 @@ namespace BACKEND.Negocio.Servicios
             }
         }
 
+        public async Task AsegurarHorariosDeAsignacionesAsync(IReadOnlyList<PropuestaHorarioServicio> propuestas)
+        {
+            if (propuestas.Count == 0)
+            {
+                return;
+            }
+
+            var ids = propuestas.Select(p => p.IdServicio).Distinct().ToList();
+            var asignaciones = await _contexto.AsignacionesServicio
+                .AsNoTracking()
+                .Where(a => ids.Contains(a.IdServicio) && a.Estado == EstadoAsignacionServicio.ACTIVA)
+                .Select(a => new AsignacionEnHorario(
+                    a.IdServicio,
+                    a.IdConductor,
+                    a.Conductor.Nombre,
+                    a.IdVehiculo,
+                    a.Vehiculo.Patente))
+                .ToListAsync();
+
+            if (asignaciones.Count == 0)
+            {
+                return;
+            }
+
+            var porServicio = propuestas
+                .GroupBy(p => p.IdServicio)
+                .ToDictionary(g => g.Key, g => g.Last());
+            var ocupadas = asignaciones.Where(a => porServicio.ContainsKey(a.IdServicio)).ToList();
+
+            for (var i = 0; i < ocupadas.Count; i++)
+            {
+                for (var j = i + 1; j < ocupadas.Count; j++)
+                {
+                    var izquierda = porServicio[ocupadas[i].IdServicio];
+                    var derecha = porServicio[ocupadas[j].IdServicio];
+                    if (izquierda.Fecha != derecha.Fecha || !SeSuperponen(
+                            izquierda.HoraInicio,
+                            izquierda.HoraFin,
+                            derecha.HoraInicio,
+                            derecha.HoraFin))
+                    {
+                        continue;
+                    }
+
+                    var lineas = new List<string>();
+                    if (ocupadas[i].IdConductor == ocupadas[j].IdConductor)
+                    {
+                        lineas.Add(MensajeConductor(
+                            ocupadas[i].NombreConductor,
+                            derecha.IdServicio,
+                            derecha.Fecha,
+                            derecha.HoraInicio,
+                            derecha.HoraFin));
+                    }
+
+                    if (ocupadas[i].IdVehiculo == ocupadas[j].IdVehiculo)
+                    {
+                        lineas.Add(MensajeVehiculo(
+                            ocupadas[i].Patente,
+                            derecha.IdServicio,
+                            derecha.Fecha,
+                            derecha.HoraInicio,
+                            derecha.HoraFin));
+                    }
+
+                    if (lineas.Count > 0)
+                    {
+                        throw new ExcepcionNegocio(string.Join(' ', lineas), StatusCodes.Status409Conflict);
+                    }
+                }
+            }
+
+            foreach (var asignacion in ocupadas)
+            {
+                var horario = porServicio[asignacion.IdServicio];
+                await AsegurarDisponibilidadAsync(
+                    asignacion.IdConductor,
+                    asignacion.IdVehiculo,
+                    new Servicio
+                    {
+                        IdServicio = horario.IdServicio,
+                        Fecha = horario.Fecha,
+                        HoraInicio = horario.HoraInicio,
+                        HoraFin = horario.HoraFin
+                    },
+                    idsServicioExcluidos: ids);
+            }
+        }
+
         private async Task AsegurarDisponibilidadAsync(
             int idConductor,
             int idVehiculo,
             Servicio servicioObjetivo,
-            int? idAsignacionExcluida = null)
+            int? idAsignacionExcluida = null,
+            IReadOnlyCollection<int>? idsServicioExcluidos = null)
         {
             var consulta = _contexto.AsignacionesServicio
                 .AsNoTracking()
                 .Where(a => a.Estado == EstadoAsignacionServicio.ACTIVA)
                 .Where(a => a.IdConductor == idConductor || a.IdVehiculo == idVehiculo)
+                .Where(a => a.IdServicio != servicioObjetivo.IdServicio)
                 .Where(a => a.Servicio.Fecha == servicioObjetivo.Fecha)
                 .Where(a => a.Servicio.Estado != EstadoServicio.FINALIZADO
                     && a.Servicio.Estado != EstadoServicio.CANCELADO)
@@ -353,20 +458,85 @@ namespace BACKEND.Negocio.Servicios
                 consulta = consulta.Where(a => a.IdAsignacion != idAsignacionExcluida.Value);
             }
 
+            if (idsServicioExcluidos is { Count: > 0 })
+            {
+                consulta = consulta.Where(a => !idsServicioExcluidos.Contains(a.IdServicio));
+            }
+
             var conflictos = await consulta
-                .Select(a => new { a.IdConductor, a.IdVehiculo })
+                .Select(a => new
+                {
+                    a.IdConductor,
+                    NombreConductor = a.Conductor.Nombre,
+                    a.IdVehiculo,
+                    Patente = a.Vehiculo.Patente,
+                    a.IdServicio,
+                    a.Servicio.Fecha,
+                    a.Servicio.HoraInicio,
+                    a.Servicio.HoraFin
+                })
                 .ToListAsync();
 
-            if (conflictos.Any(c => c.IdConductor == idConductor))
+            var lineas = new List<string>();
+            foreach (var conflicto in conflictos.Where(c => c.IdConductor == idConductor).OrderBy(c => c.IdServicio))
             {
-                throw new ExcepcionNegocio(MensajeConductorOcupado, StatusCodes.Status409Conflict);
+                lineas.Add(MensajeConductor(
+                    conflicto.NombreConductor,
+                    conflicto.IdServicio,
+                    conflicto.Fecha,
+                    conflicto.HoraInicio,
+                    conflicto.HoraFin));
             }
 
-            if (conflictos.Any(c => c.IdVehiculo == idVehiculo))
+            foreach (var conflicto in conflictos.Where(c => c.IdVehiculo == idVehiculo).OrderBy(c => c.IdServicio))
             {
-                throw new ExcepcionNegocio(MensajeVehiculoOcupado, StatusCodes.Status409Conflict);
+                lineas.Add(MensajeVehiculo(
+                    conflicto.Patente,
+                    conflicto.IdServicio,
+                    conflicto.Fecha,
+                    conflicto.HoraInicio,
+                    conflicto.HoraFin));
+            }
+
+            if (lineas.Count > 0)
+            {
+                throw new ExcepcionNegocio(string.Join(' ', lineas), StatusCodes.Status409Conflict);
             }
         }
+
+        private static bool SeSuperponen(TimeOnly inicio, TimeOnly fin, TimeOnly otroInicio, TimeOnly otroFin)
+        {
+            return inicio < otroFin && fin > otroInicio;
+        }
+
+        private static string MensajeConductor(
+            string nombre,
+            int idServicio,
+            DateOnly fecha,
+            TimeOnly horaInicio,
+            TimeOnly horaFin)
+        {
+            return
+                $"El conductor {nombre} ya está asignado al servicio #{idServicio} del {fecha.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}, entre las {horaInicio.ToString("HH:mm", CultureInfo.InvariantCulture)} y las {horaFin.ToString("HH:mm", CultureInfo.InvariantCulture)}.";
+        }
+
+        private static string MensajeVehiculo(
+            string patente,
+            int idServicio,
+            DateOnly fecha,
+            TimeOnly horaInicio,
+            TimeOnly horaFin)
+        {
+            return
+                $"El vehículo {patente} ya está asignado al servicio #{idServicio} del {fecha.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}, entre las {horaInicio.ToString("HH:mm", CultureInfo.InvariantCulture)} y las {horaFin.ToString("HH:mm", CultureInfo.InvariantCulture)}.";
+        }
+
+        private sealed record AsignacionEnHorario(
+            int IdServicio,
+            int IdConductor,
+            string NombreConductor,
+            int IdVehiculo,
+            string Patente);
 
         private static AsignacionRespuestaDto Mapear(AsignacionServicio asignacion)
         {

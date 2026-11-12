@@ -154,6 +154,7 @@ public sealed class BasePruebasServicio : IDisposable
             null!,
             qr,
             reloj ?? new RelojOperacion(),
+            new ServicioAsignaciones(contexto, _registros.CreateLogger<ServicioAsignaciones>()),
             _registros.CreateLogger<ServicioServicios>());
     }
 

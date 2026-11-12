@@ -319,6 +319,7 @@ public class ProgramacionFechaChileTests
             null!,
             qr,
             new RelojFijo(ahoraUtc),
+            new ServicioAsignaciones(contexto, registros.CreateLogger<ServicioAsignaciones>()),
             registros.CreateLogger<ServicioServicios>());
     }
 
