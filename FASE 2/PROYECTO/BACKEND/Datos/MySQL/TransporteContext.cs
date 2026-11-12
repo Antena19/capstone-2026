@@ -1022,7 +1022,7 @@ namespace BACKEND.Datos.MySQL
                 entity.Property(e => e.IdLote)
                     .HasColumnName("id_lote")
                     .HasMaxLength(36)
-                    .HasColumnType("char(36)")
+                    .IsFixedLength()
                     .ValueGeneratedNever();
 
                 entity.Property(e => e.IdEmpresa)
@@ -1087,7 +1087,7 @@ namespace BACKEND.Datos.MySQL
                 entity.Property(e => e.IdLote)
                     .HasColumnName("id_lote")
                     .HasMaxLength(36)
-                    .HasColumnType("char(36)")
+                    .IsFixedLength()
                     .IsRequired();
 
                 entity.Property(e => e.IdServicio)
