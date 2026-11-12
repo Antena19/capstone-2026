@@ -447,13 +447,7 @@ namespace BACKEND.Negocio.Servicios
                     $"No está permitido cambiar el estado de {servicio.Estado} a {EstadoServicio.EN_CURSO}.");
             }
 
-            var (ahoraChile, hoyChile, _) = RelojChile.ObtenerInstante();
-
-            if (servicio.Fecha != hoyChile)
-            {
-                throw new ExcepcionNegocio("El servicio solo puede iniciarse en su fecha programada.");
-            }
-
+            var ahoraChile = RelojChile.EnChile(_reloj.UtcAhora);
             var inicioPlanificado = servicio.Fecha.ToDateTime(servicio.HoraInicio);
             var desde = inicioPlanificado.Subtract(VentanaInicioConductor);
             var hasta = inicioPlanificado.Add(VentanaInicioConductor);

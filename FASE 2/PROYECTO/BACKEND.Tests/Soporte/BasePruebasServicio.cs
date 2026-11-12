@@ -139,7 +139,7 @@ public sealed class BasePruebasServicio : IDisposable
             _registros.CreateLogger<ServicioCancelacionAutomatica>());
     }
 
-    public ServicioServicios CrearOperacion(TransporteContext contexto)
+    public ServicioServicios CrearOperacion(TransporteContext contexto, IRelojOperacion? reloj = null)
     {
         var qr = new ServicioQr(contexto, _registros.CreateLogger<ServicioQr>());
         var asistencias = new ServicioAsistencias(
@@ -153,7 +153,7 @@ public sealed class BasePruebasServicio : IDisposable
             asistencias,
             null!,
             qr,
-            new RelojOperacion(),
+            reloj ?? new RelojOperacion(),
             _registros.CreateLogger<ServicioServicios>());
     }
 

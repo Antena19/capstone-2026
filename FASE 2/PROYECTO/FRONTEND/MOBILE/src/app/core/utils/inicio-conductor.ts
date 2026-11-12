@@ -36,11 +36,23 @@ export function evaluarInicioConductor(
 }
 
 export function horaAperturaInicio(horaInicio: string): string {
-  const apertura = aSegundos('2000-01-02', horaInicio) - ANTICIPACION_SEGUNDOS;
-  const instante = new Date(apertura * 1000);
+  const instante = instanteApertura(horaInicio);
   const horas = String(instante.getUTCHours()).padStart(2, '0');
   const minutos = String(instante.getUTCMinutes()).padStart(2, '0');
   return `${horas}:${minutos}`;
+}
+
+export function textoAvisoAntesDeInicio(horaInicio: string): string {
+  const hora = horaAperturaInicio(horaInicio);
+  const diaAnterior = instanteApertura(horaInicio).getUTCDate() < 2;
+  return diaAnterior
+    ? `Podrás iniciar desde las ${hora} del día anterior.`
+    : `Podrás iniciar desde las ${hora}.`;
+}
+
+function instanteApertura(horaInicio: string): Date {
+  const apertura = aSegundos('2000-01-02', horaInicio) - ANTICIPACION_SEGUNDOS;
+  return new Date(apertura * 1000);
 }
 
 function aSegundos(fecha: string, hora: string): number {
