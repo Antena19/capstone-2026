@@ -10,7 +10,7 @@ export function clasificarErrorAsignacion(status: number, mensaje: string): Clas
     return 'ya-existia';
   }
 
-  if (texto.includes('horario superpuesto')) {
+  if (texto.includes('horario superpuesto') || texto.includes('ya está asignado')) {
     return 'horario';
   }
 
