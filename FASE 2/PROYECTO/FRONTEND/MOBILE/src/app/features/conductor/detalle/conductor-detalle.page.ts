@@ -21,7 +21,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { BarraNavegacionComponent } from '../../../shared/barra-navegacion/barra-navegacion.component';
 import { ServicioConductorDetalle } from '../../../core/models/conductor';
 import { MisServiciosService } from '../../../core/services/mis-servicios.service';
-import { evaluarInicioConductor, horaAperturaInicio } from '../../../core/utils/inicio-conductor';
+import { evaluarInicioConductor, textoAvisoAntesDeInicio } from '../../../core/utils/inicio-conductor';
 import {
   ContextoRefresco,
   crearRefrescoOperativo,
@@ -128,7 +128,7 @@ export class ConductorDetallePage implements ViewWillEnter, ViewWillLeave, OnDes
       new Date(this.instante()),
     );
     if (disponibilidad === 'antes') {
-      return `Podrás iniciar desde las ${horaAperturaInicio(servicio.horaInicio)}.`;
+      return textoAvisoAntesDeInicio(servicio.horaInicio);
     }
 
     if (disponibilidad === 'vencido') {

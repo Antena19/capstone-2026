@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { evaluarInicioPorReloj, horaAperturaInicio } from './inicio-conductor';
+import { evaluarInicioPorReloj, horaAperturaInicio, textoAvisoAntesDeInicio } from './inicio-conductor';
 
 const FECHA = '2026-10-17';
 
@@ -30,5 +30,16 @@ describe('ventana de inicio del conductor', () => {
     expect(evaluarInicioPorReloj('2026-10-18', '00:05:00', '2026-10-17', '23:35:00')).toBe('disponible');
     expect(horaAperturaInicio('07:00:00')).toBe('06:30');
     expect(horaAperturaInicio('00:05:00')).toBe('23:35');
+  });
+
+  it('indica el día anterior cuando la apertura cruza la medianoche', () => {
+    expect(textoAvisoAntesDeInicio('00:10:00')).toBe(
+      'Podrás iniciar desde las 23:40 del día anterior.',
+    );
+    expect(textoAvisoAntesDeInicio('00:05:00')).toBe(
+      'Podrás iniciar desde las 23:35 del día anterior.',
+    );
+    expect(textoAvisoAntesDeInicio('12:00:00')).toBe('Podrás iniciar desde las 11:30.');
+    expect(textoAvisoAntesDeInicio('00:30:00')).toBe('Podrás iniciar desde las 00:00.');
   });
 });

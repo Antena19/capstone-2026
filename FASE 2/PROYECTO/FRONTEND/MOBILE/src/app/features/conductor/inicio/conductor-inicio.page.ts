@@ -34,7 +34,7 @@ import {
   tieneTexto,
 } from '../../../core/utils/formato-servicio';
 import { actualizarVistaServicios, ocultarDestacado } from '../../../core/utils/composicion-listas';
-import { evaluarInicioConductor, horaAperturaInicio } from '../../../core/utils/inicio-conductor';
+import { evaluarInicioConductor, textoAvisoAntesDeInicio } from '../../../core/utils/inicio-conductor';
 import {
   ContextoRefresco,
   crearRefrescoOperativo,
@@ -205,7 +205,7 @@ export class ConductorInicioPage implements ViewWillEnter, ViewWillLeave, OnDest
 
     const disponibilidad = evaluarInicioConductor(servicio.fecha, servicio.horaInicio);
     if (disponibilidad === 'antes') {
-      return `Podrás iniciar desde las ${horaAperturaInicio(servicio.horaInicio)}.`;
+      return textoAvisoAntesDeInicio(servicio.horaInicio);
     }
 
     if (disponibilidad === 'vencido') {
