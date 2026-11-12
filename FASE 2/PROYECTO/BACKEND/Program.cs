@@ -13,6 +13,7 @@ using BACKEND.Negocio.Rutas;
 using BACKEND.Negocio.Ruteo;
 using BACKEND.Negocio.Seguridad;
 using BACKEND.Negocio.Servicios;
+using BACKEND.Negocio.Simulacion;
 using BACKEND.Negocio.Sms;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
@@ -271,6 +272,9 @@ builder.Services.AddSingleton<IRelojOperacion, RelojOperacion>();
 builder.Services.Configure<CancelacionAutomaticaOpciones>(
     builder.Configuration.GetSection(CancelacionAutomaticaOpciones.Seccion));
 builder.Services.AddScoped<IServicioCancelacionAutomatica, ServicioCancelacionAutomatica>();
+builder.Services.Configure<SimulacionOperacionalOpciones>(
+    builder.Configuration.GetSection(SimulacionOperacionalOpciones.Seccion));
+builder.Services.AddScoped<IServicioSimulacionOperacional, ServicioSimulacionOperacional>();
 builder.Services.AddHostedService<CancelacionServiciosNoIniciadosWorker>();
 builder.Services.AddScoped<IServicioAsignaciones, ServicioAsignaciones>();
 builder.Services.AddScoped<IServicioPasajerosServicio, ServicioPasajerosServicio>();

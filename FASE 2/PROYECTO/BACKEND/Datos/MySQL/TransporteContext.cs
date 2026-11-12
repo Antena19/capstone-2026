@@ -46,6 +46,12 @@ namespace BACKEND.Datos.MySQL
 
         public DbSet<ConfiguracionSistema> ConfiguracionesSistema => Set<ConfiguracionSistema>();
 
+        public DbSet<SimulacionLote> SimulacionesLote => Set<SimulacionLote>();
+
+        public DbSet<SimulacionServicio> SimulacionesServicio => Set<SimulacionServicio>();
+
+        public DbSet<SimulacionAsistencia> SimulacionesAsistencia => Set<SimulacionAsistencia>();
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Mapeo explícito a la estructura definida en transporte_personal.sql.
@@ -1006,6 +1012,197 @@ namespace BACKEND.Datos.MySQL
                     .HasColumnName("valor")
                     .HasMaxLength(255)
                     .IsRequired();
+            });
+
+            modelBuilder.Entity<SimulacionLote>(entity =>
+            {
+                entity.ToTable("simulacion_lote");
+                entity.HasKey(e => e.IdLote);
+
+                entity.Property(e => e.IdLote)
+                    .HasColumnName("id_lote")
+                    .HasMaxLength(36)
+                    .HasColumnType("char(36)")
+                    .ValueGeneratedNever();
+
+                entity.Property(e => e.IdEmpresa)
+                    .HasColumnName("id_empresa")
+                    .IsRequired();
+
+                entity.Property(e => e.IdPlanificacion)
+                    .HasColumnName("id_planificacion")
+                    .IsRequired();
+
+                entity.Property(e => e.Estado)
+                    .HasColumnName("estado")
+                    .HasConversion<string>()
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.Property(e => e.FechaInicio)
+                    .HasColumnName("fecha_inicio")
+                    .IsRequired();
+
+                entity.Property(e => e.FechaCierre)
+                    .HasColumnName("fecha_cierre");
+
+                entity.Property(e => e.FechaReversion)
+                    .HasColumnName("fecha_reversion");
+
+                entity.HasIndex(e => e.Estado)
+                    .HasDatabaseName("ix_simulacion_lote_estado");
+
+                entity.HasIndex(e => new { e.IdEmpresa, e.IdPlanificacion })
+                    .HasDatabaseName("ix_simulacion_lote_empresa_planificacion");
+
+                entity.HasOne(e => e.Empresa)
+                    .WithMany()
+                    .HasForeignKey(e => e.IdEmpresa)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_simulacion_lote_empresa");
+
+                entity.HasOne(e => e.Planificacion)
+                    .WithMany()
+                    .HasForeignKey(e => e.IdPlanificacion)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_simulacion_lote_planificacion");
+            });
+
+            modelBuilder.Entity<SimulacionServicio>(entity =>
+            {
+                entity.ToTable("simulacion_servicio", tabla =>
+                {
+                    tabla.HasCheckConstraint(
+                        "ck_simulacion_servicio_vigente",
+                        "(estado_marca = 'VIGENTE' AND id_servicio_vigente IS NOT NULL AND id_servicio_vigente = id_servicio) OR (estado_marca = 'REVERTIDO' AND id_servicio_vigente IS NULL)");
+                    tabla.HasCheckConstraint(
+                        "ck_simulacion_servicio_posterior",
+                        "estado_posterior = 'FINALIZADO'");
+                });
+                entity.HasKey(e => e.IdSimulacionServicio);
+
+                entity.Property(e => e.IdSimulacionServicio)
+                    .HasColumnName("id_simulacion_servicio");
+
+                entity.Property(e => e.IdLote)
+                    .HasColumnName("id_lote")
+                    .HasMaxLength(36)
+                    .HasColumnType("char(36)")
+                    .IsRequired();
+
+                entity.Property(e => e.IdServicio)
+                    .HasColumnName("id_servicio")
+                    .IsRequired();
+
+                entity.Property(e => e.EstadoMarca)
+                    .HasColumnName("estado_marca")
+                    .HasConversion<string>()
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.Property(e => e.IdServicioVigente)
+                    .HasColumnName("id_servicio_vigente");
+
+                entity.Property(e => e.EstadoAnterior)
+                    .HasColumnName("estado_anterior")
+                    .HasConversion<string>()
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.Property(e => e.EstadoPosterior)
+                    .HasColumnName("estado_posterior")
+                    .HasConversion<string>()
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.Property(e => e.FechaHoraInicioRealAnterior)
+                    .HasColumnName("fecha_hora_inicio_real_anterior");
+
+                entity.Property(e => e.FechaHoraInicioRealPosterior)
+                    .HasColumnName("fecha_hora_inicio_real_posterior");
+
+                entity.Property(e => e.FechaHoraFinRealAnterior)
+                    .HasColumnName("fecha_hora_fin_real_anterior");
+
+                entity.Property(e => e.FechaHoraFinRealPosterior)
+                    .HasColumnName("fecha_hora_fin_real_posterior");
+
+                entity.Property(e => e.MotivoCancelacionAnterior)
+                    .HasColumnName("motivo_cancelacion_anterior")
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.MotivoCancelacionPosterior)
+                    .HasColumnName("motivo_cancelacion_posterior")
+                    .HasMaxLength(50);
+
+                entity.HasIndex(e => new { e.IdLote, e.IdServicio })
+                    .IsUnique()
+                    .HasDatabaseName("uk_simulacion_servicio_lote_servicio");
+
+                entity.HasIndex(e => e.IdServicioVigente)
+                    .IsUnique()
+                    .HasDatabaseName("uk_simulacion_servicio_vigente");
+
+                entity.HasIndex(e => e.EstadoMarca)
+                    .HasDatabaseName("ix_simulacion_servicio_estado_marca");
+
+                entity.HasOne(e => e.Lote)
+                    .WithMany(l => l.Servicios)
+                    .HasForeignKey(e => e.IdLote)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_simulacion_servicio_lote");
+
+                entity.HasOne(e => e.Servicio)
+                    .WithMany()
+                    .HasForeignKey(e => e.IdServicio)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_simulacion_servicio_servicio");
+            });
+
+            modelBuilder.Entity<SimulacionAsistencia>(entity =>
+            {
+                entity.ToTable("simulacion_asistencia");
+                entity.HasKey(e => e.IdSimulacionAsistencia);
+
+                entity.Property(e => e.IdSimulacionAsistencia)
+                    .HasColumnName("id_simulacion_asistencia");
+
+                entity.Property(e => e.IdSimulacionServicio)
+                    .HasColumnName("id_simulacion_servicio")
+                    .IsRequired();
+
+                entity.Property(e => e.IdPasajero)
+                    .HasColumnName("id_pasajero")
+                    .IsRequired();
+
+                entity.Property(e => e.IdAsistencia)
+                    .HasColumnName("id_asistencia");
+
+                entity.HasIndex(e => new { e.IdSimulacionServicio, e.IdPasajero })
+                    .IsUnique()
+                    .HasDatabaseName("uk_simulacion_asistencia_pasajero");
+
+                entity.HasIndex(e => e.IdAsistencia)
+                    .IsUnique()
+                    .HasDatabaseName("uk_simulacion_asistencia_id");
+
+                entity.HasOne(e => e.SimulacionServicio)
+                    .WithMany(s => s.Asistencias)
+                    .HasForeignKey(e => e.IdSimulacionServicio)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_simulacion_asistencia_servicio");
+
+                entity.HasOne(e => e.Pasajero)
+                    .WithMany()
+                    .HasForeignKey(e => e.IdPasajero)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .HasConstraintName("fk_simulacion_asistencia_pasajero");
+
+                entity.HasOne(e => e.Asistencia)
+                    .WithMany()
+                    .HasForeignKey(e => e.IdAsistencia)
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .HasConstraintName("fk_simulacion_asistencia_asistencia");
             });
         }
     }
