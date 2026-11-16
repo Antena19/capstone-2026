@@ -198,7 +198,8 @@ builder.Services.AddCors(options =>
                 "http://localhost:4200",
                 "http://localhost:8100",
                 "https://localhost",
-                "capacitor://localhost")
+                "capacitor://localhost",
+                "https://refreshing-reflection-production-1692b5ed.up.railway.app")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .WithExposedHeaders("Content-Disposition");
