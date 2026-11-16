@@ -47,12 +47,34 @@
 
         <label>
           Contraseña
-          <input
-            type="password"
-            formControlName="password"
-            autocomplete="current-password"
-            [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
-          />
+          <span class="campo-password">
+            <input
+              [type]="mostrarPassword() ? 'text' : 'password'"
+              formControlName="password"
+              autocomplete="current-password"
+              [attr.aria-invalid]="form.controls.password.touched && form.controls.password.invalid"
+            />
+            <button
+              type="button"
+              class="ver-password"
+              (click)="alternarPassword()"
+              [attr.aria-pressed]="mostrarPassword()"
+              [attr.aria-label]="mostrarPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            >
+              @if (mostrarPassword()) {
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A10.8 10.8 0 0 1 12 5c5 0 9.3 3.1 11 7.5a11.8 11.8 0 0 1-4.1 5.1M6.1 6.1A11.7 11.7 0 0 0 1 12.5 11.8 11.8 0 0 0 8.2 18"
+                  />
+                </svg>
+              } @else {
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M2 12.5C3.7 8.1 8 5 12 5s8.3 3.1 10 7.5c-1.7 4.4-6 7.5-10 7.5S3.7 16.9 2 12.5Z" />
+                  <circle cx="12" cy="12.5" r="3" />
+                </svg>
+              }
+            </button>
+          </span>
           @if (form.controls.password.touched && form.controls.password.invalid) {
             <span class="campo-error">Ingrese su contraseña.</span>
           }

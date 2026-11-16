@@ -194,7 +194,7 @@ label {
 }
 
 input[type='email'],
-input[type='password'] {
+.campo-password input {
   @include ui.control;
   width: 100%;
   max-width: 100%;
@@ -202,8 +202,49 @@ input[type='password'] {
 }
 
 input[type='email']:focus,
-input[type='password']:focus {
+.campo-password input:focus {
   @include ui.control-focus;
+}
+
+.campo-password {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.campo-password input {
+  padding-right: 44px;
+}
+
+.ver-password {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #7a6568;
+  transform: translateY(-50%);
+}
+
+.ver-password:hover {
+  background: #f7f3f5;
+  color: #2b161b;
+}
+
+.ver-password svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .campo-error,

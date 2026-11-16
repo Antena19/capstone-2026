@@ -29,6 +29,7 @@ export class LoginPage {
   readonly bloques = BLOQUES_ACCESO;
   readonly enviando = signal(false);
   readonly error = signal<string | null>(null);
+  readonly mostrarPassword = signal(false);
   readonly anio = new Date().getFullYear();
 
   readonly form = this.fb.nonNullable.group({
@@ -36,6 +37,10 @@ export class LoginPage {
     password: ['', Validators.required],
     recordar: [false],
   });
+
+  alternarPassword(): void {
+    this.mostrarPassword.update((visible) => !visible);
+  }
 
   enviar(): void {
     if (this.form.invalid || this.enviando()) {
