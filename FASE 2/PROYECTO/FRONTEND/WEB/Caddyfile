@@ -1,5 +1,7 @@
-http://0.0.0.0:{$PORT} {
-	root * /srv
-	try_files {path} /index.html
-	file_server
+:{$PORT} {
+    bind 0.0.0.0
+
+    root * /srv
+    try_files {path} /index.html
+    file_server
 }
